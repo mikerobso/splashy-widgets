@@ -460,6 +460,18 @@
   }
 
   function finishStep(finalTargetIdx){
+    // The slide is done. Any card now fully off-screen (outside the visible
+    // window [centreSlot-1 .. centreSlot+1]) must stop playing — otherwise a
+    // video that just slid off keeps its audio running until it is recycled
+    // a step later. Doing it here (after the slide) avoids a mid-slide flash.
+    cards.forEach(function(c){
+      if (c.slot < centreSlot - 1 || c.slot > centreSlot + 1){
+        if (!c.video.paused || c.video.style.display === "block"){
+          resetCard(c);
+        }
+      }
+    });
+
     busy = false;
     // Continue stepping toward a multi-step dot target.
     if (typeof finalTargetIdx === "number" && current !== finalTargetIdx){
