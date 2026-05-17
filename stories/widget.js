@@ -40,9 +40,14 @@
       ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:30px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
       ".sst-row::-webkit-scrollbar{display:none}",
       ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;width:168px}",
-      ".sst-ring{width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
+      ".sst-ring{position:relative;width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
+      // Hover shimmer: a conic-gradient overlay with one bright arc that
+      // rotates once around the ring. Desktop hover only; sits over the
+      // coloured ring band but under the photo (.sst-ring-inner).
+      ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1}",
+      "@media(hover:hover){.sst-item:hover .sst-ring::before{opacity:1;transform:rotate(360deg);transition:transform 1.1s ease-in-out,opacity .12s ease}}",
       ".sst-item:hover .sst-ring{transform:scale(1.06)}",
-      ".sst-ring-inner{width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
+      ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
       ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
