@@ -398,6 +398,13 @@
     //   +step so current still LOOKS centered. This puts nextIdx+1 at slot 2,
     //   right at the right edge — mirroring exactly what left gets for free.
 
+    // Reset any cards already outside the 3-card window BEFORE animating,
+    // so they're clean before they could possibly slide back into view
+    cards.forEach(function(c){
+      var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
+      if (Math.abs(diff) > 1) resetCard(c);
+    });
+
     if (dir === 1) {
       setDOMOrder(nextIdx);
       setTranslate(centerX() + step, false); // current is at slot 0, visually centered
