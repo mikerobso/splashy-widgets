@@ -377,7 +377,9 @@
 
     // Handle outgoing audio
     if (activeFade){ clearInterval(activeFade); activeFade=null; }
-    if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
+    // Only fadeOutAndReset when going right — current slides to slot 0 and leaves.
+    // Going left, current slides to slot 2 and stays visible, so don't reset it.
+    if (dir === 1 && !cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
     if (dir === 1) {
