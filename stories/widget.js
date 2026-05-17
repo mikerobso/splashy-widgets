@@ -86,6 +86,8 @@
       ".sst-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}",
       ".sst-mute-btn{position:absolute;bottom:54px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;padding:0;-webkit-tap-highlight-color:transparent}",
       ".sst-mute-btn svg{width:16px;height:16px}",
+      ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
+      ".sst-speed.visible{opacity:1}",
       // Progress bar
       ".sst-progress{position:absolute;bottom:0;left:0;right:0;height:20px;z-index:20;cursor:pointer;display:flex;align-items:flex-end}",
       ".sst-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);pointer-events:none}",
@@ -94,7 +96,7 @@
       // Overlay arrows — in-flow flex items beside the stage; forced circles
       ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",
-      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:auto!important;width:auto!important;max-height:84vh;max-width:92vw;aspect-ratio:9/16;border-radius:16px}.sst-stagebox{max-width:92vw}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;background:rgba(0,0,0,.4)!important;z-index:5}.sst-arrow--left{left:6px}.sst-arrow--right{right:6px}.sst-close{position:absolute!important;top:-52px;right:0;left:auto}}"
+      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:80vh!important;max-height:80vh!important;width:auto!important;max-width:92vw;aspect-ratio:9/16;border-radius:16px}.sst-stagebox{max-width:92vw}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;background:rgba(0,0,0,.4)!important;z-index:5}.sst-arrow--left{left:6px}.sst-arrow--right{right:6px}.sst-close{position:absolute!important;top:-52px;right:0;left:auto}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -104,6 +106,7 @@
   if (!container) { console.warn("Splshy Stories: no element '"+containerId+"'"); return; }
 
   var globalMuted = false;
+  var userUnmuted = false;   // true once the user explicitly unmutes
 
   // ── Build the circles row ───────────────────────────
   var widget = document.createElement("div");
@@ -171,7 +174,7 @@
     '<div class="sst-stagebox">' +
       '<button class="sst-close" aria-label="Close">&times;</button>' +
       '<div class="sst-stage">' +
-        '<video class="sst-video" playsinline preload="metadata"></video>' +
+        '<video class="sst-video" playsinline webkit-playsinline muted preload="auto"></video>' +
         '<div class="sst-top">' +
           '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
             '<div class="sst-logo">'+resolvedLogo+'</div>' +
@@ -181,6 +184,7 @@
         '</div>' +
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
         '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
+        '<div class="sst-speed">2&times; speed</div>' +
         '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
       '</div>' +
@@ -196,6 +200,7 @@
   var ringEl   = overlay.querySelector(".sst-timer-ring");
   var timerTx  = overlay.querySelector(".sst-timer-text");
   var pauseInd = overlay.querySelector(".sst-pause-ind");
+  var speedEl  = overlay.querySelector(".sst-speed");
   var muteBtn  = overlay.querySelector(".sst-mute-btn");
   var progBar  = overlay.querySelector(".sst-progress");
   var progFill = overlay.querySelector(".sst-progress-fill");
@@ -216,22 +221,38 @@
     if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
     cur = mod(i, n);
     var reel = reels[cur];
-    video.src = reel.videoUrl;
-    if (reel.posterUrl) video.setAttribute("poster", reel.posterUrl);
     titleEl.textContent = reel.videoTitle || reel.label || "";
-    video.muted = globalMuted;
-    video.currentTime = 0;
     progFill.style.width = "0%"; progThumb.style.left = "0%";
     ringEl.style.strokeDashoffset = 0;
     timerTx.textContent = "--";
     pauseInd.classList.remove("visible");
+
+    // Mobile browsers block autoplay WITH sound — so on mobile we must start
+    // muted or the video never starts (it just sits on the poster showing the
+    // native play button). Desktop can usually start with sound after the tap.
+    if (isMobileLayout() && !userUnmuted) globalMuted = true;
+    video.muted = globalMuted;
     syncMuteIcon();
-    var p = video.play();
-    if (p && p.catch) p.catch(function(){
-      // Browser blocked sound-on autoplay — fall back to muted.
-      video.muted = true; globalMuted = true; syncMuteIcon();
-      var p2 = video.play(); if (p2 && p2.catch) p2.catch(function(){});
-    });
+
+    if (reel.posterUrl) video.setAttribute("poster", reel.posterUrl);
+    video.src = reel.videoUrl;
+    video.load();
+
+    function tryPlay(){
+      var p = video.play();
+      if (p && p.catch) p.catch(function(){
+        // Still blocked — force muted and try once more.
+        video.muted = true; globalMuted = true; syncMuteIcon();
+        var p2 = video.play(); if (p2 && p2.catch) p2.catch(function(){});
+      });
+    }
+    // Play as soon as there's enough data; also try immediately in case it's
+    // already buffered (e.g. navigating between reels).
+    if (video.readyState >= 2){ tryPlay(); }
+    else {
+      var once = function(){ video.removeEventListener("loadeddata", once); tryPlay(); };
+      video.addEventListener("loadeddata", once);
+    }
   }
 
   // Remembers which ring the overlay popped out of, so closing can pop back.
@@ -425,6 +446,7 @@
   muteBtn.addEventListener("click", function(e){
     e.stopPropagation();
     globalMuted = !globalMuted;
+    if (!globalMuted) userUnmuted = true;   // user opted into sound
     video.muted = globalMuted;
     syncMuteIcon();
   });
