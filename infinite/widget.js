@@ -215,15 +215,12 @@
       var muteBtn=card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
-        // Rule: only one video plays at a time. Pause any other playing video
-        // on its current frame (instant, no audio fade) — do NOT reset it.
+        // Rule: when a video starts playing, every other card reverts to its
+        // thumbnail. (A video paused on its own — with nothing else playing —
+        // is left on its pause frame; that case is handled by the card click
+        // pause handler, not here.)
         cards.forEach(function(c){
-          if (c.video === video) return;
-          if (!c.video.paused){
-            c.video.pause();
-            var pi = c.el.querySelector(".sif-pause-ind");
-            if (pi) pi.classList.add("visible");
-          }
+          if (c.video !== video) resetCard(c);
         });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
