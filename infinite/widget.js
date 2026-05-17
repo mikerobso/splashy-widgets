@@ -3,9 +3,17 @@
   /* ====================================================
      Splshy Infinite Swipe Carousel
      splshy.com/infinite/widget.js
+
+     Multi-instance: each embed pushes its config object to
+     window.SPLSHY_INFINITE_QUEUE. This script initialises every
+     queued config, so any number of infinite carousels can live
+     on the same page. (The legacy single global window.SPLSHY_INFINITE
+     is still honoured for backward compatibility.)
   ==================================================== */
 
-  var cfg           = window.SPLSHY_INFINITE || {};
+  function initWidget(cfg) {
+
+  cfg               = cfg || {};
   var reels         = cfg.reels              || [];
   var followerCount = cfg.followerCount      || "";
   var igUrl         = cfg.igUrl             || "https://www.instagram.com/";
@@ -568,6 +576,9 @@
   viewport.addEventListener("mouseleave",function(){ msStart=null; msDrag=false; });
 
   document.addEventListener("keydown",function(e){
+    // Only respond to arrow keys when the pointer is over THIS carousel,
+    // so multiple carousels on a page don't all move at once.
+    if (!widget.matches(":hover")) return;
     if (e.key==="ArrowLeft") navigate(mod(current-1,n));
     if (e.key==="ArrowRight") navigate(mod(current+1,n));
   });
@@ -575,5 +586,32 @@
   window.addEventListener("resize",function(){
     relayout();
   });
+
+  } // end initWidget
+
+  // ── Multi-instance bootstrap ─────────────────────────
+  // Process every queued config. Each embed does:
+  //   (window.SPLSHY_INFINITE_QUEUE = window.SPLSHY_INFINITE_QUEUE || []).push(cfg)
+  // We replace the queue's push with one that initialises immediately, so
+  // configs added before OR after this script loads are all handled.
+  function processQueue(){
+    var q = window.SPLSHY_INFINITE_QUEUE;
+    if (q && q.length){
+      // Drain any configs queued before the script loaded.
+      while (q.length){ initWidget(q.shift()); }
+    }
+    // Replace the array with a live object whose push() inits on the spot,
+    // so embeds appearing later on the page still work.
+    window.SPLSHY_INFINITE_QUEUE = {
+      push: function(cfg){ initWidget(cfg); }
+    };
+  }
+
+  // Backward compatibility: honour a single legacy global config.
+  if (window.SPLSHY_INFINITE && window.SPLSHY_INFINITE.reels){
+    initWidget(window.SPLSHY_INFINITE);
+  }
+
+  processQueue();
 
 })();
