@@ -38,8 +38,8 @@
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
       /* Mobile: dim side cards */
-      "@media(max-width:767px){.sif-card{transform:scale(0.627);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.627);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(max-width:767px){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}}",
       /* Poster */
@@ -372,10 +372,20 @@
   var centreSlot = 1;   // slot currently centred (start so cards[0] is centre)
 
   // Position one card according to its slot.
+  // Desktop: absolute `left` on the track. Mobile: a per-card transform
+  // relative to the centre (no transition — used for off-screen recycling).
   function placeCard(c){
     c.el.style.position = "absolute";
     c.el.style.top      = "0";
-    c.el.style.left     = (c.slot * getStep()) + "px";
+    if (isMobileLayout()){
+      c.el.style.left       = "50%";
+      c.el.style.marginLeft = (-getCardW()/2) + "px";
+      c.el.style.transition = "none";
+      c.el.style.transform  = mobileCardTransform(c.slot - centreSlot);
+      c.el.offsetHeight;                       // force reflow so the jump is instant
+    } else {
+      c.el.style.left = (c.slot * getStep()) + "px";
+    }
   }
 
   // Place every card.
@@ -403,12 +413,46 @@
   // Centred means  T + centreSlot*step = centreOffset()
   //            ->  T = centreOffset() - centreSlot*step
   function setTrack(animated){
+    if (isMobileLayout()){ applyMobileLayout(animated); return; }
     track.style.transition = animated
       ? ("transform " + (slideMs()/1000) + "s " + slideEasing())
       : "none";
     var T = centreOffset() - centreSlot * getStep();
     track.style.transform = "translateX(" + T + "px)";
     if (!animated) track.offsetHeight;        // force reflow
+  }
+
+  // ── Mobile movement model (ported from the reels carousel) ──────────
+  // On mobile we do NOT move a track. Instead every card positions ITSELF
+  // with one combined `transform: translateX() scale()`, relative to the
+  // centre. When centreSlot changes, each card animates its own transform
+  // from its old spot to its new spot — slide and scale locked together,
+  // exactly like the reels carousel. Recycled (off-screen) cards jump with
+  // no transition. Desktop still uses the track model above.
+  function mobileCardTransform(rel){
+    var step  = getStep();                       // centre-to-centre distance
+    var x     = rel * step;                      // lateral offset from centre
+    var scale = (rel === 0) ? 1 : 0.627;         // active full size, sides smaller
+    return "translateX(" + x + "px) scale(" + scale + ")";
+  }
+  function applyMobileLayout(animated){
+    var trans = animated
+      ? ("transform " + slideMs() + "ms " + slideEasing() +
+         ",filter " + slideMs() + "ms " + slideEasing())
+      : "none";
+    // The track itself never moves on mobile.
+    track.style.transition = "none";
+    track.style.transform  = "translateX(0px)";
+    cards.forEach(function(c){
+      var rel = c.slot - centreSlot;
+      c.el.style.position = "absolute";
+      c.el.style.top      = "0";
+      c.el.style.left     = "50%";               // anchor; transform does the rest
+      c.el.style.marginLeft = (-getCardW()/2) + "px";
+      c.el.style.transition = trans;
+      c.el.style.transform  = mobileCardTransform(rel);
+      if (!animated) c.el.offsetHeight;          // force reflow on instant moves
+    });
   }
 
   // Reel index of the card occupying `centreSlot`.
@@ -419,8 +463,15 @@
 
   function updateUI(){
     current = centreReel();
+    // Desktop: sync each card's scale transition to the slide (mobile is
+    // handled entirely by applyMobileLayout, which sets its own transitions).
+    var desktop = !isMobileLayout();
+    var cardTrans = "filter " + slideMs() + "ms " + slideEasing() +
+                    ",box-shadow " + slideMs() + "ms " + slideEasing() +
+                    ",transform " + slideMs() + "ms " + slideEasing();
     cards.forEach(function(c){
       var active = (c.slot === centreSlot);
+      if (desktop) c.el.style.transition = cardTrans;
       c.el.classList.toggle("is-active", active);
       // The active card must sit ON TOP of the side cards it overlaps.
       // Cards nearer the centre stack above ones further away.
