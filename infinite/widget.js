@@ -409,44 +409,56 @@
     targetReelIdx = mod(targetReelIdx, n);
     if (targetReelIdx === current) return;
 
-    // Determine direction
     var delta = targetReelIdx - current;
     if (delta >  Math.floor(n/2)) delta -= n;
     if (delta < -Math.floor(n/2)) delta += n;
     var dir = delta > 0 ? 1 : -1;
-
-    // We only support stepping one at a time for the slide animation
-    // For dot clicks that jump multiple steps, we step one at a time
-    // For simplicity: just step by 1 in the right direction per click
     var nextReelIdx = mod(current + dir, n);
 
     busy = true;
 
-    // Fade out audio if playing, but don't reset yet — card stays visible during slide
+    // Fade out audio if playing, leave paused frame as-is
     if (activeFade) { clearInterval(activeFade); activeFade = null; }
     var outgoing = cards[current];
-    if (!outgoing.video.paused) {
-      fadeOutAndReset(outgoing);
+    if (!outgoing.video.paused) { fadeOutAndReset(outgoing); }
+
+    // Step 1: rebuild DOM so current is at centerSlot AND
+    // the incoming card is already physically adjacent on the correct side.
+    // We do this without animation, then start the animated slide.
+    var incomingReelIdx = nextReelIdx;
+
+    // Build DOM order: place incoming card on the correct side of current
+    // If dir=+1 (going right): order is [..., prev, current, incoming, ...]
+    // If dir=-1 (going left):  order is [..., incoming, current, next, ...]
+    var orderedReelIdxs = [];
+    for (var offset = -centerSlot; offset < n - centerSlot; offset++) {
+      orderedReelIdxs.push(mod(current + offset, n));
     }
-    // If paused, leave it on the current frame — it will reset when it leaves the window
 
-    // Before animating, we need the target card to be in the DOM at the correct side
-    // Current setup: current card is at DOM slot `centerSlot`
-    // If going right (dir=+1), target should be at slot centerSlot+1
-    // If going left  (dir=-1), target should be at slot centerSlot-1
-    // rotateDOMTo already placed cards around current, so next/prev are already there.
+    // Reset cards not in this window
+    var visibleIdxs = [];
+    for (var v = -centerSlot; v <= centerSlot; v++) {
+      visibleIdxs.push(mod(current + v, n));
+    }
+    cards.forEach(function(c) {
+      if (visibleIdxs.indexOf(c.reelIdx) === -1) resetCard(c);
+    });
 
-    // Slide track by one step in `dir` direction
-    var currentX = getTranslateForSlot(centerSlot);
-    var targetX  = currentX - dir * getStep();
+    // Apply DOM order without animation
+    track.classList.remove("animated");
+    orderedReelIdxs.forEach(function(ri) { track.appendChild(cards[ri].el); });
+    track.style.transform = "translateX("+getTranslateForSlot(centerSlot)+"px)";
+    track.offsetHeight; // force reflow
 
-    setTranslate(targetX, true);
+    // Step 2: animate slide in the correct direction
+    track.classList.add("animated");
+    var targetX = getTranslateForSlot(centerSlot) - dir * getStep();
+    track.style.transform = "translateX("+targetX+"px)";
 
-    // After animation completes, update state and re-center DOM silently
     setTimeout(function(){
       current = nextReelIdx;
 
-      // Silently re-center DOM
+      // Silently re-center DOM to new current
       track.classList.remove("animated");
       rotateDOMTo(current);
       track.style.transform = "translateX("+getTranslateForSlot(centerSlot)+"px)";
@@ -455,7 +467,6 @@
       updateUI();
       busy = false;
 
-      // If we still need to keep going (dot click jumped multiple)
       if (nextReelIdx !== targetReelIdx) {
         setTimeout(function(){ navigate(targetReelIdx); }, 50);
       }
