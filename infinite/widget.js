@@ -398,13 +398,11 @@
     //   +step so current still LOOKS centered. This puts nextIdx+1 at slot 2,
     //   right at the right edge — mirroring exactly what left gets for free.
 
-    // Reset cards that are off-screen. We do this before animating.
-    // For dir=+1: DOM is centered on nextIdx, so visible = [nextIdx-1, nextIdx, nextIdx+1]
-    // For dir=-1: DOM is centered on current, so visible = [current-1, current, current+1]
-    // Anything outside that set is off-screen and safe to reset now.
-    var visibleNow = (dir === 1)
-      ? [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)]
-      : [mod(current-1,n), current, mod(current+1,n)];
+    // Both directions: pre-center DOM on nextIdx so visibleNow is always the
+    // correct 3-slot window. Offset translateX so current still appears centered.
+    // dir=+1: current ends up at slot 0 (left of nextIdx), offset = +step
+    // dir=-1: current ends up at slot 2 (right of nextIdx), offset = -step
+    var visibleNow = [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)];
     console.log('navigate dir='+dir+' current='+current+' nextIdx='+nextIdx+' visibleNow='+JSON.stringify(visibleNow));
     cards.forEach(function(c){
       if (visibleNow.indexOf(c.reelIdx) === -1) {
@@ -413,17 +411,11 @@
       }
     });
 
-    if (dir === 1) {
-      setDOMOrder(nextIdx);
-      setTranslate(centerX() + step, false); // current is at slot 0, visually centered
-    } else {
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
-    }
+    setDOMOrder(nextIdx);
+    setTranslate(centerX() + dir * step, false); // offset so current appears centered
 
-    // Animate: right goes to centerX(), left goes to centerX() + step (= 0)
-    var targetX = (dir === 1) ? centerX() : centerX() + step;
-    setTranslate(targetX, true);
+    // Animate to centerX() — nextIdx slides into slot 1 from either side
+    setTranslate(centerX(), true);
 
     // 3. After animation: update current, reset DOM to new center, snap back
     setTimeout(function(){
