@@ -387,7 +387,7 @@
   //          so the slide feels calmer (it reads as "fast" otherwise because
   //          the mobile step travels a shorter distance).
   function slideEasing(){
-    return isMobileLayout() ? "cubic-bezier(.45,.05,.3,1)" : "cubic-bezier(.4,0,.2,1)";
+    return isMobileLayout() ? "cubic-bezier(.4,.12,.3,1)" : "cubic-bezier(.4,0,.2,1)";
   }
 
   // Centred means  T + centreSlot*step = centreOffset()
