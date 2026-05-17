@@ -215,16 +215,9 @@
       var muteBtn=card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
-        // Rule: when a video starts playing, every other card reverts to its
-        // thumbnail. (A video paused on its own — with nothing else playing —
-        // is left on its pause frame; that case is handled by the card click
-        // pause handler, not here.)
-        cards.forEach(function(c){
-          if (c.video !== video) resetCard(c);
-        });
+        cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
-        var pind=card.querySelector(".sif-pause-ind"); if (pind) pind.classList.remove("visible");
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
       muteBtn.addEventListener("click",function(e){
@@ -285,59 +278,76 @@
     })(ri);
   }
 
-  // ── Track translation ────────────────────────────────
-  // The track contains all n cards in a fixed DOM order.
-  // We always keep 3 cards arranged: [prev | current | next]
-  // by rotating the DOM order silently, then animating translateX.
+
+  // ════════════════════════════════════════════════════
+  //  CAROUSEL ENGINE  (rebuilt — clean, infinite, smooth)
   //
-  // Key insight: the track DOM order is ALWAYS:
-  //   [ mod(current-1,n), current, mod(current+1,n), ...rest ]
-  // And the track is translated so DOM slot 1 (current) is centered.
-  // Slot 1 center = viewport_width/2 - card_width/2 - 1*(card_width+gap)
+  //  Each card has an integer `slot` (its position on an infinite line of
+  //  card positions). A card is absolutely positioned at  left = slot*step.
+  //  The track is translated by `T`; a card's on-screen x = T + slot*step.
   //
-  // To slide RIGHT: new DOM order becomes [current, next, mod(next+1,n), ...rest]
-  //   We pre-set this order WITHOUT animation at the same visual position,
-  //   then animate to center slot 1 (which is now "next").
-  // To slide LEFT:  new DOM order becomes [mod(prev-1,n), prev, current, ...rest]
-  //   Same pattern.
+  //  The viewport shows 3 cards. A card is CENTRED when  T + slot*step = step
+  //  → so to centre `centreSlot`,  T = (1 - centreSlot) * step.
+  //
+  //  Navigation just changes `centreSlot` by ±1 and animates `T` to the new
+  //  value. `T` is monotonic — never reset, never snapped — so every slide
+  //  is perfectly smooth in both directions.
+  //
+  //  Infinite wrap: only n cards exist, slots are unbounded. After a step,
+  //  any card that fell outside the visible 3-window is recycled: its slot
+  //  shifts by ±n, teleporting it to the far side. That happens while the
+  //  card is OFF-SCREEN, so it's invisible. A recycled card is reset to its
+  //  thumbnail so it scrolls back in clean.
+  //
+  //  Card DOM nodes never move (no appendChild) — so a playing <video> is
+  //  never detached and never pauses. Only `left` and the track `transform`
+  //  ever change.
+  // ════════════════════════════════════════════════════
+
+  // Switch the track + cards to absolute positioning (overrides the flex CSS).
+  track.style.position = "relative";
+  track.style.display  = "block";
+  track.style.height   = "100%";
 
   function getStep(){
     var vw = viewport.offsetWidth;
     var cw = cards[0] ? cards[0].el.offsetWidth : 220;
-    // 3 cards + 2 gaps = viewport width => gap = (vw - 3*cw)/2
-    return cw + Math.max(0,(vw - 3*cw)/2);
+    return cw + Math.max(0, (vw - 3*cw)/2);   // one card + one gap
   }
 
-  function setTranslate(x, animated){
-    if (!animated){
-      track.style.transition = "none";
-      track.style.transform  = "translateX("+x+"px)";
-      track.offsetHeight; // force reflow — critical
-    } else {
-      track.style.transition = "transform .46s cubic-bezier(.4,0,.2,1)";
-      track.style.transform  = "translateX("+x+"px)";
-    }
+  var centreSlot = 1;   // slot currently centred (start so cards[0] is centre)
+
+  // Position one card according to its slot.
+  function placeCard(c){
+    c.el.style.position = "absolute";
+    c.el.style.top      = "0";
+    c.el.style.left     = (c.slot * getStep()) + "px";
   }
 
-  // Arrange cards into the visual order with `centerIdx` at slot 1.
-  // We use the CSS `order` property on the flex children instead of moving
-  // DOM nodes — moving a node detaches it and pauses any playing <video>,
-  // whereas changing `order` is purely visual and never disturbs playback.
-  function setDOMOrder(centerIdx){
-    for (var i = 0; i < n; i++){
-      var ri = mod(centerIdx - 1 + i, n);
-      cards[ri].el.style.order = i;
-    }
+  // Place every card.
+  function placeAll(){
+    cards.forEach(placeCard);
   }
 
-  // X translation so DOM slot 1 is centered in viewport
-  function centerX(){
-    var step = getStep();
-    return -step; // slot 0 is off-left, slot 1 (center) starts at x=-step
+  // Move the track so `centreSlot` is centred.
+  function setTrack(animated){
+    track.style.transition = animated
+      ? "transform .46s cubic-bezier(.4,0,.2,1)"
+      : "none";
+    var T = (1 - centreSlot) * getStep();
+    track.style.transform = "translateX(" + T + "px)";
+    if (!animated) track.offsetHeight;        // force reflow
+  }
+
+  // Reel index of the card occupying `centreSlot`.
+  function centreReel(){
+    for (var i=0;i<n;i++) if (cards[i].slot === centreSlot) return cards[i].reelIdx;
+    return current;
   }
 
   function updateUI(){
-    cards.forEach(function(c){ c.el.classList.toggle("is-active", c.reelIdx===current); });
+    current = centreReel();
+    cards.forEach(function(c){ c.el.classList.toggle("is-active", c.slot===centreSlot); });
     dots.forEach(function(d,i){ d.classList.toggle("is-active", i===current); });
   }
 
@@ -354,97 +364,81 @@
     var pb=c.el.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
   }
 
-  function fadeOutAndReset(c){
-    var vid=c.video;
-    if (vid.paused||vid.volume===0) return;
-    var fade=setInterval(function(){
-      if (vid.volume>0.05){ vid.volume=Math.max(0,vid.volume-0.05); }
-      else { clearInterval(fade); if (activeFade===fade) activeFade=null; vid.volume=1; resetCard(c); }
-    },30);
-    activeFade=fade;
+  function pauseCardOnFrame(c){
+    if (c.video.style.display==="block" && !c.video.paused){
+      c.video.pause();
+      var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.add("visible");
+    }
   }
 
-  // Initial setup
-  setDOMOrder(current);
-  setTranslate(centerX(), false);
-  updateUI();
+  // ── Initial layout ───────────────────────────────────
+  // Invariant: cards always occupy the n consecutive slots
+  //   [centreSlot-1 .. centreSlot+n-2]
+  // so both side slots are always populated and there is always a card
+  // ready to scroll in from either direction.
+  // Start with reelIdx 0 centred (slot 0) and reelIdx n-1 on slot -1.
+  (function initEngine(){
+    centreSlot = 0;
+    for (var i=0;i<n;i++){
+      cards[i].slot = (i === n-1) ? -1 : i;
+    }
+    placeAll();
+    setTrack(false);
+    updateUI();
+  })();
 
   // ── Navigate ─────────────────────────────────────────
   function navigate(targetIdx){
     if (busy) return;
     targetIdx = mod(targetIdx, n);
     if (targetIdx === current) return;
-
     var delta = targetIdx - current;
-    if (delta >  Math.floor(n/2)) delta -= n;
-    if (delta < -Math.floor(n/2)) delta += n;
-    var dir       = delta > 0 ? 1 : -1;
-    var nextIdx   = mod(current + dir, n);
-    var step      = getStep();
+    if (delta >  n/2) delta -= n;
+    if (delta < -n/2) delta += n;
+    step(delta > 0 ? 1 : -1, targetIdx);
+  }
 
+  function step(dir, finalTargetIdx){
+    if (busy) return;
     busy = true;
 
-    if (activeFade){ clearInterval(activeFade); activeFade=null; }
+    // Advance the centre and animate the track. T is monotonic — no snap.
+    centreSlot += dir;
+    setTrack(true);
+    updateUI();
 
-    // Cards currently visible (the 3-card window before this step)
-    var visibleBefore = [mod(current-1,n), current, mod(current+1,n)];
-    // Cards visible AFTER this step (the new 3-card window)
-    var visibleAfter  = [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)];
+    // New occupied band: [centreSlot-1 .. centreSlot+n-2].
+    var bandLo = centreSlot - 1;
+    var bandHi = centreSlot + n - 2;
 
-    // Reset cards that are ALREADY off-screen (not visible before or after) —
-    // safe to reset immediately so they reappear as clean thumbnails.
-    cards.forEach(function(c){
-      var offBefore = visibleBefore.indexOf(c.reelIdx) === -1;
-      var offAfter  = visibleAfter.indexOf(c.reelIdx) === -1;
-      if (offBefore && offAfter) resetCard(c);
-    });
-
-    // The single card that is visible NOW but leaves AFTER this step is the
-    // "outgoing" card — it must finish sliding off before we reset it.
-    var outgoing = null;
-    cards.forEach(function(c){
-      if (visibleBefore.indexOf(c.reelIdx) !== -1 &&
-          visibleAfter.indexOf(c.reelIdx)  === -1){
-        outgoing = c;
-      }
-    });
-
-    // ── The key sequence ──────────────────────────────
-    // dir=-1 (left): DOM centered on `current` — incoming card sits at slot 0
-    //   (left edge), ready to slide in. Animate track to centerX()+step (=0).
-    // dir=+1 (right): DOM centered on `nextIdx` — incoming card's successor
-    //   sits at slot 2 (right edge), ready to slide in. Offset start by +step
-    //   so `current` still appears centered. Animate track to centerX().
-    if (dir === 1){
-      setDOMOrder(nextIdx);
-      setTranslate(centerX() + step, false);
-    } else {
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
-    }
-
-    var targetX = (dir === 1) ? centerX() : centerX() + step;
-    setTranslate(targetX, true);
-
-    // After the animation: commit `current`, reset the outgoing card now that
-    // it has finished sliding off-screen, then re-center the DOM.
+    // After the slide completes: exactly one card now lies outside the band.
+    // Recycle it ±n to the newly-vacant slot on the far side. It is off-screen
+    // at that moment, so the jump is invisible. Reset it to its thumbnail.
     setTimeout(function(){
-      current = nextIdx;
+      cards.forEach(function(c){
+        if (c.slot < bandLo || c.slot > bandHi){
+          c.slot += dir * n;
+          placeCard(c);
+          resetCard(c);
+        }
+      });
 
-      if (outgoing) resetCard(outgoing);
-
-      // Re-center DOM on new current (setDOMOrder preserves playing videos)
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
-
-      updateUI();
       busy = false;
 
-      // Continue stepping if a dot jump spanned multiple positions
-      if (nextIdx !== targetIdx){
-        setTimeout(function(){ navigate(targetIdx); }, 50);
+      // Continue stepping toward a multi-step dot target.
+      if (typeof finalTargetIdx === "number" && current !== finalTargetIdx){
+        var d2 = finalTargetIdx - current;
+        if (d2 >  n/2) d2 -= n;
+        if (d2 < -n/2) d2 += n;
+        setTimeout(function(){ step(d2 > 0 ? 1 : -1, finalTargetIdx); }, 30);
       }
     }, 480);
+  }
+
+  // Reposition everything on resize.
+  function relayout(){
+    placeAll();
+    setTrack(false);
   }
 
   // ── Controls ─────────────────────────────────────────
@@ -476,8 +470,7 @@
   });
 
   window.addEventListener("resize",function(){
-    setDOMOrder(current);
-    setTranslate(centerX(),false);
+    relayout();
   });
 
 })();
