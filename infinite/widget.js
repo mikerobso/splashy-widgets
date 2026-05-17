@@ -318,7 +318,12 @@
     for (var i = 0; i < n; i++){
       order.push(mod(centerIdx - 1 + i, n));
     }
-    order.forEach(function(ri){ track.appendChild(cards[ri].el); });
+    order.forEach(function(ri){
+      // Don't move a card that is currently playing — moving a DOM node
+      // containing a playing video pauses it in most browsers
+      if (!cards[ri].video.paused) return;
+      track.appendChild(cards[ri].el);
+    });
   }
 
   // X translation so DOM slot 1 is centered in viewport
