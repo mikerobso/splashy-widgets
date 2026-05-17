@@ -386,9 +386,9 @@
   // Move the track so `centreSlot`'s card is centred in the viewport.
   // A card at slot s has left = s*step; on-screen x = T + s*step.
   // Slide animation duration in milliseconds.
-  // Desktop: 460ms. Mobile: ~608ms (slower, gentler feel).
+  // Desktop: 460ms. Mobile: ~559ms.
   function slideMs(){
-    return isMobileLayout() ? 608 : 460;
+    return isMobileLayout() ? 559 : 460;
   }
 
   // Slide easing curve.
@@ -589,7 +589,7 @@
     var dx=e.changedTouches[0].clientX-txStart,dy=Math.abs(e.changedTouches[0].clientY-txStartY);
     // Require a clear, mostly-horizontal swipe (threshold raised so a small
     // drift while tapping/scrubbing doesn't trigger navigation).
-    if (Math.abs(dx)>55 && Math.abs(dx)>dy*1.4) navigate(mod(current+(dx<0?1:-1),n));
+    if (Math.abs(dx)>42 && Math.abs(dx)>dy*1.4) navigate(mod(current+(dx<0?1:-1),n));
   },{passive:true});
 
   var msStart=null,msDrag=false;
