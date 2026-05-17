@@ -218,10 +218,12 @@
         cards.forEach(function(c){
           if (c.video === video) return;
           if (!c.video.paused) {
-            // Another video is actively playing — stop and reset it
-            resetCard(c);
+            // Another video is actively playing — pause it on its current frame
+            c.video.pause();
+            var pi = c.el.querySelector(".sif-pause-ind");
+            if (pi) pi.classList.add("visible");
           }
-          // If it's paused, leave it on its pause frame;
+          // If it's already paused, leave it on its pause frame;
           // it will be reset naturally when it scrolls out of the 3-card window
         });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
