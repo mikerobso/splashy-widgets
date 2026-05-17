@@ -159,6 +159,19 @@
   container.innerHTML = "";
   container.appendChild(widget);
 
+  // On mobile, if the row of circles overflows the viewport, start the
+  // scroll position centred so highlights peek on BOTH sides — making it
+  // obvious the row scrolls. (No-op on desktop where they all fit centred.)
+  function centreRowScroll(){
+    if (row.scrollWidth > row.clientWidth){
+      row.scrollLeft = (row.scrollWidth - row.clientWidth) / 2;
+    }
+  }
+  centreRowScroll();
+  // Re-centre once images have loaded (scrollWidth can change as they size in).
+  setTimeout(centreRowScroll, 60);
+  setTimeout(centreRowScroll, 300);
+
   // ── Build the overlay (one per widget instance) ─────
   var resolvedLogo = logoUrl
     ? '<img src="'+logoUrl+'" alt="logo">'
@@ -226,6 +239,8 @@
     ringEl.style.strokeDashoffset = 0;
     timerTx.textContent = "--";
     pauseInd.classList.remove("visible");
+    if (speedEl) speedEl.classList.remove("visible");
+    video.playbackRate = 1;
 
     // Mobile browsers block autoplay WITH sound — so on mobile we must start
     // muted or the video never starts (it just sits on the poster showing the
@@ -442,6 +457,38 @@
       video.pause(); pauseInd.classList.add("visible");
     }
   });
+
+  // Press-and-hold the stage to play at 2x speed; release to return to 1x.
+  // A short hold delay means a quick tap still pauses normally.
+  var holdTimer = null, holding = false;
+  function holdStart(e){
+    if (e.target.closest(".sst-mute-btn") || e.target.closest(".sst-progress")) return;
+    holding = false;
+    if (holdTimer) clearTimeout(holdTimer);
+    holdTimer = setTimeout(function(){
+      holding = true;
+      if (!video.paused){
+        video.playbackRate = 2;
+        speedEl.classList.add("visible");
+      }
+    }, 280);
+  }
+  function holdEnd(){
+    if (holdTimer){ clearTimeout(holdTimer); holdTimer = null; }
+    if (holding){
+      video.playbackRate = 1;
+      speedEl.classList.remove("visible");
+      swallowTap = true;                       // don't let the hold also pause
+      setTimeout(function(){ swallowTap = false; }, 50);
+      holding = false;
+    }
+  }
+  stage.addEventListener("mousedown", holdStart);
+  stage.addEventListener("mouseup", holdEnd);
+  stage.addEventListener("mouseleave", holdEnd);
+  stage.addEventListener("touchstart", holdStart, {passive:true});
+  stage.addEventListener("touchend", holdEnd);
+  stage.addEventListener("touchcancel", holdEnd);
 
   muteBtn.addEventListener("click", function(e){
     e.stopPropagation();
