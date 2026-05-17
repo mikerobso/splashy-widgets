@@ -29,40 +29,50 @@
   var logoUrl       = cfg.logoUrl           || "";
   var containerId   = cfg.containerId       || "splshy-infinite";
 
-  if (!reels.length) {
-    console.warn("Splshy Infinite: no reels configured.");
-    return;
-  }
+  if (!reels.length) { console.warn("Splshy Infinite: no reels configured."); return; }
 
-  // ── Inject CSS ──────────────────────────────────────
+  // ── CSS ─────────────────────────────────────────────
   if (!document.querySelector("style[data-splshy-infinite]")) {
     var style = document.createElement("style");
     style.setAttribute("data-splshy-infinite", "1");
     style.textContent = [
-      /* Widget wrapper */
-      ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
+      ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
       ".sif-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
 
-      /* Stage */
-      ".sif-stage{position:relative;width:100%;height:var(--sif-card-h);display:flex;align-items:center;justify-content:center;overflow:hidden;isolation:isolate}",
+      /* Viewport clips the track */
+      ".sif-viewport{position:relative;width:100%;height:var(--sif-card-h);overflow:hidden}",
 
-      /* Card — shared */
-      ".sif-card{position:absolute;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;will-change:transform,opacity,filter;-webkit-transform:translateZ(0);-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-user-select:none;-webkit-touch-callout:none;user-select:none;touch-action:pan-y;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s cubic-bezier(.4,0,.2,1),filter .45s cubic-bezier(.4,0,.2,1),box-shadow .45s cubic-bezier(.4,0,.2,1)}",
+      /* Track holds all cards in a row — JS sets transform */
+      ".sif-track{position:absolute;top:0;left:0;display:flex;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform;transition:transform .48s cubic-bezier(.4,0,.2,1)}",
+      ".sif-track.no-transition{transition:none!important}",
 
-      /* Mobile card states (default) */
-      ".sif-card.is-active{transform:translateX(0) scale(1);opacity:1;filter:brightness(1);box-shadow:0 24px 64px rgba(0,0,0,.68);cursor:default;z-index:10}",
-      ".sif-card.is-prev,.sif-card.is-next{opacity:1;filter:brightness(.55);z-index:5}",
-      ".sif-card.is-far{opacity:1;filter:brightness(.3);z-index:2}",
-      ".sif-card.is-hidden{opacity:0;pointer-events:none;z-index:1}",
+      /* Card */
+      ".sif-card{position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;flex-shrink:0;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-user-select:none;-webkit-touch-callout:none;user-select:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
+      ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
+
+      /* Mobile: dim side cards */
+      "@media(max-width:767px){",
+        ".sif-card{transform:scale(0.82);filter:brightness(.5)}",
+        ".sif-card.is-active{transform:scale(1);filter:brightness(1)}",
+      "}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){",
+        ".sif-card{transform:scale(0.82);filter:brightness(.5)}",
+        ".sif-card.is-active{transform:scale(1);filter:brightness(1)}",
+      "}",
+      /* Desktop: all cards same size and brightness */
+      "@media(min-width:768px) and (any-pointer:fine){",
+        ".sif-card{transform:scale(1)!important;filter:brightness(1)!important}",
+        ".sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}",
+      "}",
 
       /* Poster */
-      ".sif-poster{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;border-radius:20px;overflow:hidden}",
-      ".sif-poster-placeholder{position:absolute;inset:0;background:linear-gradient(160deg,#2a2a2a 0%,#111 100%)}",
-      ".sif-poster-placeholder[data-idx='0']{background:linear-gradient(160deg,#1d3a2f 0%,#0d1f1a 100%)}",
-      ".sif-poster-placeholder[data-idx='1']{background:linear-gradient(160deg,#2e1f3a 0%,#160d1f 100%)}",
-      ".sif-poster-placeholder[data-idx='2']{background:linear-gradient(160deg,#3a2010 0%,#1f0f05 100%)}",
-      ".sif-poster-placeholder[data-idx='3']{background:linear-gradient(160deg,#10243a 0%,#05121f 100%)}",
-      ".sif-poster-placeholder[data-idx='4']{background:linear-gradient(160deg,#1a3020 0%,#0a1810 100%)}",
+      ".sif-poster{position:absolute;inset:0;border-radius:20px;overflow:hidden}",
+      ".sif-poster-ph{position:absolute;inset:0;background:linear-gradient(160deg,#2a2a2a 0%,#111 100%)}",
+      ".sif-poster-ph[data-idx='0']{background:linear-gradient(160deg,#1d3a2f 0%,#0d1f1a 100%)}",
+      ".sif-poster-ph[data-idx='1']{background:linear-gradient(160deg,#2e1f3a 0%,#160d1f 100%)}",
+      ".sif-poster-ph[data-idx='2']{background:linear-gradient(160deg,#3a2010 0%,#1f0f05 100%)}",
+      ".sif-poster-ph[data-idx='3']{background:linear-gradient(160deg,#10243a 0%,#05121f 100%)}",
+      ".sif-poster-ph[data-idx='4']{background:linear-gradient(160deg,#1a3020 0%,#0a1810 100%)}",
       ".sif-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:20px}",
 
       /* Video */
@@ -77,7 +87,7 @@
       ".sif-timer svg{width:52px;height:52px;transform:rotate(-90deg)}",
       ".sif-timer-bg{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5}",
       ".sif-timer-ring{fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;transition:stroke-dashoffset .25s linear}",
-      ".sif-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;letter-spacing:-.01em;line-height:1}",
+      ".sif-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
 
       /* Bottom bar */
       ".sif-bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:40px 16px 26px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
@@ -86,10 +96,8 @@
       /* Play / pause */
       ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s}",
       ".sif-play-btn.hidden{opacity:0;pointer-events:none}",
-      ".sif-card:not(.is-active) .sif-play-btn{opacity:0;pointer-events:none}",
       ".sif-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sif-pause-ind.visible{opacity:1}",
-      ".sif-card:not(.is-active) .sif-pause-ind{opacity:0}",
       ".sif-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s}",
       ".sif-play-btn:hover .sif-play-circle{transform:scale(1.1);background:rgba(255,255,255,.28)}",
       ".sif-play-circle svg{margin-left:4px}",
@@ -116,101 +124,89 @@
       ".sif-progress:hover .sif-progress-thumb,.sif-progress.dragging .sif-progress-thumb{opacity:1;bottom:-2px}",
 
       /* Arrows */
-      ".sif-arrow{position:absolute;top:calc(var(--sif-card-h)/2);transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:#fff!important;border:none!important;box-shadow:0 3px 14px rgba(0,0,0,.13);cursor:pointer;align-items:center;justify-content:center;z-index:30;display:none;transition:background .18s,transform .18s,box-shadow .18s}",
+      ".sif-arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:#fff!important;border:none!important;box-shadow:0 3px 14px rgba(0,0,0,.13);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:30;transition:background .18s,transform .18s,box-shadow .18s}",
       ".sif-arrow:hover{background:var(--sif-accent)!important;transform:translateY(-50%) scale(1.1);box-shadow:0 6px 20px rgba(211,0,17,.3)}",
       ".sif-arrow:hover svg polyline{stroke:#fff}",
       ".sif-arrow:focus,.sif-arrow:focus-visible{outline:none}",
-      "@media(min-width:600px){.sif-arrow{display:flex!important}.sif-arrow--left{left:calc(50% - var(--sif-card-w)*1.4 - 56px)!important}.sif-arrow--right{right:calc(50% - var(--sif-card-w)*1.4 - 56px)!important}}",
+      ".sif-arrow--left{left:8px}",
+      ".sif-arrow--right{right:8px}",
+      "@media(min-width:600px){.sif-arrow{display:flex!important}}",
 
       /* Dots */
       ".sif-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
       ".sif-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
       ".sif-dot.is-active{background:var(--sif-accent);transform:scale(1.35)}",
 
-      /* ── DESKTOP OVERRIDES ── */
-      "@media(min-width:768px) and (any-pointer:fine){",
-        ".sif-widget{--sif-card-w:min(354px,calc(70vh*9/16));--sif-card-h:min(627px,70vh)}",
-        /* On desktop all visible cards are same size/brightness */
-        ".sif-card.is-prev,.sif-card.is-next{filter:brightness(1)!important;opacity:1!important}",
-        ".sif-card.is-far,.sif-card.is-hidden{opacity:0!important;pointer-events:none!important}",
-        /* Desktop: clicking side cards is allowed */
-        ".sif-card.is-prev,.sif-card.is-next{cursor:pointer!important}",
-        /* Arrow positioning for desktop 3-up */
-        ".sif-arrow--left{left:calc(50% - var(--sif-card-w)*1.55 - 52px)!important}",
-        ".sif-arrow--right{right:calc(50% - var(--sif-card-w)*1.55 - 52px)!important}",
-      "}",
-
-      /* ── MOBILE ── */
-      "@media(max-width:767px){.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16)}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16)}}",
+      /* Mobile sizing */
+      "@media(max-width:767px){.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:18px}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:18px}}",
     ].join("");
     document.head.appendChild(style);
   }
 
-  // ── Find container ──────────────────────────────────
+  // ── Container ───────────────────────────────────────
   var container = document.getElementById(containerId);
-  if (!container) {
-    console.warn("Splshy Infinite: no element with id '" + containerId + "'");
-    return;
-  }
+  if (!container) { console.warn("Splshy Infinite: no element with id '" + containerId + "'"); return; }
 
-  // ── Build widget shell ──────────────────────────────
+  // ── Shell ────────────────────────────────────────────
   container.innerHTML =
     '<div class="sif-widget">' +
       '<div style="position:relative;">' +
-        '<div class="sif-stage"></div>' +
-        '<button class="sif-arrow sif-arrow--left" aria-label="Previous" style="outline:none;padding:0!important;display:none;">' +
-          '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;">' +
-            '<polyline points="10,2 2,10 10,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
-          '</svg>' +
+        '<div class="sif-viewport">' +
+          '<div class="sif-track"></div>' +
+        '</div>' +
+        '<button class="sif-arrow sif-arrow--left" aria-label="Previous" style="outline:none;padding:0!important;">' +
+          '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;"><polyline points="10,2 2,10 10,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
         '</button>' +
-        '<button class="sif-arrow sif-arrow--right" aria-label="Next" style="outline:none;padding:0!important;display:none;">' +
-          '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;">' +
-            '<polyline points="2,2 10,10 2,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>' +
-          '</svg>' +
+        '<button class="sif-arrow sif-arrow--right" aria-label="Next" style="outline:none;padding:0!important;">' +
+          '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;"><polyline points="2,2 10,10 2,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
         '</button>' +
       '</div>' +
       '<div class="sif-dots"></div>' +
     '</div>';
 
-  var widget  = container.querySelector(".sif-widget");
-  var stage   = widget.querySelector(".sif-stage");
-  var prevBtn = widget.querySelector(".sif-arrow--left");
-  var nextBtn = widget.querySelector(".sif-arrow--right");
-  var dotsEl  = widget.querySelector(".sif-dots");
+  var widget   = container.querySelector(".sif-widget");
+  var viewport = widget.querySelector(".sif-viewport");
+  var track    = widget.querySelector(".sif-track");
+  var prevBtn  = widget.querySelector(".sif-arrow--left");
+  var nextBtn  = widget.querySelector(".sif-arrow--right");
+  var dotsEl   = widget.querySelector(".sif-dots");
 
   var n           = reels.length;
   var current     = 0;
-  var cardEls     = [];
-  var dotEls      = [];
   var globalMuted = false;
   var activeFade  = null;
+  var isAnimating = false;
 
   function mod(x, m) { return ((x % m) + m) % m; }
-  function fmtTime(s) {
-    var m = Math.floor(s / 60), sec = Math.floor(s % 60);
-    return m + ":" + (sec < 10 ? "0" : "") + sec;
-  }
+  function fmtTime(s) { var m = Math.floor(s/60), sec = Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
   function syncMuteIcon(btn, muted) {
     if (!btn) return;
-    btn.querySelectorAll(".sif-unmute").forEach(function (el) { el.style.display = muted ? "none" : "block"; });
-    btn.querySelectorAll(".sif-mx1,.sif-mx2").forEach(function (el) { el.style.display = muted ? "block" : "none"; });
+    btn.querySelectorAll(".sif-unmute").forEach(function(el){ el.style.display = muted?"none":"block"; });
+    btn.querySelectorAll(".sif-mx1,.sif-mx2").forEach(function(el){ el.style.display = muted?"block":"none"; });
   }
-  function isDesktop() {
-    return window.matchMedia("(min-width:768px) and (any-pointer:fine)").matches;
-  }
+  function isDesktop() { return window.matchMedia("(min-width:768px) and (any-pointer:fine)").matches; }
 
-  // ── Build cards ─────────────────────────────────────
-  reels.forEach(function (reel, i) {
+  // ── We build a virtual track of 2n+1 clones for infinite feel ──
+  // Actual DOM cards: indices 0..n-1
+  // Track order: [...n cards before] [n real cards] [...n cards after]
+  // We keep track of which "virtual slot" is centered and jump quietly when needed.
+
+  var cardEls = []; // { el, video, poster, reelIndex }
+  var dotEls  = [];
+
+  // Build n real card elements
+  function buildCard(reelIndex) {
+    var reel = reels[reelIndex];
     var card = document.createElement("div");
-    card.className = "sif-card is-hidden";
+    card.className = "sif-card";
+    card.setAttribute("data-reel", reelIndex);
 
-    // Poster
     var poster = document.createElement("div");
     poster.className = "sif-poster";
     var ph = document.createElement("div");
-    ph.className = "sif-poster-placeholder";
-    ph.setAttribute("data-idx", i % 5);
+    ph.className = "sif-poster-ph";
+    ph.setAttribute("data-idx", reelIndex % 5);
     poster.appendChild(ph);
     if (reel.posterUrl) {
       var img = document.createElement("img");
@@ -219,70 +215,63 @@
     }
     card.appendChild(poster);
 
-    // Video
     var video = document.createElement("video");
     video.className = "sif-video";
     video.src = reel.videoUrl;
-    video.setAttribute("playsinline", "");
-    video.setAttribute("preload", "metadata");
+    video.setAttribute("playsinline","");
+    video.setAttribute("preload","metadata");
     if (reel.posterUrl) video.setAttribute("poster", reel.posterUrl);
     card.appendChild(video);
 
-    // Top bar
     var resolvedLogo = reel.logoUrl || logoUrl || "";
     var logoInner = resolvedLogo
-      ? '<img src="' + resolvedLogo + '" alt="logo">'
+      ? '<img src="'+resolvedLogo+'" alt="logo">'
       : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
-    var RING_C = (2 * Math.PI * 23).toFixed(2);
+    var RING_C = (2*Math.PI*23).toFixed(2);
 
     card.insertAdjacentHTML("beforeend",
-      '<div class="sif-top-bar">' +
-        '<a href="' + igUrl + '" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
-          '<div class="sif-logo">' + logoInner + '</div>' +
-          '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
-        '</a>' +
-        '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">' +
-          '<div class="sif-timer">' +
-            '<svg viewBox="0 0 52 52"><circle class="sif-timer-bg" cx="26" cy="26" r="23"/><circle class="sif-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="' + RING_C + '" stroke-dashoffset="0"/></svg>' +
-            '<div class="sif-timer-text">--</div>' +
-          '</div>' +
-          '<div style="height:13px;"></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="sif-bottom-bar"><div class="sif-title">' + (reel.label || "") + '</div></div>' +
-      '<div class="sif-play-btn"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>' +
-      '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
-      '<button class="sif-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
-      '<div class="sif-speed">2x</div>' +
+      '<div class="sif-top-bar">'+
+        '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
+          '<div class="sif-logo">'+logoInner+'</div>'+
+          '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
+        '</a>'+
+        '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">'+
+          '<div class="sif-timer">'+
+            '<svg viewBox="0 0 52 52"><circle class="sif-timer-bg" cx="26" cy="26" r="23"/><circle class="sif-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RING_C+'" stroke-dashoffset="0"/></svg>'+
+            '<div class="sif-timer-text">--</div>'+
+          '</div>'+
+          '<div style="height:13px;"></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="sif-bottom-bar"><div class="sif-title">'+(reel.label||"")+'</div></div>'+
+      '<div class="sif-play-btn"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>'+
+      '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
+      '<button class="sif-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
+      '<div class="sif-speed">2x</div>'+
       '<div class="sif-progress"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'
     );
 
-    stage.appendChild(card);
-    card.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+    card.addEventListener("contextmenu", function(e){ e.preventDefault(); });
 
     // Timer
     var ring      = card.querySelector(".sif-timer-ring");
     var timerText = card.querySelector(".sif-timer-text");
-    var RING_C2   = 2 * Math.PI * 23;
+    var RING_C2   = 2*Math.PI*23;
     ring.style.strokeDasharray = RING_C2;
     var dur = 0;
 
-    video.addEventListener("loadedmetadata", function () {
-      dur = video.duration;
-      timerText.textContent = fmtTime(dur);
-    });
-    video.addEventListener("timeupdate", function () {
+    video.addEventListener("loadedmetadata", function(){ dur = video.duration; timerText.textContent = fmtTime(dur); });
+    video.addEventListener("timeupdate", function(){
       if (!dur) return;
-      var pct = video.currentTime / dur;
-      ring.style.strokeDashoffset = RING_C2 * (1 - pct);
-      timerText.textContent = fmtTime(Math.max(0, dur - video.currentTime));
+      var pct = video.currentTime/dur;
+      ring.style.strokeDashoffset = RING_C2*(1-pct);
+      timerText.textContent = fmtTime(Math.max(0, dur-video.currentTime));
       var pf = card.querySelector(".sif-progress-fill"), pt = card.querySelector(".sif-progress-thumb");
-      if (pf) pf.style.width = (pct * 100) + "%";
-      if (pt) pt.style.left  = (pct * 100) + "%";
+      if (pf) pf.style.width = (pct*100)+"%";
+      if (pt) pt.style.left  = (pct*100)+"%";
     });
-    video.addEventListener("ended", function () {
-      ring.style.strokeDashoffset = 0;
-      timerText.textContent = fmtTime(dur);
+    video.addEventListener("ended", function(){
+      ring.style.strokeDashoffset = 0; timerText.textContent = fmtTime(dur);
       card.querySelector(".sif-play-btn").classList.remove("hidden");
       card.querySelector(".sif-mute-btn").classList.remove("visible");
       var pi = card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
@@ -292,193 +281,291 @@
     // Play btn
     var playBtn = card.querySelector(".sif-play-btn");
     var muteBtn = card.querySelector(".sif-mute-btn");
-    playBtn.addEventListener("click", function (e) {
+    playBtn.addEventListener("click", function(e){
       e.stopPropagation();
       video.muted = globalMuted; video.style.display = "block"; poster.style.display = "none";
       playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
       syncMuteIcon(muteBtn, globalMuted); video.play();
     });
-    muteBtn.addEventListener("click", function (e) {
+    muteBtn.addEventListener("click", function(e){
       e.stopPropagation(); globalMuted = !globalMuted;
-      cardEls.forEach(function (c) { c.video.muted = globalMuted; syncMuteIcon(c.el.querySelector(".sif-mute-btn"), globalMuted); });
+      cardEls.forEach(function(c){ c.video.muted = globalMuted; syncMuteIcon(c.el.querySelector(".sif-mute-btn"), globalMuted); });
     });
 
     // Progress
     var progBar = card.querySelector(".sif-progress");
     var dragging = false;
-    function getPct(e) {
-      var rect = progBar.getBoundingClientRect();
-      return Math.max(0, Math.min(1, ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) / rect.width));
-    }
-    function seekTo(pos) { if (dur) video.currentTime = pos * dur; }
-    progBar.addEventListener("click", function (e) { e.stopPropagation(); });
-    progBar.addEventListener("mousedown", function (e) { e.stopPropagation(); dragging = true; progBar.classList.add("dragging"); seekTo(getPct(e)); });
-    progBar.addEventListener("touchstart", function (e) { e.stopPropagation(); dragging = true; progBar.classList.add("dragging"); seekTo(getPct(e)); }, { passive: true });
-    document.addEventListener("mousemove", function (e) { if (dragging) seekTo(getPct(e)); });
-    document.addEventListener("touchmove", function (e) { if (dragging) seekTo(getPct(e)); }, { passive: true });
-    document.addEventListener("mouseup", function () { if (dragging) { dragging = false; progBar.classList.remove("dragging"); } });
-    document.addEventListener("touchend", function () {
-      if (dragging) { dragging = false; progBar.classList.remove("dragging"); window._sifScrubEnd = true; setTimeout(function () { window._sifScrubEnd = false; }, 300); }
+    function getPct(e){ var rect = progBar.getBoundingClientRect(); return Math.max(0,Math.min(1,((e.touches?e.touches[0].clientX:e.clientX)-rect.left)/rect.width)); }
+    function seekTo(pos){ if (dur) video.currentTime = pos*dur; }
+    progBar.addEventListener("click", function(e){ e.stopPropagation(); });
+    progBar.addEventListener("mousedown", function(e){ e.stopPropagation(); dragging=true; progBar.classList.add("dragging"); seekTo(getPct(e)); });
+    progBar.addEventListener("touchstart", function(e){ e.stopPropagation(); dragging=true; progBar.classList.add("dragging"); seekTo(getPct(e)); }, {passive:true});
+    document.addEventListener("mousemove", function(e){ if (dragging) seekTo(getPct(e)); });
+    document.addEventListener("touchmove", function(e){ if (dragging) seekTo(getPct(e)); }, {passive:true});
+    document.addEventListener("mouseup", function(){ if (dragging){ dragging=false; progBar.classList.remove("dragging"); } });
+    document.addEventListener("touchend", function(){
+      if (dragging){ dragging=false; progBar.classList.remove("dragging"); window._sifScrubEnd=true; setTimeout(function(){ window._sifScrubEnd=false; },300); }
     });
-    video.addEventListener("play", function () {
-      if (window.matchMedia("(hover:none)").matches) {
+    video.addEventListener("play", function(){
+      if (window.matchMedia("(hover:none)").matches){
         progBar.classList.add("visible");
-        setTimeout(function () { if (!dragging) progBar.classList.remove("visible"); }, 7000);
+        setTimeout(function(){ if (!dragging) progBar.classList.remove("visible"); }, 7000);
       }
     });
 
     // 2x hold
     var speedInd = card.querySelector(".sif-speed");
-    var holdTimer = null, holding = false, swallow = false;
-    function startHold() {
-      if (i !== current || video.style.display !== "block" || video.paused) return;
-      holdTimer = setTimeout(function () { holding = true; if (!video.paused) { video.playbackRate = 2; speedInd.classList.add("visible"); } }, 300);
-    }
-    function endHold() {
-      clearTimeout(holdTimer);
-      if (holding) { holding = false; swallow = true; video.playbackRate = 1; speedInd.classList.remove("visible"); setTimeout(function () { swallow = false; }, 50); }
-    }
+    var holdTimer=null, holding=false, swallow=false;
+    function startHold(){ if (video.style.display!=="block"||video.paused) return; holdTimer=setTimeout(function(){ holding=true; if (!video.paused){ video.playbackRate=2; speedInd.classList.add("visible"); } },300); }
+    function endHold(){ clearTimeout(holdTimer); if (holding){ holding=false; swallow=true; video.playbackRate=1; speedInd.classList.remove("visible"); setTimeout(function(){ swallow=false; },50); } }
     card.addEventListener("mousedown", startHold);
-    card.addEventListener("touchstart", startHold, { passive: true });
+    card.addEventListener("touchstart", startHold, {passive:true});
     card.addEventListener("mouseup", endHold);
     card.addEventListener("mouseleave", endHold);
     card.addEventListener("touchend", endHold);
     card.addEventListener("touchcancel", endHold);
 
-    // Click to navigate or pause
-    card.addEventListener("click", function (e) {
-      if (e.target.closest(".sif-play-btn") || e.target.closest(".sif-mute-btn") || e.target.closest(".sif-progress")) return;
-      if (swallow) { swallow = false; return; }
-      if (i !== current) { goTo(i); return; }
-      if (video.style.display === "block") {
+    // Click — play in place, no centering
+    card.addEventListener("click", function(e){
+      if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||e.target.closest(".sif-progress")) return;
+      if (swallow){ swallow=false; return; }
+      if (video.style.display==="block"){
         var pi = card.querySelector(".sif-pause-ind");
-        if (video.paused) { video.play(); if (pi) pi.classList.remove("visible"); }
+        if (video.paused){ video.play(); if (pi) pi.classList.remove("visible"); }
         else { video.pause(); if (pi) pi.classList.add("visible"); }
       }
     });
 
+    return { el: card, video: video, poster: poster, reelIndex: reelIndex };
+  }
+
+  // Build real cards
+  for (var i = 0; i < n; i++) {
+    var c = buildCard(i);
+    cardEls.push(c);
+    track.appendChild(c.el);
+
     // Dot
     var dot = document.createElement("button");
     dot.className = "sif-dot";
-    dot.setAttribute("aria-label", "Reel " + (i + 1));
-    dot.addEventListener("click", function () { goTo(i); });
+    dot.setAttribute("aria-label", "Reel " + (i+1));
+    (function(idx){ dot.addEventListener("click", function(){ goTo(idx); }); })(i);
     dotsEl.appendChild(dot);
     dotEls.push(dot);
-
-    cardEls.push({ el: card, video: video, poster: poster });
-  });
-
-  // ── Layout ──────────────────────────────────────────
-  function layout() {
-    var cardW    = cardEls[0] ? cardEls[0].el.offsetWidth : 220;
-    var desktop  = isDesktop();
-    var sideOff  = desktop ? Math.round(cardW * 1.04) : Math.round(cardW * 0.68);
-    var sideScl  = desktop ? 1 : (window.matchMedia("(max-width:767px),(pointer:coarse) and (hover:none)").matches ? 0.635 : 0.69);
-    var farScl   = desktop ? 1 : (window.matchMedia("(max-width:767px),(pointer:coarse) and (hover:none)").matches ? 0.515 : 0.56);
-
-    cardEls.forEach(function (c, i) {
-      var el  = c.el;
-      var rel = i - current;
-      // Shortest path (for infinite wrap feel)
-      if (rel >  Math.floor(n / 2)) rel -= n;
-      if (rel < -Math.floor(n / 2)) rel += n;
-
-      el.classList.remove("is-active", "is-prev", "is-next", "is-far", "is-hidden");
-
-      if (rel === 0) {
-        el.classList.add("is-active");
-        el.style.transform = "translateX(0px) scale(1)";
-        el.style.zIndex = "10";
-      } else if (rel === -1) {
-        el.classList.add("is-prev");
-        el.style.transform = "translateX(-" + sideOff + "px) scale(" + sideScl + ")";
-        el.style.zIndex = "5";
-      } else if (rel === 1) {
-        el.classList.add("is-next");
-        el.style.transform = "translateX(" + sideOff + "px) scale(" + sideScl + ")";
-        el.style.zIndex = "5";
-      } else if (Math.abs(rel) === 2 && !desktop) {
-        el.classList.add("is-far");
-        var dir = rel < 0 ? -1 : 1;
-        el.style.transform = "translateX(" + (dir * sideOff * 1.55) + "px) scale(" + farScl + ")";
-        el.style.zIndex = "2";
-      } else {
-        el.classList.add("is-hidden");
-        el.style.transform = "translateX(0px) scale(1)";
-        el.style.zIndex = "1";
-      }
-    });
-
-    dotEls.forEach(function (d, i) { d.classList.toggle("is-active", i === current); });
   }
 
-  // ── Reset a card ────────────────────────────────────
+  // ── Sliding track layout ─────────────────────────────
+  // Strategy: the track contains n cards. We position the track so the
+  // "current" card is centered. For infinite wrap we clone-free:
+  // after each animated slide we silently jump if needed.
+
+  function getCardStep() {
+    var cardW = cardEls[0] ? cardEls[0].el.offsetWidth : 220;
+    var gap   = parseFloat(getComputedStyle(track).gap) || 30;
+    return cardW + gap;
+  }
+
+  function getViewportCenter() {
+    return viewport.offsetWidth / 2;
+  }
+
+  // virtualOffset: how many steps we've moved (can be fractional during animation)
+  // We track a "virtual" position that grows infinitely in either direction
+  var virtualPos = 0; // in steps, current card is at step 0 initially
+
+  function setTrackPosition(pos, animate) {
+    var step    = getCardStep();
+    var cardW   = cardEls[0] ? cardEls[0].el.offsetWidth : 220;
+    var center  = getViewportCenter();
+    var trackX  = center - cardW/2 - pos * step;
+    if (!animate) { track.classList.add("no-transition"); }
+    track.style.transform = "translateX(" + trackX + "px)";
+    if (!animate) {
+      track.offsetHeight; // force reflow
+      track.classList.remove("no-transition");
+    }
+  }
+
+  function updateActive() {
+    var realIdx = mod(current, n);
+    cardEls.forEach(function(c, i){
+      c.el.classList.toggle("is-active", i === realIdx);
+    });
+    dotEls.forEach(function(d, i){ d.classList.toggle("is-active", i === realIdx); });
+  }
+
+  // For infinite: we replicate cards around the real ones using CSS clones
+  // Actually simplest approach: build 3 copies of all cards on the track:
+  // [copy A: n cards] [real: n cards] [copy B: n cards]
+  // Start centered on real. After sliding past boundary, silently jump.
+
+  // Rebuild track with 3 copies
+  track.innerHTML = "";
+
+  // Three sets: before, real, after
+  var allSlots = []; // { el (clone or real), reelIndex, setIndex (0=before,1=real,2=after) }
+
+  for (var s = 0; s < 3; s++) {
+    for (var r = 0; r < n; r++) {
+      var isReal = (s === 1);
+      var el;
+      if (isReal) {
+        el = cardEls[r].el;
+      } else {
+        el = cardEls[r].el.cloneNode(true);
+        // Wire play button on clones to play the real video
+        (function(realCard, cloneEl){
+          var clonePlay = cloneEl.querySelector(".sif-play-btn");
+          if (clonePlay) {
+            clonePlay.addEventListener("click", function(e){
+              e.stopPropagation();
+              realCard.video.muted = globalMuted;
+              realCard.video.style.display = "block";
+              realCard.poster.style.display = "none";
+              realCard.el.querySelector(".sif-play-btn").classList.add("hidden");
+              realCard.el.querySelector(".sif-mute-btn").classList.add("visible");
+              syncMuteIcon(realCard.el.querySelector(".sif-mute-btn"), globalMuted);
+              realCard.video.play();
+              // snap to real card position silently
+              var targetVirtual = (s === 0 ? -n : n) + r + (virtualPos - mod(Math.round(virtualPos), n));
+              goTo(r);
+            });
+          }
+        })(cardEls[r], el);
+      }
+      track.appendChild(el);
+      allSlots.push({ el: el, reelIndex: r, setIndex: s, slotIndex: s*n + r });
+    }
+  }
+
+  // virtualPos represents slot index in the flat array
+  // Start at center set, current=0 → slot n+0
+  virtualPos = n; // start at first card of middle set
+
+  function setTrackBySlot(slotIdx, animate) {
+    var step    = getCardStep();
+    var cardW   = cardEls[0] ? cardEls[0].el.offsetWidth : 220;
+    var center  = getViewportCenter();
+    var trackX  = center - cardW/2 - slotIdx * step;
+    if (!animate) { track.classList.add("no-transition"); }
+    track.style.transform = "translateX(" + trackX + "px)";
+    if (!animate) { track.offsetHeight; track.classList.remove("no-transition"); }
+  }
+
+  function updateDots() {
+    var realIdx = mod(current, n);
+    dotEls.forEach(function(d, i){ d.classList.toggle("is-active", i === realIdx); });
+  }
+
+  function updateActiveClass() {
+    // Mark the real card el as active based on current
+    cardEls.forEach(function(c, i){ c.el.classList.toggle("is-active", i === mod(current, n)); });
+    // Also update all clone slots
+    allSlots.forEach(function(slot){
+      slot.el.classList.toggle("is-active", slot.reelIndex === mod(current, n));
+    });
+  }
+
   function resetCard(c) {
-    c.video.pause(); c.video.currentTime = 0; c.video.playbackRate = 1; c.video.volume = 1;
-    c.video.style.display = "none"; c.poster.style.display = "";
-    var pf = c.el.querySelector(".sif-progress-fill"), pt = c.el.querySelector(".sif-progress-thumb");
-    if (pf) pf.style.width = "0%"; if (pt) pt.style.left = "0%";
+    c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
+    c.video.style.display="none"; c.poster.style.display="";
+    var pf=c.el.querySelector(".sif-progress-fill"), pt=c.el.querySelector(".sif-progress-thumb");
+    if (pf) pf.style.width="0%"; if (pt) pt.style.left="0%";
     c.el.querySelector(".sif-play-btn").classList.remove("hidden");
     c.el.querySelector(".sif-mute-btn").classList.remove("visible");
-    var pi = c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
-    var r  = c.el.querySelector(".sif-timer-ring"); if (r) r.style.strokeDashoffset = 0;
-    var tx = c.el.querySelector(".sif-timer-text"); if (tx && c.video.duration) tx.textContent = fmtTime(c.video.duration);
+    var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
+    var rg=c.el.querySelector(".sif-timer-ring"); if (rg) rg.style.strokeDashoffset=0;
+    var tx=c.el.querySelector(".sif-timer-text"); if (tx&&c.video.duration) tx.textContent=fmtTime(c.video.duration);
   }
 
   function fadeOutAndReset(c) {
-    var vid = c.video;
-    if (vid.paused || vid.volume === 0) { resetCard(c); return; }
-    var fade = setInterval(function () {
-      if (vid.volume > 0.05) { vid.volume = Math.max(0, vid.volume - 0.05); }
-      else { clearInterval(fade); if (activeFade === fade) activeFade = null; vid.volume = 1; resetCard(c); }
-    }, 30);
-    activeFade = fade;
+    var vid=c.video;
+    if (vid.paused||vid.volume===0){ resetCard(c); return; }
+    var fade=setInterval(function(){
+      if (vid.volume>0.05){ vid.volume=Math.max(0,vid.volume-0.05); }
+      else { clearInterval(fade); if (activeFade===fade) activeFade=null; vid.volume=1; resetCard(c); }
+    },30);
+    activeFade=fade;
   }
 
-  // ── Navigate ─────────────────────────────────────────
-  function goTo(index) {
-    index = mod(index, n);
-    if (index === current) return;
-    if (activeFade) { clearInterval(activeFade); activeFade = null; }
-    cardEls.forEach(function (c) { if (!c.video.paused) resetCard(c); });
-    var outgoing = cardEls[current];
-    current = index;
-    layout();
-    fadeOutAndReset(outgoing);
+  function goTo(targetRealIdx) {
+    if (isAnimating) return;
+    var prevRealIdx = mod(current, n);
+    if (targetRealIdx === prevRealIdx) return;
+
+    // Determine direction
+    var delta = targetRealIdx - prevRealIdx;
+    // Shortest path around the circle
+    if (delta >  n/2) delta -= n;
+    if (delta < -n/2) delta += n;
+
+    var newVirtualPos = virtualPos + delta;
+    isAnimating = true;
+
+    // Reset outgoing card
+    if (activeFade) { clearInterval(activeFade); activeFade=null; }
+    fadeOutAndReset(cardEls[prevRealIdx]);
+
+    current = targetRealIdx;
+    virtualPos = newVirtualPos;
+
+    setTrackBySlot(virtualPos, true);
+    updateActiveClass();
+    updateDots();
+
+    // After animation, silently re-center to middle set if we've drifted
+    setTimeout(function(){
+      isAnimating = false;
+      // If virtualPos has drifted outside middle set range, jump back silently
+      var middleStart = n;
+      var middleEnd   = 2*n - 1;
+      if (virtualPos < middleStart || virtualPos > middleEnd) {
+        // Find equivalent slot in middle set
+        var realIdx = mod(virtualPos, n);
+        var newVP   = n + realIdx;
+        virtualPos  = newVP;
+        setTrackBySlot(virtualPos, false);
+      }
+    }, 500);
   }
 
-  prevBtn.addEventListener("click", function () { goTo(current - 1); });
-  nextBtn.addEventListener("click", function () { goTo(current + 1); });
+  // Initial position
+  setTrackBySlot(virtualPos, false);
+  updateActiveClass();
+  updateDots();
+
+  // ── Controls ─────────────────────────────────────────
+  prevBtn.addEventListener("click", function(){ goTo(mod(mod(current,n)-1,n)); });
+  nextBtn.addEventListener("click", function(){ goTo(mod(mod(current,n)+1,n)); });
 
   // Touch swipe
-  var txStart = 0, txStartY = 0;
-  stage.addEventListener("touchstart", function (e) { txStart = e.touches[0].clientX; txStartY = e.touches[0].clientY; }, { passive: true });
-  stage.addEventListener("touchend", function (e) {
+  var txStart=0, txStartY=0;
+  viewport.addEventListener("touchstart", function(e){ txStart=e.touches[0].clientX; txStartY=e.touches[0].clientY; }, {passive:true});
+  viewport.addEventListener("touchend", function(e){
     if (window._sifScrubEnd) return;
-    var dx = e.changedTouches[0].clientX - txStart;
-    var dy = Math.abs(e.changedTouches[0].clientY - txStartY);
-    if (Math.abs(dx) > 38 && Math.abs(dx) > dy) goTo(current + (dx < 0 ? 1 : -1));
-  }, { passive: true });
+    var dx=e.changedTouches[0].clientX-txStart, dy=Math.abs(e.changedTouches[0].clientY-txStartY);
+    if (Math.abs(dx)>38&&Math.abs(dx)>dy) goTo(mod(mod(current,n)+(dx<0?1:-1),n));
+  }, {passive:true});
 
   // Desktop mouse swipe
-  var msStart = null, msDrag = false;
-  stage.addEventListener("mousedown", function (e) { if (e.target.closest(".sif-arrow") || e.target.closest(".sif-progress")) return; msStart = e.clientX; msDrag = false; });
-  stage.addEventListener("mousemove", function (e) { if (msStart === null) return; if (Math.abs(e.clientX - msStart) > 8) msDrag = true; });
-  stage.addEventListener("mouseup", function (e) {
-    if (msStart === null) return;
-    var dx = e.clientX - msStart; msStart = null;
-    if (msDrag && Math.abs(dx) > 50) goTo(current + (dx < 0 ? 1 : -1));
-    msDrag = false;
+  var msStart=null, msDrag=false;
+  viewport.addEventListener("mousedown", function(e){ if (e.target.closest(".sif-arrow")||e.target.closest(".sif-progress")) return; msStart=e.clientX; msDrag=false; });
+  viewport.addEventListener("mousemove", function(e){ if (msStart===null) return; if (Math.abs(e.clientX-msStart)>8) msDrag=true; });
+  viewport.addEventListener("mouseup", function(e){
+    if (msStart===null) return;
+    var dx=e.clientX-msStart; msStart=null;
+    if (msDrag&&Math.abs(dx)>50) goTo(mod(mod(current,n)+(dx<0?1:-1),n));
+    msDrag=false;
   });
-  stage.addEventListener("mouseleave", function () { msStart = null; msDrag = false; });
+  viewport.addEventListener("mouseleave", function(){ msStart=null; msDrag=false; });
 
   // Keyboard
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "ArrowLeft") goTo(current - 1);
-    if (e.key === "ArrowRight") goTo(current + 1);
+  document.addEventListener("keydown", function(e){
+    if (e.key==="ArrowLeft") goTo(mod(mod(current,n)-1,n));
+    if (e.key==="ArrowRight") goTo(mod(mod(current,n)+1,n));
   });
 
-  layout();
-  window.addEventListener("resize", layout);
+  // Resize
+  window.addEventListener("resize", function(){ setTrackBySlot(virtualPos, false); });
 
 })();
