@@ -59,7 +59,7 @@
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
 
       // Overlay — a flex row: [left arrow] [stage] [right arrow]
-      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s}",
+      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s}",
       ".sst-overlay.open{display:flex;opacity:1}",
       ".sst-stagebox{position:relative}",
       ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center}",
@@ -94,7 +94,7 @@
       // Overlay arrows — in-flow flex items beside the stage; forced circles
       ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",
-      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:100vh!important;max-height:100vh!important;border-radius:0;width:100vw;aspect-ratio:auto}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;background:rgba(255,255,255,.1)!important;z-index:5}.sst-arrow--left{left:10px}.sst-arrow--right{right:10px}.sst-close{position:fixed!important;top:14px;right:14px}}"
+      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:auto!important;width:auto!important;max-height:84vh;max-width:92vw;aspect-ratio:9/16;border-radius:16px}.sst-stagebox{max-width:92vw}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;background:rgba(0,0,0,.4)!important;z-index:5}.sst-arrow--left{left:6px}.sst-arrow--right{right:6px}.sst-close{position:absolute!important;top:-52px;right:0;left:auto}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -259,24 +259,12 @@
     };
   }
 
-  // Genie keyframes. The stage TRAVELS from the circle up to centre while it
-  // grows — desktop adds a tall-then-fill stretch; mobile keeps it a clean
-  // uniform scale (it's fullscreen anyway). Travel is what sells the motion.
+  // Pop keyframes: the stage TRAVELS from the circle up to centre while it
+  // grows uniformly. The travel is what makes it read as real motion.
   if (!document.querySelector("style[data-splshy-stories-genie]")){
     var gStyle = document.createElement("style");
     gStyle.setAttribute("data-splshy-stories-genie","1");
     gStyle.textContent =
-      "@keyframes sstPopIn{" +
-        "0%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
-        "40%{transform:translate(calc(var(--sst-tx)*0.42),calc(var(--sst-ty)*0.42)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.34),calc(var(--sst-sy) + (1 - var(--sst-sy))*0.78))}" +
-        "70%{transform:translate(calc(var(--sst-tx)*0.10),calc(var(--sst-ty)*0.10)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.74),1.03)}" +
-        "100%{transform:translate(0,0) scale(1,1)}" +
-      "}" +
-      "@keyframes sstPopOut{" +
-        "0%{transform:translate(0,0) scale(1,1)}" +
-        "55%{transform:translate(calc(var(--sst-tx)*0.18),calc(var(--sst-ty)*0.18)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.7),1.02)}" +
-        "100%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
-      "}" +
       "@keyframes sstPopInSimple{" +
         "0%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
         "100%{transform:translate(0,0) scale(1,1)}" +
@@ -328,9 +316,9 @@
     var g = originRing ? ringGeometry(originRing) : null;
     if (g){
       var ms = popMs();
-      // Desktop: travel + genie stretch. Mobile: travel + clean scale.
-      var anim = isMobileLayout() ? "sstPopInSimple" : "sstPopIn";
-      var ease = isMobileLayout() ? "cubic-bezier(.2,.7,.3,1)" : "cubic-bezier(.2,.74,.26,1)";
+      // Clean pop: travel from the circle to centre with a uniform scale.
+      // Desktop ease has a slight overshoot; mobile is a plain ease-out.
+      var ease = isMobileLayout() ? "cubic-bezier(.2,.7,.3,1)" : "cubic-bezier(.2,.8,.25,1.06)";
       stage.style.animation = "none";
       stage.style.transformOrigin = "center center";
       stage.style.setProperty("--sst-tx", g.tx + "px");
@@ -339,7 +327,7 @@
       stage.style.setProperty("--sst-sy", g.sy);
       stage.style.transform = "translate(" + g.tx + "px," + g.ty + "px) scale(" + g.sx + "," + g.sy + ")";
       stage.offsetHeight; // force reflow
-      stage.style.animation = anim + " " + ms + "ms " + ease + " forwards";
+      stage.style.animation = "sstPopInSimple " + ms + "ms " + ease + " forwards";
       setTimeout(function(){ setChrome(true, false); }, ms * 0.52);
     } else {
       setChrome(true, true);
@@ -369,7 +357,7 @@
     var g = originRing ? ringGeometry(originRing) : null;
     if (g){
       var ms = popMs() - 90;
-      var anim = isMobileLayout() ? "sstPopOutSimple" : "sstPopOut";
+      var anim = "sstPopOutSimple";
       setTimeout(function(){
         stage.style.transformOrigin = "center center";
         stage.style.setProperty("--sst-tx", g.tx + "px");
