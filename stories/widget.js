@@ -40,7 +40,7 @@
       ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:22px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
       ".sst-row::-webkit-scrollbar{display:none}",
       ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:9px;cursor:pointer;width:84px}",
-      ".sst-ring{width:84px;height:84px;border-radius:50%;padding:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .15s}",
+      ".sst-ring{width:84px;height:84px;border-radius:50%;padding:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
       ".sst-item:hover .sst-ring{transform:scale(1.06)}",
       ".sst-ring-inner{width:100%;height:100%;border-radius:50%;border:2.5px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
@@ -50,7 +50,7 @@
       // Overlay
       ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}",
       ".sst-overlay.open{display:flex;opacity:1}",
-      ".sst-stage{position:relative;height:88vh;max-height:88vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black)}",
+      ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center}",
       ".sst-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;pointer-events:none;-webkit-touch-callout:none}",
       ".sst-close{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.4);color:#fff;font-size:22px;line-height:1;cursor:pointer;z-index:100001;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}",
       ".sst-close:hover{background:rgba(255,255,255,.26)}",
@@ -122,7 +122,7 @@
       lbl.textContent = reel.label;
       item.appendChild(lbl);
     }
-    item.addEventListener("click", function(){ openOverlay(i); });
+    item.addEventListener("click", function(){ openOverlay(i, ring); });
     row.appendChild(item);
   });
 
@@ -205,23 +205,100 @@
     });
   }
 
-  function openOverlay(i){
+  // Remembers which ring the overlay popped out of, so closing can pop back.
+  var originRing = null;
+  var POP_MS = 529;   // pop-out / pop-in duration
+
+  // The chrome elements that stagger in after the stage pops out.
+  var chromeEls = [
+    overlay.querySelector(".sst-top"),
+    overlay.querySelector(".sst-bottom"),
+    overlay.querySelector(".sst-progress")
+  ];
+
+  // Compute the transform that makes `stage` visually overlap `ring`'s rect.
+  function transformToRing(ring){
+    var s = stage.getBoundingClientRect();
+    var r = ring.getBoundingClientRect();
+    if (!s.width || !r.width) return "scale(.1)";
+    var scale = r.width / s.width;
+    var sCx = s.left + s.width/2, sCy = s.top + s.height/2;
+    var rCx = r.left + r.width/2, rCy = r.top + r.height/2;
+    return "translate(" + (rCx-sCx) + "px," + (rCy-sCy) + "px) scale(" + scale + ")";
+  }
+
+  // Show / hide the chrome (logo bar, title, progress) with a small slide.
+  function setChrome(on, instant){
+    chromeEls.forEach(function(el){
+      if (!el) return;
+      el.style.transition = instant ? "none" : "opacity .28s ease, transform .28s ease";
+      el.style.opacity = on ? "1" : "0";
+      // Top bar drops in from above; bottom/progress rise from below.
+      var fromBelow = el.classList.contains("sst-bottom") || el.classList.contains("sst-progress");
+      el.style.transform = on ? "translateY(0)" : ("translateY(" + (fromBelow ? "10px" : "-6px") + ")");
+    });
+  }
+
+  function openOverlay(i, ring){
+    originRing = ring || null;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
+    if (originRing) originRing.style.transform = "scale(.86)";   // ring dips
+    setChrome(false, true);                                      // chrome hidden
     playIndex(i);
+
+    // FLIP pop-out with a slight overshoot, then the chrome staggers in.
+    if (originRing){
+      stage.style.transition = "none";
+      stage.style.transform  = transformToRing(originRing);
+      stage.offsetHeight; // force reflow
+      stage.style.transition = "transform " + POP_MS + "ms cubic-bezier(.2,.85,.3,1.08)";
+      stage.style.transform  = "none";
+      setTimeout(function(){ setChrome(true, false); }, POP_MS * 0.45);
+    } else {
+      setChrome(true, true);
+    }
   }
 
   function closeOverlay(){
-    overlay.classList.remove("open");
-    document.body.style.overflow = "";
     if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
     video.pause();
-    video.removeAttribute("src");
-    video.load();
+
+    function finishClose(){
+      overlay.classList.remove("open");
+      document.body.style.overflow = "";
+      stage.style.transition = "none";
+      stage.style.transform  = "none";
+      overlay.style.transition = "";
+      overlay.style.opacity = "";
+      if (originRing){ originRing.style.transform = ""; originRing = null; }
+      setChrome(true, true);   // reset for next open
+      video.removeAttribute("src");
+      video.load();
+    }
+
+    // Chrome fades first, then the stage pops back into its ring.
+    setChrome(false, false);
+    if (originRing){
+      var ms = POP_MS - 90;
+      setTimeout(function(){
+        stage.style.transition = "transform " + ms + "ms cubic-bezier(.4,0,.25,1)";
+        stage.style.transform  = transformToRing(originRing);
+        overlay.style.transition = "opacity " + ms + "ms ease";
+        overlay.style.opacity = "0";
+        setTimeout(finishClose, ms);
+      }, 90);
+    } else {
+      finishClose();
+    }
   }
 
-  function next(){ playIndex(cur + 1); }
-  function prev(){ playIndex(cur - 1); }
+  function restagger(){
+    setChrome(false, false);
+    setTimeout(function(){ setChrome(true, false); }, 150);
+  }
+  function next(){ playIndex(cur + 1); restagger(); }
+  function prev(){ playIndex(cur - 1); restagger(); }
 
   // ── Video events ────────────────────────────────────
   video.addEventListener("loadedmetadata", function(){
