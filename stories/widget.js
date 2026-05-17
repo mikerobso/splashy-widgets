@@ -241,15 +241,41 @@
     overlay.querySelector(".sst-progress")
   ];
 
-  // Compute the transform that makes `stage` visually overlap `ring`'s rect.
-  function transformToRing(ring){
+  // Compute the transform + origin that makes `stage` shrink onto `ring`.
+  // Returns {origin, sx, sy, tx, ty} so the genie animation can scale X/Y
+  // independently from a transform-origin anchored at the circle.
+  function ringGeometry(ring){
     var s = stage.getBoundingClientRect();
     var r = ring.getBoundingClientRect();
-    if (!s.width || !r.width) return "scale(.1)";
-    var scale = r.width / s.width;
-    var sCx = s.left + s.width/2, sCy = s.top + s.height/2;
-    var rCx = r.left + r.width/2, rCy = r.top + r.height/2;
-    return "translate(" + (rCx-sCx) + "px," + (rCy-sCy) + "px) scale(" + scale + ")";
+    if (!s.width || !r.width) return null;
+    var sx = r.width  / s.width;
+    var sy = r.height / s.height;
+    // Anchor the transform-origin at the circle's centre, expressed in the
+    // stage's own coordinate space — so scaling emerges FROM the circle.
+    var ox = (r.left + r.width/2)  - s.left;
+    var oy = (r.top  + r.height/2) - s.top;
+    return { ox: ox, oy: oy, sx: sx, sy: sy };
+  }
+
+  // Inject (once) the genie keyframes. Y leads — the player shoots up tall
+  // and thin out of the circle, then X fills out to full width with a
+  // slight overshoot, like a genie rising from a bottle.
+  if (!document.querySelector("style[data-splshy-stories-genie]")){
+    var gStyle = document.createElement("style");
+    gStyle.setAttribute("data-splshy-stories-genie","1");
+    gStyle.textContent =
+      "@keyframes sstGenieIn{" +
+        "0%{transform:scale(var(--sst-sx),var(--sst-sy))}" +
+        "38%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.30),calc(var(--sst-sy) + (1 - var(--sst-sy))*0.82))}" +
+        "62%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.62),1.02)}" +
+        "100%{transform:scale(1,1)}" +
+      "}" +
+      "@keyframes sstGenieOut{" +
+        "0%{transform:scale(1,1)}" +
+        "38%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.62),1.02)}" +
+        "100%{transform:scale(var(--sst-sx),var(--sst-sy))}" +
+      "}";
+    document.head.appendChild(gStyle);
   }
 
   // Show / hide the chrome (logo bar, title, progress) with a small slide.
@@ -290,14 +316,17 @@
     setChrome(false, true);                                      // chrome hidden
     playIndex(i);
 
-    // FLIP pop-out with a slight overshoot, then the chrome staggers in.
-    if (originRing){
-      stage.style.transition = "none";
-      stage.style.transform  = transformToRing(originRing);
+    // Genie pop-out: scale emerges from the circle, Y leading X.
+    var g = originRing ? ringGeometry(originRing) : null;
+    if (g){
+      stage.style.animation = "none";
+      stage.style.transformOrigin = g.ox + "px " + g.oy + "px";
+      stage.style.setProperty("--sst-sx", g.sx);
+      stage.style.setProperty("--sst-sy", g.sy);
+      stage.style.transform = "scale(" + g.sx + "," + g.sy + ")";
       stage.offsetHeight; // force reflow
-      stage.style.transition = "transform " + POP_MS + "ms cubic-bezier(.2,.85,.3,1.08)";
-      stage.style.transform  = "none";
-      setTimeout(function(){ setChrome(true, false); }, POP_MS * 0.45);
+      stage.style.animation = "sstGenieIn " + POP_MS + "ms cubic-bezier(.22,.7,.28,1) forwards";
+      setTimeout(function(){ setChrome(true, false); }, POP_MS * 0.5);
     } else {
       setChrome(true, true);
     }
@@ -310,8 +339,9 @@
     function finishClose(){
       overlay.classList.remove("open");
       document.body.style.overflow = "";
-      stage.style.transition = "none";
+      stage.style.animation = "none";
       stage.style.transform  = "none";
+      stage.style.transformOrigin = "";
       overlay.style.transition = "";
       overlay.style.opacity = "";
       if (originRing){ originRing.style.transform = ""; originRing.style.transition = ""; originRing = null; }
@@ -320,13 +350,16 @@
       video.load();
     }
 
-    // Chrome fades first, then the stage pops back into its ring.
+    // Chrome fades first, then the stage genies back into its ring.
     setChrome(false, false);
-    if (originRing){
+    var g = originRing ? ringGeometry(originRing) : null;
+    if (g){
       var ms = POP_MS - 90;
       setTimeout(function(){
-        stage.style.transition = "transform " + ms + "ms cubic-bezier(.4,0,.25,1)";
-        stage.style.transform  = transformToRing(originRing);
+        stage.style.transformOrigin = g.ox + "px " + g.oy + "px";
+        stage.style.setProperty("--sst-sx", g.sx);
+        stage.style.setProperty("--sst-sy", g.sy);
+        stage.style.animation = "sstGenieOut " + ms + "ms cubic-bezier(.4,0,.25,1) forwards";
         overlay.style.transition = "opacity " + ms + "ms ease";
         overlay.style.opacity = "0";
         setTimeout(finishClose, ms);
