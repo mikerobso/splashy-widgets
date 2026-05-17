@@ -384,12 +384,30 @@
 
     // Handle outgoing audio
     if (activeFade){ clearInterval(activeFade); activeFade=null; }
-    if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
+    // Only fully reset the current card if it's leaving the visible window.
+    // With left arrow, current slides to the right slot and stays visible.
+    // With right arrow, current slides to the left slot and stays visible.
+    // Current only fully leaves when it moves 2+ steps away, which doesn't
+    // happen in a single navigate step — so just fade audio, don't reset.
+    if (!cards[current].video.paused) {
+      var vid = cards[current].video;
+      var fade = setInterval(function(){
+        if (vid.volume > 0.05){ vid.volume = Math.max(0, vid.volume - 0.05); }
+        else { clearInterval(fade); if (activeFade === fade) activeFade = null; vid.volume = 1; }
+      }, 30);
+      activeFade = fade;
+    }
 
     // ── The key sequence ──────────────────────────────
     // Left arrow: DOM centered on current (unchanged from original — works perfectly)
     // Right arrow: DOM pre-centered on nextIdx so nextIdx+1 sits at slot 2 (right edge)
     //   and slides in smoothly instead of popping
+    // Reset cards already outside the visible window before animating
+    var visibleBefore = [mod(current-1,n), current, mod(current+1,n)];
+    cards.forEach(function(c){
+      if (visibleBefore.indexOf(c.reelIdx) === -1) resetCard(c);
+    });
+
     if (dir === 1) {
       setDOMOrder(nextIdx);
       setTranslate(centerX() + step, false);
@@ -401,19 +419,20 @@
     var targetX = (dir === 1) ? centerX() : centerX() + step;
     setTranslate(targetX, true);
 
-    // 3. After animation: update current, reset DOM to new center, snap back
+    // 3. After animation: reset outgoing cards BEFORE setDOMOrder so they
+    //    never appear with a paused frame when the DOM reinserts them
     setTimeout(function(){
       current = nextIdx;
 
-      // Silently re-center DOM on new current
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
-
-      // Reset any card not in the new visible 3-slot window
+      // Reset cards not in new visible window BEFORE reordering DOM
       var visible = [mod(current-1,n), current, mod(current+1,n)];
       cards.forEach(function(c){
         if (visible.indexOf(c.reelIdx) === -1) resetCard(c);
       });
+
+      // Now reorder DOM — reset cards are already clean
+      setDOMOrder(current);
+      setTranslate(centerX(), false);
 
       updateUI();
       busy = false;
