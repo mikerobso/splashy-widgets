@@ -441,14 +441,26 @@
     // The track itself never moves on mobile.
     track.style.transition = "none";
     track.style.transform  = "translateX(0px)";
+
+    // Pass 1: set position anchors + the transition on every card.
     cards.forEach(function(c){
-      var rel = c.slot - centreSlot;
-      c.el.style.position = "absolute";
-      c.el.style.top      = "0";
-      c.el.style.left     = "50%";               // anchor; transform does the rest
+      c.el.style.position   = "absolute";
+      c.el.style.top        = "0";
+      c.el.style.left       = "50%";             // anchor; transform does the rest
       c.el.style.marginLeft = (-getCardW()/2) + "px";
       c.el.style.transition = trans;
-      c.el.style.transform  = mobileCardTransform(rel);
+    });
+
+    // Force a reflow so the transition change above is committed BEFORE we
+    // change any transform. Without this, if the cards were previously in a
+    // transition:none state (e.g. a resize/relayout fired while the user
+    // scrolled the page), the browser batches the transition + transform
+    // changes together and the slide snaps instantly instead of animating.
+    if (cards.length) cards[0].el.offsetHeight;
+
+    // Pass 2: now apply the transforms — these will animate.
+    cards.forEach(function(c){
+      c.el.style.transform = mobileCardTransform(c.slot - centreSlot);
       if (!animated) c.el.offsetHeight;          // force reflow on instant moves
     });
   }
@@ -660,7 +672,15 @@
     if (e.key==="ArrowRight") navigate(mod(current+1,n));
   });
 
+  // Resize handling. On mobile, scrolling the page makes the browser's URL
+  // bar show/hide, which fires `resize` with only a HEIGHT change. The
+  // carousel layout only depends on width, so we ignore height-only resizes
+  // — this avoids needless relayouts (and the snap bug they used to cause)
+  // while the user scrolls.
+  var lastW = window.innerWidth;
   window.addEventListener("resize",function(){
+    if (window.innerWidth === lastW) return;   // height-only change — ignore
+    lastW = window.innerWidth;
     relayout();
   });
 
