@@ -376,9 +376,9 @@
   // Move the track so `centreSlot`'s card is centred in the viewport.
   // A card at slot s has left = s*step; on-screen x = T + s*step.
   // Slide animation duration in milliseconds.
-  // Desktop: 460ms. Mobile: 15% slower (~529ms) for a gentler feel.
+  // Desktop: 460ms. Mobile: ~608ms (slower, gentler feel).
   function slideMs(){
-    return isMobileLayout() ? 529 : 460;
+    return isMobileLayout() ? 608 : 460;
   }
 
   // Centred means  T + centreSlot*step = centreOffset()
