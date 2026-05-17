@@ -380,44 +380,46 @@
     if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
-    // Build exactly 3 visible slots: [prev | nextIdx | next]
-    // Hide all other cards so they don't bleed into the viewport during animation.
-    // Offset startX so current appears centered, then animate to centerX().
-    // Build the 3-slot DOM order for the animation:
-    // slot 0 = prev of nextIdx, slot 1 = nextIdx, slot 2 = next of nextIdx
-    // For dir=+1 (right): slot 0=current, slot 1=nextIdx, slot 2=nextIdx+1
-    // For dir=-1 (left):  slot 0=nextIdx-1, slot 1=nextIdx, slot 2=current
+    // During animation we only want exactly 3 cards in the flex row:
+    //   slot 0 = nextIdx-1  (for dir=-1: nextIdx; for dir=+1: current)  <- off-left
+    //   slot 1 = nextIdx    (incoming, animates to center)
+    //   slot 2 = nextIdx+1  (for dir=-1: current; for dir=+1: nextIdx)  <- off-right
+    // Extra cards are temporarily removed from the track so they can't
+    // bleed into the viewport, then re-appended after.
+
     var slot0 = mod(nextIdx - 1, n);
     var slot1 = nextIdx;
     var slot2 = mod(nextIdx + 1, n);
-    var visibleSet = [slot0, slot1, slot2];
+    var slotSet = [slot0, slot1, slot2];
 
-    // Reorder track: visible 3 first, rest hidden after
-    [slot0, slot1, slot2].forEach(function(ri){ track.appendChild(cards[ri].el); });
+    // Remove extra cards from track temporarily
+    var removed = [];
     cards.forEach(function(c){
-      if (visibleSet.indexOf(c.reelIdx) === -1){
-        c.el.style.visibility = "hidden";
-        track.appendChild(c.el);
+      if (slotSet.indexOf(c.reelIdx) === -1){
+        if (c.el.parentNode === track) track.removeChild(c.el);
+        removed.push(c);
       }
     });
 
-    setTranslate(centerX() + dir * step, false); // silent pre-position
+    // Place the 3 animation cards in correct slot order
+    [slot0, slot1, slot2].forEach(function(ri){ track.appendChild(cards[ri].el); });
 
-    // Animate to center (nextIdx slides into slot 1)
+    // Offset so current card visually stays centered, then animate
+    setTranslate(centerX() + dir * step, false);
     setTranslate(centerX(), true);
 
-    // After animation: commit state, re-center DOM, restore hidden cards
+    // After animation: restore removed cards, re-center DOM, clean up
     setTimeout(function(){
       current = nextIdx;
 
-      // Restore visibility on all cards
-      cards.forEach(function(c){ c.el.style.visibility = ""; });
+      // Re-add removed cards (off-screen, won't flash)
+      removed.forEach(function(c){ track.appendChild(c.el); });
 
-      // Re-center DOM on new current
+      // Re-center DOM on new current and snap (no animation)
       setDOMOrder(current);
       setTranslate(centerX(), false);
 
-      // Reset cards that just left the window
+      // Reset cards that are now off-screen
       cards.forEach(function(c){
         var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
         if (Math.abs(diff) > 1) resetCard(c);
