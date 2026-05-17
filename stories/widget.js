@@ -27,6 +27,35 @@
   if (!reels.length) { console.warn("Splshy Stories: no reels configured."); return; }
   var n = reels.length;
 
+  // ── GA4 / analytics tracking ─────────────────────────
+  // Fires an event to whichever analytics the host page uses — gtag (GA4
+  // direct) or dataLayer (Google Tag Manager). If neither exists, it does
+  // nothing, so the widget never errors on a page without analytics.
+  function track(eventName, params){
+    try {
+      var data = params || {};
+      data.widget_type     = "story_highlights";
+      data.widget_instance = containerId;
+      if (typeof window.gtag === "function"){
+        window.gtag("event", eventName, data);
+      } else if (window.dataLayer && typeof window.dataLayer.push === "function"){
+        var payload = { event: eventName };
+        for (var k in data){ if (data.hasOwnProperty(k)) payload[k] = data[k]; }
+        window.dataLayer.push(payload);
+      }
+    } catch (e) { /* analytics must never break the widget */ }
+  }
+  // Params describing a given reel, attached to video events.
+  function reelParams(i){
+    var r = reels[i] || {};
+    return {
+      reel_index: i,
+      reel_label: r.label || "",
+      reel_title: r.videoTitle || r.label || "",
+      video_url:  r.videoUrl || ""
+    };
+  }
+
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
   // True on phones / small touch screens — drives the simpler pop animation.
@@ -136,7 +165,10 @@
       lbl.textContent = reel.label;
       item.appendChild(lbl);
     }
-    item.addEventListener("click", function(){ pressAndOpen(i, ring); });
+    item.addEventListener("click", function(){
+      track("story_open", reelParams(i));
+      pressAndOpen(i, ring);
+    });
     // Hover plays the shimmer ONCE (1.1s). If the cursor leaves before it
     // finishes, the shimmer is cancelled immediately. The scale-up is pure
     // CSS :hover, so it simply holds while hovering.
@@ -171,6 +203,23 @@
   // Re-centre once images have loaded (scrollWidth can change as they size in).
   setTimeout(centreRowScroll, 60);
   setTimeout(centreRowScroll, 300);
+
+  // Fire a widget_impression once the widget actually scrolls into view.
+  if (typeof IntersectionObserver === "function"){
+    var seen = false;
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting && !seen){
+          seen = true;
+          track("widget_impression", { reel_count: n });
+          io.disconnect();
+        }
+      });
+    }, { threshold: 0.4 });
+    io.observe(widget);
+  } else {
+    track("widget_impression", { reel_count: n });
+  }
 
   // ── Build the overlay (one per widget instance) ─────
   var resolvedLogo = logoUrl
@@ -223,6 +272,8 @@
 
   var cur = 0;        // current reel index in the overlay
   var gapTimer = null;
+  var playFired = false;      // video_play fired for the current reel?
+  var progressFired = false;  // video_progress (50%) fired for the current reel?
 
   function syncMuteIcon(){
     muteBtn.querySelectorAll(".sst-unmute").forEach(function(el){ el.style.display=globalMuted?"none":"block"; });
@@ -233,6 +284,7 @@
   function playIndex(i){
     if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
     cur = mod(i, n);
+    playFired = false; progressFired = false;   // reset tracking for the new reel
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
     progFill.style.width = "0%"; progThumb.style.left = "0%";
@@ -269,6 +321,18 @@
       video.addEventListener("loadeddata", once);
     }
   }
+
+  // Video failed to load. Keep the poster visible (don't show a broken
+  // player) and skip to the next reel so the widget never gets stuck.
+  function handleVideoError(){
+    track("video_error", reelParams(cur));
+    if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
+    // Brief pause on the poster, then move on (unless it was the only reel).
+    if (n > 1){
+      gapTimer = setTimeout(function(){ next(); }, 1200);
+    }
+  }
+  video.addEventListener("error", handleVideoError);
 
   // Remembers which ring the overlay popped out of, so closing can pop back.
   var originRing = null;
@@ -414,12 +478,22 @@
     setChrome(false, false);
     setTimeout(function(){ setChrome(true, false); }, 150);
   }
-  function next(){ playIndex(cur + 1); restagger(); }
-  function prev(){ playIndex(cur - 1); restagger(); }
+  function next(manual){
+    if (manual) track("widget_navigate", { direction: "next", from_reel: cur });
+    playIndex(cur + 1); restagger();
+  }
+  function prev(manual){
+    if (manual) track("widget_navigate", { direction: "prev", from_reel: cur });
+    playIndex(cur - 1); restagger();
+  }
 
   // ── Video events ────────────────────────────────────
   video.addEventListener("loadedmetadata", function(){
     if (video.duration) timerTx.textContent = fmtTime(video.duration);
+  });
+  video.addEventListener("playing", function(){
+    // video_play — fired once, the first time this reel actually plays.
+    if (!playFired){ playFired = true; track("video_play", reelParams(cur)); }
   });
   video.addEventListener("timeupdate", function(){
     var d = video.duration; if (!d) return;
@@ -428,8 +502,14 @@
     timerTx.textContent = fmtTime(Math.max(0, d - video.currentTime));
     progFill.style.width = (pct*100) + "%";
     progThumb.style.left = (pct*100) + "%";
+    // video_progress — fired once when the reel passes the 50% mark.
+    if (!progressFired && pct >= 0.5){
+      progressFired = true;
+      track("video_progress", reelParams(cur));
+    }
   });
   video.addEventListener("ended", function(){
+    track("video_complete", reelParams(cur));
     // Hold the final frame for the 1s gap, then auto-advance (loops).
     if (gapTimer) clearTimeout(gapTimer);
     gapTimer = setTimeout(function(){ next(); }, GAP_MS);
@@ -437,8 +517,8 @@
 
   // ── Controls ────────────────────────────────────────
   overlay.querySelector(".sst-close").addEventListener("click", closeOverlay);
-  overlay.querySelector(".sst-arrow--left").addEventListener("click", function(e){ e.stopPropagation(); prev(); });
-  overlay.querySelector(".sst-arrow--right").addEventListener("click", function(e){ e.stopPropagation(); next(); });
+  overlay.querySelector(".sst-arrow--left").addEventListener("click", function(e){ e.stopPropagation(); prev(true); });
+  overlay.querySelector(".sst-arrow--right").addEventListener("click", function(e){ e.stopPropagation(); next(true); });
 
   // Tap the backdrop (outside the stage) to close.
   overlay.addEventListener("click", function(e){
@@ -527,15 +607,15 @@
     var dy = Math.abs(e.changedTouches[0].clientY - tyS);
     if (Math.abs(dx) > 45 && Math.abs(dx) > dy*1.4){
       swallowTap = true; setTimeout(function(){ swallowTap=false; }, 50);
-      if (dx < 0) next(); else prev();
+      if (dx < 0) next(true); else prev(true);
     }
   }, {passive:true});
 
   // Keyboard: arrows navigate, Escape closes (only when overlay is open).
   document.addEventListener("keydown", function(e){
     if (!overlay.classList.contains("open")) return;
-    if (e.key === "ArrowLeft")  prev();
-    if (e.key === "ArrowRight") next();
+    if (e.key === "ArrowLeft")  prev(true);
+    if (e.key === "ArrowRight") next(true);
     if (e.key === "Escape")     closeOverlay();
   });
 
