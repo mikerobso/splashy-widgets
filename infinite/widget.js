@@ -396,18 +396,16 @@
   // Move the track so `centreSlot`'s card is centred in the viewport.
   // A card at slot s has left = s*step; on-screen x = T + s*step.
   // Slide animation duration in milliseconds.
-  // Desktop: 460ms. Mobile: ~559ms.
+  // Desktop: 460ms. Mobile: 520ms — matched to the reels carousel.
   function slideMs(){
-    return isMobileLayout() ? 559 : 460;
+    return isMobileLayout() ? 520 : 460;
   }
 
   // Slide easing curve.
-  // Desktop: cubic-bezier(.4,0,.2,1) — a fast, front-loaded start.
-  // Mobile:  cubic-bezier(.45,.05,.3,1) — a softer, more deliberate start
-  //          so the slide feels calmer (it reads as "fast" otherwise because
-  //          the mobile step travels a shorter distance).
+  // Desktop: cubic-bezier(.4,0,.2,1).
+  // Mobile:  cubic-bezier(.4,0,.2,1) — matched to the reels carousel.
   function slideEasing(){
-    return isMobileLayout() ? "cubic-bezier(.4,.12,.3,1)" : "cubic-bezier(.4,0,.2,1)";
+    return "cubic-bezier(.4,0,.2,1)";
   }
 
   // Centred means  T + centreSlot*step = centreOffset()
