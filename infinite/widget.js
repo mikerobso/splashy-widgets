@@ -404,6 +404,7 @@
   updateUI();
 
   // ── Navigate ─────────────────────────────────────────
+  // ── Navigate ─────────────────────────────────────────
   function navigate(targetReelIdx) {
     if (busy) return;
     targetReelIdx = mod(targetReelIdx, n);
@@ -422,55 +423,56 @@
     var outgoing = cards[current];
     if (!outgoing.video.paused) { fadeOutAndReset(outgoing); }
 
-    // Step 1: rebuild DOM so current is at centerSlot AND
-    // the incoming card is already physically adjacent on the correct side.
-    // We do this without animation, then start the animated slide.
-    var incomingReelIdx = nextReelIdx;
+    var step = getStep();
 
-    // Build DOM order: place incoming card on the correct side of current
-    // If dir=+1 (going right): order is [..., prev, current, incoming, ...]
-    // If dir=-1 (going left):  order is [..., incoming, current, next, ...]
-    var orderedReelIdxs = [];
-    for (var offset = -centerSlot; offset < n - centerSlot; offset++) {
-      orderedReelIdxs.push(mod(current + offset, n));
-    }
+    // Get the current track translateX value
+    var currentX = getTranslateForSlot(centerSlot);
 
-    // Reset cards not in this window
-    var visibleIdxs = [];
-    for (var v = -centerSlot; v <= centerSlot; v++) {
-      visibleIdxs.push(mod(current + v, n));
-    }
-    cards.forEach(function(c) {
-      if (visibleIdxs.indexOf(c.reelIdx) === -1) resetCard(c);
-    });
-
-    // Apply DOM order without animation
+    // Step 1: silently place the incoming card physically off-screen
+    // on the correct side, WITHOUT animation
+    var incoming = cards[nextReelIdx];
     track.classList.remove("animated");
-    orderedReelIdxs.forEach(function(ri) { track.appendChild(cards[ri].el); });
-    track.style.transform = "translateX("+getTranslateForSlot(centerSlot)+"px)";
-    track.offsetHeight; // force reflow
 
-    // Step 2: animate slide in the correct direction
-    track.classList.add("animated");
-    var targetX = getTranslateForSlot(centerSlot) - dir * getStep();
-    track.style.transform = "translateX("+targetX+"px)";
+    if (dir === 1) {
+      // Going right: incoming should be one step to the RIGHT of current position
+      // It's already in the DOM after current — just make sure track position is right
+      // Rebuild DOM: [..., prev, current, incoming, ...]
+      var order = [mod(current-1,n), current, nextReelIdx];
+      // Append remaining cards after
+      for (var i=0;i<n;i++) { if (order.indexOf(i)===-1) order.push(i); }
+      order.forEach(function(ri){ track.appendChild(cards[ri].el); });
+      track.style.transform = "translateX("+currentX+"px)";
+      track.offsetHeight;
+      // Animate: slide left by one step
+      track.classList.add("animated");
+      track.style.transform = "translateX("+(currentX - step)+"px)";
+    } else {
+      // Going left: incoming should be one step to the LEFT of current position
+      // Build DOM: [..., incoming, current, next, ...]
+      var order2 = [nextReelIdx, current, mod(current+1,n)];
+      for (var j=0;j<n;j++) { if (order2.indexOf(j)===-1) order2.push(j); }
+      order2.forEach(function(ri){ track.appendChild(cards[ri].el); });
+      // incoming is now at DOM slot 0, current at slot 1
+      // Set track so current is still centered (slot 1 = centerSlot)
+      track.style.transform = "translateX("+currentX+"px)";
+      track.offsetHeight;
+      // Animate: slide right by one step (incoming slides in from left)
+      track.classList.add("animated");
+      track.style.transform = "translateX("+(currentX + step)+"px)";
+    }
 
     setTimeout(function(){
       current = nextReelIdx;
-
-      // Silently re-center DOM to new current
       track.classList.remove("animated");
       rotateDOMTo(current);
       track.style.transform = "translateX("+getTranslateForSlot(centerSlot)+"px)";
       track.offsetHeight;
-
       updateUI();
       busy = false;
-
       if (nextReelIdx !== targetReelIdx) {
         setTimeout(function(){ navigate(targetReelIdx); }, 50);
       }
-    }, 480);
+    }, 490);
   }
 
   // ── Controls ─────────────────────────────────────────
