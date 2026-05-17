@@ -86,7 +86,7 @@
       ".sst-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}",
       ".sst-mute-btn{position:absolute;bottom:54px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;padding:0;-webkit-tap-highlight-color:transparent}",
       ".sst-mute-btn svg{width:16px;height:16px}",
-      ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
+      ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;box-sizing:border-box}",
       ".sst-speed.visible{opacity:1}",
       // Progress bar
       ".sst-progress{position:absolute;bottom:0;left:0;right:0;height:20px;z-index:20;cursor:pointer;display:flex;align-items:flex-end}",
@@ -197,7 +197,7 @@
         '</div>' +
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
         '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
-        '<div class="sst-speed">2&times; speed</div>' +
+        '<div class="sst-speed">2&times;</div>' +
         '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
       '</div>' +
