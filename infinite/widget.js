@@ -283,6 +283,13 @@
     var muteBtn = card.querySelector(".sif-mute-btn");
     playBtn.addEventListener("click", function(e){
       e.stopPropagation();
+      // Pause all other videos first
+      cardEls.forEach(function(c){
+        if (c.video !== video && !c.video.paused) {
+          c.video.pause();
+          var pi = c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
+        }
+      });
       video.muted = globalMuted; video.style.display = "block"; poster.style.display = "none";
       playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
       syncMuteIcon(muteBtn, globalMuted); video.play();
@@ -307,10 +314,9 @@
       if (dragging){ dragging=false; progBar.classList.remove("dragging"); window._sifScrubEnd=true; setTimeout(function(){ window._sifScrubEnd=false; },300); }
     });
     video.addEventListener("play", function(){
-      if (window.matchMedia("(hover:none)").matches){
-        progBar.classList.add("visible");
-        setTimeout(function(){ if (!dragging) progBar.classList.remove("visible"); }, 7000);
-      }
+      progBar.classList.add("visible");
+      clearTimeout(window._sifFade);
+      window._sifFade = setTimeout(function(){ if (!dragging) progBar.classList.remove("visible"); }, 7000);
     });
 
     // 2x hold
@@ -325,7 +331,7 @@
     card.addEventListener("touchend", endHold);
     card.addEventListener("touchcancel", endHold);
 
-    // Click — play in place, no centering
+    // Click — play/pause in place, never navigate
     card.addEventListener("click", function(e){
       if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||e.target.closest(".sif-progress")) return;
       if (swallow){ swallow=false; return; }
@@ -490,20 +496,29 @@
 
   function goTo(targetRealIdx) {
     if (isAnimating) return;
+    targetRealIdx = mod(targetRealIdx, n);
     var prevRealIdx = mod(current, n);
     if (targetRealIdx === prevRealIdx) return;
 
-    // Determine direction
+    // Determine direction — always shortest path around the circle
     var delta = targetRealIdx - prevRealIdx;
-    // Shortest path around the circle
-    if (delta >  n/2) delta -= n;
-    if (delta < -n/2) delta += n;
+    if (delta >  Math.floor(n / 2)) delta -= n;
+    if (delta < -Math.floor(n / 2)) delta += n;
+
+    // Before moving, make sure we're in the middle set so we have room in both directions
+    var middleStart = n;
+    var middleEnd   = 2 * n - 1;
+    var curSlotInMiddle = n + prevRealIdx;
+    if (virtualPos !== curSlotInMiddle) {
+      virtualPos = curSlotInMiddle;
+      setTrackBySlot(virtualPos, false);
+    }
 
     var newVirtualPos = virtualPos + delta;
     isAnimating = true;
 
     // Reset outgoing card
-    if (activeFade) { clearInterval(activeFade); activeFade=null; }
+    if (activeFade) { clearInterval(activeFade); activeFade = null; }
     fadeOutAndReset(cardEls[prevRealIdx]);
 
     current = targetRealIdx;
@@ -513,20 +528,16 @@
     updateActiveClass();
     updateDots();
 
-    // After animation, silently re-center to middle set if we've drifted
+    // After animation, silently re-center to middle set
     setTimeout(function(){
       isAnimating = false;
-      // If virtualPos has drifted outside middle set range, jump back silently
-      var middleStart = n;
-      var middleEnd   = 2*n - 1;
-      if (virtualPos < middleStart || virtualPos > middleEnd) {
-        // Find equivalent slot in middle set
-        var realIdx = mod(virtualPos, n);
-        var newVP   = n + realIdx;
-        virtualPos  = newVP;
+      var realIdx = mod(current, n);
+      var newVP   = n + realIdx;
+      if (virtualPos !== newVP) {
+        virtualPos = newVP;
         setTrackBySlot(virtualPos, false);
       }
-    }, 500);
+    }, 520);
   }
 
   // Initial position
