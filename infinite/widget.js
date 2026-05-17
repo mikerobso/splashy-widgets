@@ -215,7 +215,15 @@
       var muteBtn=card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
-        cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
+        cards.forEach(function(c){
+          if (c.video === video) return;
+          if (!c.video.paused) {
+            // Another video is actively playing — stop and reset it
+            resetCard(c);
+          }
+          // If it's paused, leave it on its pause frame;
+          // it will be reset naturally when it scrolls out of the 3-card window
+        });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
         syncMuteIcon(muteBtn,globalMuted); video.play();
