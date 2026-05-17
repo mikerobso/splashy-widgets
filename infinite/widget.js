@@ -215,6 +215,12 @@
       var muteBtn=card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
+        // On mobile, tapping a peeking side card should bring it to the
+        // centre rather than play it in the background.
+        if (isMobileLayout() && reelIdx !== current){
+          navigate(reelIdx);
+          return;
+        }
         cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
@@ -258,6 +264,11 @@
       card.addEventListener("click",function(e){
         if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||e.target.closest(".sif-progress")) return;
         if (swallow){ swallow=false; return; }
+        // On mobile, tapping a peeking side card brings it to the centre.
+        if (isMobileLayout() && reelIdx !== current){
+          navigate(reelIdx);
+          return;
+        }
         if (video.style.display==="block"){
           var pi=card.querySelector(".sif-pause-ind");
           if (video.paused){ video.play(); if (pi) pi.classList.remove("visible"); }
