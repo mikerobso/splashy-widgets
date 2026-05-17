@@ -29,6 +29,10 @@
 
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
+  // True on phones / small touch screens — drives the simpler pop animation.
+  function isMobileLayout(){
+    return window.matchMedia("(max-width:767px), (min-width:768px) and (pointer:coarse) and (hover:none)").matches;
+  }
 
   // ── CSS (injected once) ─────────────────────────────
   if (!document.querySelector("style[data-splshy-stories]")) {
@@ -232,7 +236,7 @@
 
   // Remembers which ring the overlay popped out of, so closing can pop back.
   var originRing = null;
-  var POP_MS = 529;   // pop-out / pop-in duration
+  function popMs(){ return isMobileLayout() ? 529 : 620; }
 
   // The chrome elements that stagger in after the stage pops out.
   var chromeEls = [
@@ -241,39 +245,45 @@
     overlay.querySelector(".sst-progress")
   ];
 
-  // Compute the transform + origin that makes `stage` shrink onto `ring`.
-  // Returns {origin, sx, sy, tx, ty} so the genie animation can scale X/Y
-  // independently from a transform-origin anchored at the circle.
+  // Geometry mapping the stage onto a ring: the translate that moves the
+  // stage centre onto the circle, and the scale factors.
   function ringGeometry(ring){
     var s = stage.getBoundingClientRect();
     var r = ring.getBoundingClientRect();
     if (!s.width || !r.width) return null;
-    var sx = r.width  / s.width;
-    var sy = r.height / s.height;
-    // Anchor the transform-origin at the circle's centre, expressed in the
-    // stage's own coordinate space — so scaling emerges FROM the circle.
-    var ox = (r.left + r.width/2)  - s.left;
-    var oy = (r.top  + r.height/2) - s.top;
-    return { ox: ox, oy: oy, sx: sx, sy: sy };
+    return {
+      tx: (r.left + r.width/2)  - (s.left + s.width/2),
+      ty: (r.top  + r.height/2) - (s.top  + s.height/2),
+      sx: r.width  / s.width,
+      sy: r.height / s.height
+    };
   }
 
-  // Inject (once) the genie keyframes. Y leads — the player shoots up tall
-  // and thin out of the circle, then X fills out to full width with a
-  // slight overshoot, like a genie rising from a bottle.
+  // Genie keyframes. The stage TRAVELS from the circle up to centre while it
+  // grows — desktop adds a tall-then-fill stretch; mobile keeps it a clean
+  // uniform scale (it's fullscreen anyway). Travel is what sells the motion.
   if (!document.querySelector("style[data-splshy-stories-genie]")){
     var gStyle = document.createElement("style");
     gStyle.setAttribute("data-splshy-stories-genie","1");
     gStyle.textContent =
-      "@keyframes sstGenieIn{" +
-        "0%{transform:scale(var(--sst-sx),var(--sst-sy))}" +
-        "38%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.30),calc(var(--sst-sy) + (1 - var(--sst-sy))*0.82))}" +
-        "62%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.62),1.02)}" +
-        "100%{transform:scale(1,1)}" +
+      "@keyframes sstPopIn{" +
+        "0%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
+        "40%{transform:translate(calc(var(--sst-tx)*0.42),calc(var(--sst-ty)*0.42)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.34),calc(var(--sst-sy) + (1 - var(--sst-sy))*0.78))}" +
+        "70%{transform:translate(calc(var(--sst-tx)*0.10),calc(var(--sst-ty)*0.10)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.74),1.03)}" +
+        "100%{transform:translate(0,0) scale(1,1)}" +
       "}" +
-      "@keyframes sstGenieOut{" +
-        "0%{transform:scale(1,1)}" +
-        "38%{transform:scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.62),1.02)}" +
-        "100%{transform:scale(var(--sst-sx),var(--sst-sy))}" +
+      "@keyframes sstPopOut{" +
+        "0%{transform:translate(0,0) scale(1,1)}" +
+        "55%{transform:translate(calc(var(--sst-tx)*0.18),calc(var(--sst-ty)*0.18)) scale(calc(var(--sst-sx) + (1 - var(--sst-sx))*0.7),1.02)}" +
+        "100%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
+      "}" +
+      "@keyframes sstPopInSimple{" +
+        "0%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
+        "100%{transform:translate(0,0) scale(1,1)}" +
+      "}" +
+      "@keyframes sstPopOutSimple{" +
+        "0%{transform:translate(0,0) scale(1,1)}" +
+        "100%{transform:translate(var(--sst-tx),var(--sst-ty)) scale(var(--sst-sx),var(--sst-sy))}" +
       "}";
     document.head.appendChild(gStyle);
   }
@@ -284,7 +294,6 @@
       if (!el) return;
       el.style.transition = instant ? "none" : "opacity .28s ease, transform .28s ease";
       el.style.opacity = on ? "1" : "0";
-      // Top bar drops in from above; bottom/progress rise from below.
       var fromBelow = el.classList.contains("sst-bottom") || el.classList.contains("sst-progress");
       el.style.transform = on ? "translateY(0)" : ("translateY(" + (fromBelow ? "10px" : "-6px") + ")");
     });
@@ -316,17 +325,22 @@
     setChrome(false, true);                                      // chrome hidden
     playIndex(i);
 
-    // Genie pop-out: scale emerges from the circle, Y leading X.
     var g = originRing ? ringGeometry(originRing) : null;
     if (g){
+      var ms = popMs();
+      // Desktop: travel + genie stretch. Mobile: travel + clean scale.
+      var anim = isMobileLayout() ? "sstPopInSimple" : "sstPopIn";
+      var ease = isMobileLayout() ? "cubic-bezier(.2,.7,.3,1)" : "cubic-bezier(.2,.74,.26,1)";
       stage.style.animation = "none";
-      stage.style.transformOrigin = g.ox + "px " + g.oy + "px";
+      stage.style.transformOrigin = "center center";
+      stage.style.setProperty("--sst-tx", g.tx + "px");
+      stage.style.setProperty("--sst-ty", g.ty + "px");
       stage.style.setProperty("--sst-sx", g.sx);
       stage.style.setProperty("--sst-sy", g.sy);
-      stage.style.transform = "scale(" + g.sx + "," + g.sy + ")";
+      stage.style.transform = "translate(" + g.tx + "px," + g.ty + "px) scale(" + g.sx + "," + g.sy + ")";
       stage.offsetHeight; // force reflow
-      stage.style.animation = "sstGenieIn " + POP_MS + "ms cubic-bezier(.22,.7,.28,1) forwards";
-      setTimeout(function(){ setChrome(true, false); }, POP_MS * 0.5);
+      stage.style.animation = anim + " " + ms + "ms " + ease + " forwards";
+      setTimeout(function(){ setChrome(true, false); }, ms * 0.52);
     } else {
       setChrome(true, true);
     }
@@ -350,16 +364,19 @@
       video.load();
     }
 
-    // Chrome fades first, then the stage genies back into its ring.
+    // Chrome fades first, then the stage travels back into its ring.
     setChrome(false, false);
     var g = originRing ? ringGeometry(originRing) : null;
     if (g){
-      var ms = POP_MS - 90;
+      var ms = popMs() - 90;
+      var anim = isMobileLayout() ? "sstPopOutSimple" : "sstPopOut";
       setTimeout(function(){
-        stage.style.transformOrigin = g.ox + "px " + g.oy + "px";
+        stage.style.transformOrigin = "center center";
+        stage.style.setProperty("--sst-tx", g.tx + "px");
+        stage.style.setProperty("--sst-ty", g.ty + "px");
         stage.style.setProperty("--sst-sx", g.sx);
         stage.style.setProperty("--sst-sy", g.sy);
-        stage.style.animation = "sstGenieOut " + ms + "ms cubic-bezier(.4,0,.25,1) forwards";
+        stage.style.animation = anim + " " + ms + "ms cubic-bezier(.4,0,.25,1) forwards";
         overlay.style.transition = "opacity " + ms + "ms ease";
         overlay.style.opacity = "0";
         setTimeout(finishClose, ms);
