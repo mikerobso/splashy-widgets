@@ -45,10 +45,10 @@
       // rotates once around the ring. Desktop hover only; sits over the
       // coloured ring band but under the photo (.sst-ring-inner).
       ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1}",
-      // .sst-shimmer is added on hover-in and removed when the pass finishes,
-      // so the effect plays ONCE then resets even if the cursor stays put.
+      // Shimmer plays once via the .sst-shimmer class (JS-controlled).
       ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(360deg);transition:transform 1.1s ease-in-out,opacity .12s ease}",
-      ".sst-item.sst-shimmer .sst-ring{transform:scale(1.06)}",
+      // Enlarged size holds for as long as the cursor is on the circle.
+      "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
       ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
       ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
@@ -130,8 +130,9 @@
       item.appendChild(lbl);
     }
     item.addEventListener("click", function(){ pressAndOpen(i, ring); });
-    // Hover plays the shimmer + scale-up ONCE, then resets even if the
-    // cursor stays on the circle. Re-entering after it finishes replays it.
+    // Hover plays the shimmer ONCE (1.1s). If the cursor leaves before it
+    // finishes, the shimmer is cancelled immediately. The scale-up is pure
+    // CSS :hover, so it simply holds while hovering.
     var shimmerTimer = null;
     item.addEventListener("mouseenter", function(){
       if (item.classList.contains("sst-shimmer")) return;  // mid-play, ignore
@@ -139,7 +140,11 @@
       if (shimmerTimer) clearTimeout(shimmerTimer);
       shimmerTimer = setTimeout(function(){
         item.classList.remove("sst-shimmer");
-      }, 1120);   // a hair past the 1.1s shimmer so it fully completes
+      }, 1120);
+    });
+    item.addEventListener("mouseleave", function(){
+      if (shimmerTimer){ clearTimeout(shimmerTimer); shimmerTimer = null; }
+      item.classList.remove("sst-shimmer");   // cancel shimmer on leave
     });
     row.appendChild(item);
   });
