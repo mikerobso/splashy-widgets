@@ -46,7 +46,7 @@
       // coloured ring band but under the photo (.sst-ring-inner).
       ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1}",
       // Shimmer plays once via the .sst-shimmer class (JS-controlled).
-      ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(360deg);transition:transform 1.1s ease-in-out,opacity .12s ease}",
+      ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(396deg);transition:transform 1.1s ease-in-out,opacity .12s ease}",
       // Enlarged size holds for as long as the cursor is on the circle.
       "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
       ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
@@ -265,21 +265,21 @@
   }
 
   // Press-bounce: tap the circle → it contracts, springs back, THEN the
-  // player pops out of it. ~0.4s of anticipation before openOverlay runs.
+  // player pops out of it. ~0.3s of anticipation before openOverlay runs.
   var pressBusy = false;
   function pressAndOpen(i, ring){
     if (pressBusy) return;
     pressBusy = true;
-    ring.style.transition = "transform .16s cubic-bezier(.4,0,.4,1)";
+    ring.style.transition = "transform .12s cubic-bezier(.4,0,.4,1)";
     ring.style.transform  = "scale(.82)";                 // contract
     setTimeout(function(){
-      ring.style.transition = "transform .24s cubic-bezier(.34,1.55,.5,1)";
+      ring.style.transition = "transform .18s cubic-bezier(.34,1.55,.5,1)";
       ring.style.transform  = "scale(1)";                 // spring back (overshoots)
-    }, 160);
+    }, 120);
     setTimeout(function(){
       pressBusy = false;
       openOverlay(i, ring);                               // now pop the player out
-    }, 400);
+    }, 300);
   }
 
   function openOverlay(i, ring){
