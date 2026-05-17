@@ -319,26 +319,15 @@
     }
   }
 
-  // Build DOM order with `centerIdx` at DOM position 1.
-  // Moving a DOM node that contains a playing <video> pauses it, so for any
-  // card that is mid-playback we snapshot its time and resume immediately.
+  // Arrange cards into the visual order with `centerIdx` at slot 1.
+  // We use the CSS `order` property on the flex children instead of moving
+  // DOM nodes — moving a node detaches it and pauses any playing <video>,
+  // whereas changing `order` is purely visual and never disturbs playback.
   function setDOMOrder(centerIdx){
-    var order = [];
     for (var i = 0; i < n; i++){
-      order.push(mod(centerIdx - 1 + i, n));
+      var ri = mod(centerIdx - 1 + i, n);
+      cards[ri].el.style.order = i;
     }
-    order.forEach(function(ri){
-      var c = cards[ri];
-      var wasPlaying = (!c.video.paused && c.video.style.display === "block");
-      var t = c.video.currentTime;
-      track.appendChild(c.el);
-      if (wasPlaying){
-        // Re-appendChild pauses the video; resume seamlessly at the same frame
-        c.video.currentTime = t;
-        var p = c.video.play();
-        if (p && p.catch) p.catch(function(){});
-      }
-    });
   }
 
   // X translation so DOM slot 1 is centered in viewport
