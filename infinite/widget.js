@@ -23,7 +23,7 @@
     style.textContent = [
       ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
       ".sif-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
-      ".sif-viewport{position:relative;width:100%;height:var(--sif-card-h);overflow:hidden}",
+      ".sif-viewport{position:relative;width:100%;max-width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2 + 80px);margin:0 auto;height:var(--sif-card-h);overflow:hidden}",
       ".sif-track{position:absolute;top:0;left:0;display:flex;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform}",
       ".sif-track.animated{transition:transform .46s cubic-bezier(.4,0,.2,1)}",
       ".sif-card{position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;flex-shrink:0;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
@@ -88,8 +88,8 @@
       ".sif-arrow:hover{background:var(--sif-accent)!important;transform:translateY(-50%) scale(1.1);box-shadow:0 6px 20px rgba(211,0,17,.3)}",
       ".sif-arrow:hover svg polyline{stroke:#fff}",
       ".sif-arrow:focus,.sif-arrow:focus-visible{outline:none}",
-      ".sif-arrow--left{left:8px}",
-      ".sif-arrow--right{right:8px}",
+      ".sif-arrow--left{left:-20px}",
+      ".sif-arrow--right{right:-20px}",
       "@media(min-width:600px){.sif-arrow{display:flex!important}}",
       /* Dots */
       ".sif-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
@@ -108,7 +108,7 @@
 
   container.innerHTML =
     '<div class="sif-widget">' +
-      '<div style="position:relative;">' +
+      '<div style="position:relative;max-width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2 + 80px);margin:0 auto;">' +
         '<div class="sif-viewport">' +
           '<div class="sif-track"></div>' +
         '</div>' +
@@ -234,16 +234,14 @@
         video.style.display="none"; poster.style.display="";
       });
 
-      // Play btn — pause all others first
+      // Play btn — stop all others first (playing or paused)
       var playBtn = card.querySelector(".sif-play-btn");
       var muteBtn = card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click", function(e){
         e.stopPropagation();
+        // Reset every other card completely
         cards.forEach(function(c){
-          if (c.video!==video&&!c.video.paused){
-            c.video.pause();
-            var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
-          }
+          if (c.video !== video) resetCard(c);
         });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
@@ -378,13 +376,23 @@
   // We rotate the cards array in the DOM so current card is always at DOM position 1.
 
   function rotateDOMTo(targetReelIdx) {
-    // Rebuild DOM order so targetReelIdx card is at DOM index `centerSlot`
-    // We pick a window of cards around targetReelIdx
-    var orderedReelIdxs = [];
-    for (var offset = -centerSlot; offset < n - centerSlot; offset++) {
-      orderedReelIdxs.push(mod(targetReelIdx + offset, n));
+    // Figure out which reelIdxs will be visible (centerSlot ± 1)
+    var visibleIdxs = [];
+    for (var offset = -centerSlot; offset <= centerSlot; offset++) {
+      visibleIdxs.push(mod(targetReelIdx + offset, n));
     }
-    // Reorder DOM
+
+    // Reset any card that is no longer in the visible window
+    cards.forEach(function(c) {
+      var willBeVisible = visibleIdxs.indexOf(c.reelIdx) !== -1;
+      if (!willBeVisible) resetCard(c);
+    });
+
+    // Rebuild DOM order so targetReelIdx card is at DOM index centerSlot
+    var orderedReelIdxs = [];
+    for (var off = -centerSlot; off < n - centerSlot; off++) {
+      orderedReelIdxs.push(mod(targetReelIdx + off, n));
+    }
     orderedReelIdxs.forEach(function(ri) {
       track.appendChild(cards[ri].el);
     });
@@ -414,9 +422,13 @@
 
     busy = true;
 
-    // Reset outgoing
-    if (activeFade) { clearInterval(activeFade); activeFade=null; }
+    // Fade out audio if playing, but don't reset yet — card stays visible during slide
+    if (activeFade) { clearInterval(activeFade); activeFade = null; }
     var outgoing = cards[current];
+    if (!outgoing.video.paused) {
+      fadeOutAndReset(outgoing);
+    }
+    // If paused, leave it on the current frame — it will reset when it leaves the window
 
     // Before animating, we need the target card to be in the DOM at the correct side
     // Current setup: current card is at DOM slot `centerSlot`
@@ -433,9 +445,8 @@
     // After animation completes, update state and re-center DOM silently
     setTimeout(function(){
       current = nextReelIdx;
-      fadeOutAndReset(outgoing);
 
-      // Silently re-center: rotate DOM so new current is at centerSlot
+      // Silently re-center DOM
       track.classList.remove("animated");
       rotateDOMTo(current);
       track.style.transform = "translateX("+getTranslateForSlot(centerSlot)+"px)";
