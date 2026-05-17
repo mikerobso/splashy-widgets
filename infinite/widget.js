@@ -398,11 +398,13 @@
     //   +step so current still LOOKS centered. This puts nextIdx+1 at slot 2,
     //   right at the right edge — mirroring exactly what left gets for free.
 
-    // Reset any cards already outside the 3-card window BEFORE animating,
-    // so they're clean before they could possibly slide back into view
+    // The 3 visible slots are always: [current-1, current, current+1] before animating,
+    // and [nextIdx-1, nextIdx, nextIdx+1] after. Reset anything not in the new visible set.
+    var visibleAfter = [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)];
+
+    // Reset any cards already outside the 3-card window BEFORE animating
     cards.forEach(function(c){
-      var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
-      if (Math.abs(diff) > 1) resetCard(c);
+      if (visibleAfter.indexOf(c.reelIdx) === -1) resetCard(c);
     });
 
     if (dir === 1) {
@@ -425,10 +427,10 @@
       setDOMOrder(current);
       setTranslate(centerX(), false);
 
-      // Now reset cards that are off-screen — no flash since they're already repositioned
+      // Reset cards not in the new visible 3-slot window
+      var stillVisible = [mod(current-1,n), current, mod(current+1,n)];
       cards.forEach(function(c){
-        var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
-        if (Math.abs(diff) > 1) resetCard(c);
+        if (stillVisible.indexOf(c.reelIdx) === -1) resetCard(c);
       });
 
       updateUI();
