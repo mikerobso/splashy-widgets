@@ -30,8 +30,8 @@
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
       /* Mobile: dim side cards */
-      "@media(max-width:767px){.sif-card{transform:scale(0.82);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:18px}.sif-viewport{width:100%}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.82);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:18px}.sif-viewport{width:100%}}",
+      "@media(max-width:767px){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px}.sif-viewport{width:100%}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}}",
       /* Poster */
@@ -476,16 +476,27 @@
     }
   }
 
+  // True on touch/mobile layouts (matches the mobile CSS media queries).
+  function isMobileLayout(){
+    return window.matchMedia(
+      "(max-width:767px), (min-width:768px) and (pointer:coarse) and (hover:none)"
+    ).matches;
+  }
+
   function finishStep(finalTargetIdx){
-    // The slide is done. Any card now fully off-screen (outside the visible
-    // window [centreSlot-1 .. centreSlot+1]) must stop playing — otherwise a
-    // video that just slid off keeps its audio running until it is recycled
-    // a step later. Doing it here (after the slide) avoids a mid-slide flash.
+    // Stop videos that should no longer be playing.
+    //  • Mobile: only the CENTRED card may play. Any card that has left the
+    //    centre slot is reset (video + audio stop) — so audio stops after a
+    //    single swipe.
+    //  • Desktop: a card may keep playing in a side slot; it is reset only
+    //    once it is fully off-screen (outside [centreSlot-1 .. centreSlot+1]).
+    var mobile = isMobileLayout();
     cards.forEach(function(c){
-      if (c.slot < centreSlot - 1 || c.slot > centreSlot + 1){
-        if (!c.video.paused || c.video.style.display === "block"){
-          resetCard(c);
-        }
+      var shouldStop = mobile
+        ? (c.slot !== centreSlot)
+        : (c.slot < centreSlot - 1 || c.slot > centreSlot + 1);
+      if (shouldStop && (!c.video.paused || c.video.style.display === "block")){
+        resetCard(c);
       }
     });
 
