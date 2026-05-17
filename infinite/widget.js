@@ -381,11 +381,20 @@
     return isMobileLayout() ? 608 : 460;
   }
 
+  // Slide easing curve.
+  // Desktop: cubic-bezier(.4,0,.2,1) — a fast, front-loaded start.
+  // Mobile:  cubic-bezier(.45,.05,.3,1) — a softer, more deliberate start
+  //          so the slide feels calmer (it reads as "fast" otherwise because
+  //          the mobile step travels a shorter distance).
+  function slideEasing(){
+    return isMobileLayout() ? "cubic-bezier(.45,.05,.3,1)" : "cubic-bezier(.4,0,.2,1)";
+  }
+
   // Centred means  T + centreSlot*step = centreOffset()
   //            ->  T = centreOffset() - centreSlot*step
   function setTrack(animated){
     track.style.transition = animated
-      ? ("transform " + (slideMs()/1000) + "s cubic-bezier(.4,0,.2,1)")
+      ? ("transform " + (slideMs()/1000) + "s " + slideEasing())
       : "none";
     var T = centreOffset() - centreSlot * getStep();
     track.style.transform = "translateX(" + T + "px)";
