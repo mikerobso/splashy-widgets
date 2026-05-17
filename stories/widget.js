@@ -37,23 +37,25 @@
     style.textContent = [
       // Circles row
       ".sst-widget{font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:18px 0}",
-      ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:22px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
+      ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:30px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
       ".sst-row::-webkit-scrollbar{display:none}",
-      ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:9px;cursor:pointer;width:84px}",
-      ".sst-ring{width:84px;height:84px;border-radius:50%;padding:3px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
+      ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;width:168px}",
+      ".sst-ring{width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
       ".sst-item:hover .sst-ring{transform:scale(1.06)}",
-      ".sst-ring-inner{width:100%;height:100%;border-radius:50%;border:2.5px solid #fff;overflow:hidden;background:#1a1a1a}",
+      ".sst-ring-inner{width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
-      ".sst-label{font-size:12px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:84px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
+      ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
 
-      // Overlay
-      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}",
+      // Overlay — a flex row: [left arrow] [stage] [right arrow]
+      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s}",
       ".sst-overlay.open{display:flex;opacity:1}",
+      ".sst-stagebox{position:relative}",
       ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center}",
       ".sst-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;pointer-events:none;-webkit-touch-callout:none}",
-      ".sst-close{position:fixed;top:20px;right:20px;width:42px;height:42px;border-radius:50%;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.4);color:#fff;font-size:22px;line-height:1;cursor:pointer;z-index:100001;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}",
-      ".sst-close:hover{background:rgba(255,255,255,.26)}",
+      // Round buttons — !important on dimensions so host CSS can't squash them
+      ".sst-close{position:absolute!important;top:-6px;right:-58px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;max-width:44px!important;max-height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;color:#fff!important;font-size:22px;line-height:1;cursor:pointer;padding:0!important;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
+      ".sst-close:hover{background:rgba(255,255,255,.28)!important}",
 
       // Chrome inside the stage (mirrors the card chrome)
       ".sst-top{position:absolute;top:0;left:0;right:0;padding:20px 18px 38px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
@@ -78,12 +80,10 @@
       ".sst-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);pointer-events:none}",
       ".sst-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%}",
       ".sst-progress-thumb{position:absolute;bottom:-3px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      // Overlay arrows
-      ".sst-arrow{position:fixed;top:50%;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:100001;-webkit-tap-highlight-color:transparent}",
-      ".sst-arrow:hover{background:rgba(255,255,255,.26)}",
-      ".sst-arrow--left{left:20px}",
-      ".sst-arrow--right{right:20px}",
-      "@media(max-width:767px){.sst-stage{height:100vh;max-height:100vh;border-radius:0;width:100vw;aspect-ratio:auto}.sst-arrow{width:40px;height:40px;background:rgba(255,255,255,.1)}.sst-arrow--left{left:8px}.sst-arrow--right{right:8px}}"
+      // Overlay arrows — in-flow flex items beside the stage; forced circles
+      ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
+      ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",
+      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:100vh!important;max-height:100vh!important;border-radius:0;width:100vw;aspect-ratio:auto}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;background:rgba(255,255,255,.1)!important;z-index:5}.sst-arrow--left{left:10px}.sst-arrow--right{right:10px}.sst-close{position:fixed!important;top:14px;right:14px}}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -122,7 +122,7 @@
       lbl.textContent = reel.label;
       item.appendChild(lbl);
     }
-    item.addEventListener("click", function(){ openOverlay(i, ring); });
+    item.addEventListener("click", function(){ pressAndOpen(i, ring); });
     row.appendChild(item);
   });
 
@@ -138,27 +138,29 @@
   var overlay = document.createElement("div");
   overlay.className = "sst-overlay";
   overlay.innerHTML =
-    '<button class="sst-close" aria-label="Close">&times;</button>' +
     '<button class="sst-arrow sst-arrow--left" aria-label="Previous">' +
       '<svg width="12" height="20" viewBox="0 0 12 20" fill="none"><polyline points="10,2 2,10 10,18" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
     '</button>' +
+    '<div class="sst-stagebox">' +
+      '<button class="sst-close" aria-label="Close">&times;</button>' +
+      '<div class="sst-stage">' +
+        '<video class="sst-video" playsinline preload="metadata"></video>' +
+        '<div class="sst-top">' +
+          '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
+            '<div class="sst-logo">'+resolvedLogo+'</div>' +
+            '<div class="sst-foll">'+followerCount+'</div>' +
+          '</a>' +
+          '<div class="sst-timer"><svg viewBox="0 0 52 52"><circle class="sst-timer-bg" cx="26" cy="26" r="23"/><circle class="sst-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sst-timer-text">--</div></div>' +
+        '</div>' +
+        '<div class="sst-bottom"><div class="sst-title"></div></div>' +
+        '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
+        '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
+      '</div>' +
+    '</div>' +
     '<button class="sst-arrow sst-arrow--right" aria-label="Next">' +
       '<svg width="12" height="20" viewBox="0 0 12 20" fill="none"><polyline points="2,2 10,10 2,18" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
-    '</button>' +
-    '<div class="sst-stage">' +
-      '<video class="sst-video" playsinline preload="metadata"></video>' +
-      '<div class="sst-top">' +
-        '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
-          '<div class="sst-logo">'+resolvedLogo+'</div>' +
-          '<div class="sst-foll">'+followerCount+'</div>' +
-        '</a>' +
-        '<div class="sst-timer"><svg viewBox="0 0 52 52"><circle class="sst-timer-bg" cx="26" cy="26" r="23"/><circle class="sst-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sst-timer-text">--</div></div>' +
-      '</div>' +
-      '<div class="sst-bottom"><div class="sst-title"></div></div>' +
-      '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
-      '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
-      '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
-    '</div>';
+    '</button>';
   document.body.appendChild(overlay);
 
   var video    = overlay.querySelector(".sst-video");
@@ -189,7 +191,7 @@
     var reel = reels[cur];
     video.src = reel.videoUrl;
     if (reel.posterUrl) video.setAttribute("poster", reel.posterUrl);
-    titleEl.textContent = reel.label || "";
+    titleEl.textContent = reel.videoTitle || reel.label || "";
     video.muted = globalMuted;
     video.currentTime = 0;
     progFill.style.width = "0%"; progThumb.style.left = "0%";
@@ -239,6 +241,24 @@
     });
   }
 
+  // Press-bounce: tap the circle → it contracts, springs back, THEN the
+  // player pops out of it. ~0.4s of anticipation before openOverlay runs.
+  var pressBusy = false;
+  function pressAndOpen(i, ring){
+    if (pressBusy) return;
+    pressBusy = true;
+    ring.style.transition = "transform .16s cubic-bezier(.4,0,.4,1)";
+    ring.style.transform  = "scale(.82)";                 // contract
+    setTimeout(function(){
+      ring.style.transition = "transform .24s cubic-bezier(.34,1.55,.5,1)";
+      ring.style.transform  = "scale(1)";                 // spring back (overshoots)
+    }, 160);
+    setTimeout(function(){
+      pressBusy = false;
+      openOverlay(i, ring);                               // now pop the player out
+    }, 400);
+  }
+
   function openOverlay(i, ring){
     originRing = ring || null;
     overlay.classList.add("open");
@@ -271,7 +291,7 @@
       stage.style.transform  = "none";
       overlay.style.transition = "";
       overlay.style.opacity = "";
-      if (originRing){ originRing.style.transform = ""; originRing = null; }
+      if (originRing){ originRing.style.transform = ""; originRing.style.transition = ""; originRing = null; }
       setChrome(true, true);   // reset for next open
       video.removeAttribute("src");
       video.load();
