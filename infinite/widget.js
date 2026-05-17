@@ -380,23 +380,26 @@
     if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
-    if (dir === 1) {
-      // Going RIGHT: DOM is already [prev, current, next] at centerX()
-      // Just animate one step to the left — next card slides in from right
-      setTranslate(centerX() - step, true);
-    } else {
-      // Going LEFT: we need prev-1 to be at slot 0 (left of prev)
-      // Reorder to [prev-1, prev, current, ...] silently, keeping visual position
-      // Then animate one step to the right — prev card slides in from left
-      setDOMOrder(mod(current - 2, n));
-      // After reorder, current is now at slot 2, prev at slot 1, prev-1 at slot 0
-      // So track needs to be at centerX() - step to show current centered (slot 2)
-      setTranslate(centerX() - step, false);
-      // Now animate right by one step to center slot 1 (prev = nextIdx)
-      setTranslate(centerX(), true);
-    }
+    // Pre-center DOM on nextIdx so the incoming card is always at slot 1.
+    // Then offset the starting translateX by +dir*step so the visual
+    // position looks identical to before (current is still centered),
+    // and animate to centerX() = -step to bring nextIdx into view.
+    // This is symmetric: works the same for left (dir=-1) and right (dir=+1).
+    //
+    // dir=+1 (→, right arrow): nextIdx goes to slot 1, current ends up at slot 0.
+    //   startX = centerX() + step  = 0   (current at slot 0 appears centered)
+    //   endX   = centerX()         = -step (nextIdx at slot 1 is now centered)
+    //
+    // dir=-1 (←, left arrow): nextIdx goes to slot 1, current ends up at slot 2.
+    //   startX = centerX() - step  = -2*step (current at slot 2 appears centered)
+    //   endX   = centerX()         = -step   (nextIdx at slot 1 is now centered)
+    setDOMOrder(nextIdx);
+    setTranslate(centerX() + dir * step, false); // silent pre-position
 
-    // 3. After animation: update current, reset DOM to new center, snap back
+    // Animate to center (nextIdx slides into slot 1)
+    setTranslate(centerX(), true);
+
+    // 3. After animation: commit state, reset off-screen cards
     setTimeout(function(){
       current = nextIdx;
 
@@ -405,10 +408,6 @@
         var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
         if (Math.abs(diff) > 1) resetCard(c);
       });
-
-      // Silently re-center DOM on new current
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
 
       updateUI();
       busy = false;
