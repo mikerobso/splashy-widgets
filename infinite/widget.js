@@ -333,6 +333,7 @@
   }
 
   function resetCard(c){
+    console.trace("resetCard called on reelIdx=" + c.reelIdx);
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
     c.video.style.display="none"; c.poster.style.display="";
     var pf=c.el.querySelector(".sif-progress-fill"),pt=c.el.querySelector(".sif-progress-thumb");
