@@ -380,30 +380,40 @@
     if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
-    // Pre-center DOM on nextIdx so the incoming card is always at slot 1.
-    // Then offset the starting translateX by +dir*step so the visual
-    // position looks identical to before (current is still centered),
-    // and animate to centerX() = -step to bring nextIdx into view.
-    // This is symmetric: works the same for left (dir=-1) and right (dir=+1).
-    //
-    // dir=+1 (→, right arrow): nextIdx goes to slot 1, current ends up at slot 0.
-    //   startX = centerX() + step  = 0   (current at slot 0 appears centered)
-    //   endX   = centerX()         = -step (nextIdx at slot 1 is now centered)
-    //
-    // dir=-1 (←, left arrow): nextIdx goes to slot 1, current ends up at slot 2.
-    //   startX = centerX() - step  = -2*step (current at slot 2 appears centered)
-    //   endX   = centerX()         = -step   (nextIdx at slot 1 is now centered)
-    setDOMOrder(nextIdx);
+    // Build exactly 3 visible slots: [prev | nextIdx | next]
+    // Hide all other cards so they don't bleed into the viewport during animation.
+    // Offset startX so current appears centered, then animate to centerX().
+    // Build the 3-slot DOM order for the animation:
+    // slot 0 = prev of nextIdx, slot 1 = nextIdx, slot 2 = next of nextIdx
+    // For dir=+1 (right): slot 0=current, slot 1=nextIdx, slot 2=nextIdx+1
+    // For dir=-1 (left):  slot 0=nextIdx-1, slot 1=nextIdx, slot 2=current
+    var slot0 = mod(nextIdx - 1, n);
+    var slot1 = nextIdx;
+    var slot2 = mod(nextIdx + 1, n);
+    var visibleSet = [slot0, slot1, slot2];
+
+    // Reorder track: visible 3 first, rest hidden after
+    [slot0, slot1, slot2].forEach(function(ri){ track.appendChild(cards[ri].el); });
+    cards.forEach(function(c){
+      if (visibleSet.indexOf(c.reelIdx) === -1){
+        c.el.style.visibility = "hidden";
+        track.appendChild(c.el);
+      }
+    });
+
     setTranslate(centerX() + dir * step, false); // silent pre-position
 
     // Animate to center (nextIdx slides into slot 1)
     setTranslate(centerX(), true);
 
-    // 3. After animation: commit state, re-center DOM, reset off-screen cards
+    // After animation: commit state, re-center DOM, restore hidden cards
     setTimeout(function(){
       current = nextIdx;
 
-      // Re-center DOM on new current before deciding what's off-screen
+      // Restore visibility on all cards
+      cards.forEach(function(c){ c.el.style.visibility = ""; });
+
+      // Re-center DOM on new current
       setDOMOrder(current);
       setTranslate(centerX(), false);
 
