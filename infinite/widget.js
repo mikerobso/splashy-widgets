@@ -309,10 +309,24 @@
   track.style.display  = "block";
   track.style.height   = "100%";
 
+  // One step = card width + the real gap between cards.
+  // (The gap is the CSS var --sif-gap, which differs desktop vs mobile.)
+  function getCardW(){
+    return cards[0] ? cards[0].el.offsetWidth : 220;
+  }
+  function getGap(){
+    var g = getComputedStyle(widget).getPropertyValue("--sif-gap");
+    var v = parseFloat(g);
+    return isNaN(v) ? 30 : v;
+  }
   function getStep(){
-    var vw = viewport.offsetWidth;
-    var cw = cards[0] ? cards[0].el.offsetWidth : 220;
-    return cw + Math.max(0, (vw - 3*cw)/2);   // one card + one gap
+    return getCardW() + getGap();
+  }
+
+  // Pixel offset that places a card's left edge so the card is centred
+  // horizontally in the viewport — works for any viewport width.
+  function centreOffset(){
+    return (viewport.offsetWidth - getCardW()) / 2;
   }
 
   var centreSlot = 1;   // slot currently centred (start so cards[0] is centre)
@@ -329,12 +343,15 @@
     cards.forEach(placeCard);
   }
 
-  // Move the track so `centreSlot` is centred.
+  // Move the track so `centreSlot`'s card is centred in the viewport.
+  // A card at slot s has left = s*step; on-screen x = T + s*step.
+  // Centred means  T + centreSlot*step = centreOffset()
+  //            ->  T = centreOffset() - centreSlot*step
   function setTrack(animated){
     track.style.transition = animated
       ? "transform .46s cubic-bezier(.4,0,.2,1)"
       : "none";
-    var T = (1 - centreSlot) * getStep();
+    var T = centreOffset() - centreSlot * getStep();
     track.style.transform = "translateX(" + T + "px)";
     if (!animated) track.offsetHeight;        // force reflow
   }
