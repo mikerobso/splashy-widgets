@@ -38,8 +38,8 @@
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
       /* Mobile: dim side cards */
-      "@media(max-width:767px){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(max-width:767px){.sif-card{transform:scale(0.627);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.627);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}}",
       /* Poster */
@@ -375,11 +375,17 @@
 
   // Move the track so `centreSlot`'s card is centred in the viewport.
   // A card at slot s has left = s*step; on-screen x = T + s*step.
+  // Slide animation duration in milliseconds.
+  // Desktop: 460ms. Mobile: 15% slower (~529ms) for a gentler feel.
+  function slideMs(){
+    return isMobileLayout() ? 529 : 460;
+  }
+
   // Centred means  T + centreSlot*step = centreOffset()
   //            ->  T = centreOffset() - centreSlot*step
   function setTrack(animated){
     track.style.transition = animated
-      ? "transform .46s cubic-bezier(.4,0,.2,1)"
+      ? ("transform " + (slideMs()/1000) + "s cubic-bezier(.4,0,.2,1)")
       : "none";
     var T = centreOffset() - centreSlot * getStep();
     track.style.transform = "translateX(" + T + "px)";
@@ -488,7 +494,7 @@
       setTrack(true);
       updateUI();
 
-      setTimeout(function(){ finishStep(finalTargetIdx); }, 480);
+      setTimeout(function(){ finishStep(finalTargetIdx); }, slideMs() + 20);
 
     } else {
       // LEFT step. The incoming card is already staged at slot centreSlot-2
@@ -508,7 +514,7 @@
           }
         });
         finishStep(finalTargetIdx);
-      }, 480);
+      }, slideMs() + 20);
     }
   }
 
