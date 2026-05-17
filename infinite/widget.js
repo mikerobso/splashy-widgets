@@ -30,8 +30,8 @@
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
       /* Mobile: dim side cards */
-      "@media(max-width:767px){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px}.sif-viewport{width:100%}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px}.sif-viewport{width:100%}}",
+      "@media(max-width:767px){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{transform:scale(0.66);filter:brightness(.5)}.sif-card.is-active{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}}",
       /* Poster */
@@ -309,8 +309,7 @@
   track.style.display  = "block";
   track.style.height   = "100%";
 
-  // One step = card width + the real gap between cards.
-  // (The gap is the CSS var --sif-gap, which differs desktop vs mobile.)
+  // One step = the centre-to-centre distance between adjacent cards.
   function getCardW(){
     return cards[0] ? cards[0].el.offsetWidth : 220;
   }
@@ -319,7 +318,19 @@
     var v = parseFloat(g);
     return isNaN(v) ? 30 : v;
   }
+  // On desktop: cards sit side by side -> step = cardW + gap.
+  // On mobile: the active card is full size and the side cards are scaled
+  // down (CSS scale) and tucked PARTLY UNDER it, so they only peek in. The
+  // step must be SMALLER than cardW for that overlap look. We use a fraction
+  // of the card width (tunable via --sif-step-frac, default .72).
   function getStep(){
+    if (isMobileLayout()){
+      var frac = parseFloat(
+        getComputedStyle(widget).getPropertyValue("--sif-step-frac")
+      );
+      if (isNaN(frac)) frac = 0.72;
+      return getCardW() * frac;
+    }
     return getCardW() + getGap();
   }
 
@@ -364,7 +375,13 @@
 
   function updateUI(){
     current = centreReel();
-    cards.forEach(function(c){ c.el.classList.toggle("is-active", c.slot===centreSlot); });
+    cards.forEach(function(c){
+      var active = (c.slot === centreSlot);
+      c.el.classList.toggle("is-active", active);
+      // The active card must sit ON TOP of the side cards it overlaps.
+      // Cards nearer the centre stack above ones further away.
+      c.el.style.zIndex = active ? 3 : (Math.abs(c.slot - centreSlot) === 1 ? 2 : 1);
+    });
     dots.forEach(function(d,i){ d.classList.toggle("is-active", i===current); });
   }
 
