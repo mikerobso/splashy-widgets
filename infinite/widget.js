@@ -215,9 +215,19 @@
       var muteBtn=card.querySelector(".sif-mute-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
-        cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
+        // Rule: only one video plays at a time. Pause any other playing video
+        // on its current frame (instant, no audio fade) — do NOT reset it.
+        cards.forEach(function(c){
+          if (c.video === video) return;
+          if (!c.video.paused){
+            c.video.pause();
+            var pi = c.el.querySelector(".sif-pause-ind");
+            if (pi) pi.classList.add("visible");
+          }
+        });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
+        var pind=card.querySelector(".sif-pause-ind"); if (pind) pind.classList.remove("visible");
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
       muteBtn.addEventListener("click",function(e){
@@ -312,17 +322,25 @@
     }
   }
 
-  // Build DOM order with `centerIdx` at DOM position 1
+  // Build DOM order with `centerIdx` at DOM position 1.
+  // Moving a DOM node that contains a playing <video> pauses it, so for any
+  // card that is mid-playback we snapshot its time and resume immediately.
   function setDOMOrder(centerIdx){
     var order = [];
     for (var i = 0; i < n; i++){
       order.push(mod(centerIdx - 1 + i, n));
     }
     order.forEach(function(ri){
-      // Don't move a card that is currently playing — moving a DOM node
-      // containing a playing video pauses it in most browsers
-      if (!cards[ri].video.paused) return;
-      track.appendChild(cards[ri].el);
+      var c = cards[ri];
+      var wasPlaying = (!c.video.paused && c.video.style.display === "block");
+      var t = c.video.currentTime;
+      track.appendChild(c.el);
+      if (wasPlaying){
+        // Re-appendChild pauses the video; resume seamlessly at the same frame
+        c.video.currentTime = t;
+        var p = c.video.play();
+        if (p && p.catch) p.catch(function(){});
+      }
     });
   }
 
@@ -338,7 +356,6 @@
   }
 
   function resetCard(c){
-    console.trace("resetCard called on reelIdx=" + c.reelIdx);
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
     c.video.style.display="none"; c.poster.style.display="";
     var pf=c.el.querySelector(".sif-progress-fill"),pt=c.el.querySelector(".sif-progress-thumb");
@@ -381,14 +398,38 @@
 
     busy = true;
 
-    // Handle outgoing audio
     if (activeFade){ clearInterval(activeFade); activeFade=null; }
-    // Only fadeOutAndReset when going right — current slides to slot 0 and leaves.
-    // Going left, current slides to slot 2 and stays visible, so don't reset it.
-    if (dir === 1 && !cards[current].video.paused) fadeOutAndReset(cards[current]);
+
+    // Cards currently visible (the 3-card window before this step)
+    var visibleBefore = [mod(current-1,n), current, mod(current+1,n)];
+    // Cards visible AFTER this step (the new 3-card window)
+    var visibleAfter  = [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)];
+
+    // Reset cards that are ALREADY off-screen (not visible before or after) —
+    // safe to reset immediately so they reappear as clean thumbnails.
+    cards.forEach(function(c){
+      var offBefore = visibleBefore.indexOf(c.reelIdx) === -1;
+      var offAfter  = visibleAfter.indexOf(c.reelIdx) === -1;
+      if (offBefore && offAfter) resetCard(c);
+    });
+
+    // The single card that is visible NOW but leaves AFTER this step is the
+    // "outgoing" card — it must finish sliding off before we reset it.
+    var outgoing = null;
+    cards.forEach(function(c){
+      if (visibleBefore.indexOf(c.reelIdx) !== -1 &&
+          visibleAfter.indexOf(c.reelIdx)  === -1){
+        outgoing = c;
+      }
+    });
 
     // ── The key sequence ──────────────────────────────
-    if (dir === 1) {
+    // dir=-1 (left): DOM centered on `current` — incoming card sits at slot 0
+    //   (left edge), ready to slide in. Animate track to centerX()+step (=0).
+    // dir=+1 (right): DOM centered on `nextIdx` — incoming card's successor
+    //   sits at slot 2 (right edge), ready to slide in. Offset start by +step
+    //   so `current` still appears centered. Animate track to centerX().
+    if (dir === 1){
       setDOMOrder(nextIdx);
       setTranslate(centerX() + step, false);
     } else {
@@ -399,24 +440,21 @@
     var targetX = (dir === 1) ? centerX() : centerX() + step;
     setTranslate(targetX, true);
 
-    // 3. After animation: update current, reset DOM to new center, snap back
+    // After the animation: commit `current`, reset the outgoing card now that
+    // it has finished sliding off-screen, then re-center the DOM.
     setTimeout(function(){
       current = nextIdx;
 
-      // Reset cards that just left the window
-      cards.forEach(function(c){
-        var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
-        if (Math.abs(diff) > 1) resetCard(c);
-      });
+      if (outgoing) resetCard(outgoing);
 
-      // Silently re-center DOM on new current
+      // Re-center DOM on new current (setDOMOrder preserves playing videos)
       setDOMOrder(current);
       setTranslate(centerX(), false);
 
       updateUI();
       busy = false;
 
-      // Continue stepping if dot jumped multiple
+      // Continue stepping if a dot jump spanned multiple positions
       if (nextIdx !== targetIdx){
         setTimeout(function(){ navigate(targetIdx); }, 50);
       }
