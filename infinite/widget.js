@@ -380,16 +380,21 @@
     if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
-    // 1. Silently set DOM order centered on CURRENT (no visual change)
-    //    Track is at centerX() = -step
-    setDOMOrder(current);
-    setTranslate(centerX(), false); // no animation, same visual position
-
-    // 2. Animate the track one step in `dir`:
-    //    dir=+1 (→): slide left  → translateX(-step - step) = -2*step
-    //    dir=-1 (←): slide right → translateX(-step + step) = 0
-    var targetX = centerX() - dir * step;
-    setTranslate(targetX, true);
+    if (dir === 1) {
+      // Going RIGHT: DOM is already [prev, current, next] at centerX()
+      // Just animate one step to the left — next card slides in from right
+      setTranslate(centerX() - step, true);
+    } else {
+      // Going LEFT: we need prev-1 to be at slot 0 (left of prev)
+      // Reorder to [prev-1, prev, current, ...] silently, keeping visual position
+      // Then animate one step to the right — prev card slides in from left
+      setDOMOrder(mod(current - 2, n));
+      // After reorder, current is now at slot 2, prev at slot 1, prev-1 at slot 0
+      // So track needs to be at centerX() - step to show current centered (slot 2)
+      setTranslate(centerX() - step, false);
+      // Now animate right by one step to center slot 1 (prev = nextIdx)
+      setTranslate(centerX(), true);
+    }
 
     // 3. After animation: update current, reset DOM to new center, snap back
     setTimeout(function(){
