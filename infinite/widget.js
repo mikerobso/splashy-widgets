@@ -414,15 +414,15 @@
     setTimeout(function(){
       current = nextIdx;
 
-      // Reset cards that just left the window
+      // Silently re-center DOM on new current first (moves cards off-screen)
+      setDOMOrder(current);
+      setTranslate(centerX(), false);
+
+      // Now reset cards that are off-screen — no flash since they're already repositioned
       cards.forEach(function(c){
         var diff = mod(c.reelIdx - current + Math.floor(n/2), n) - Math.floor(n/2);
         if (Math.abs(diff) > 1) resetCard(c);
       });
-
-      // Silently re-center DOM on new current
-      setDOMOrder(current);
-      setTranslate(centerX(), false);
 
       updateUI();
       busy = false;
