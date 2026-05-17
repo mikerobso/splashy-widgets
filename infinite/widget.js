@@ -373,14 +373,24 @@
 
   // ── Initial layout ───────────────────────────────────
   // Invariant: cards always occupy the n consecutive slots
-  //   [centreSlot-1 .. centreSlot+n-2]
-  // so both side slots are always populated and there is always a card
-  // ready to scroll in from either direction.
-  // Start with reelIdx 0 centred (slot 0) and reelIdx n-1 on slot -1.
+  //   [centreSlot-2 .. centreSlot+n-3]
+  // The viewport shows slots [centreSlot-1 .. centreSlot+1]. The band is
+  // shifted one extra slot to the LEFT so a card is always staged just off
+  // the left edge, ready to slide in on a left step. For a right step the
+  // staged-left card is recycled to just off the right edge BEFORE animating
+  // (invisible, since it's off-screen at both ends), so it slides in smoothly
+  // too. This gives smooth entry in both directions for n = 4, 5, or 6.
+  // Start with reelIdx 0 centred (slot 0); reelIdx n-1 staged at slot -2,
+  // reelIdx n-2 at slot -1 ... i.e. the last two reels wrap to the left.
   (function initEngine(){
     centreSlot = 0;
+    // Band must be [-2 .. n-3]. Assign reelIdx i to slot:
+    //   slot 0..n-3  -> reelIdx 0..n-3
+    //   slot -2, -1  -> reelIdx n-2, n-1
     for (var i=0;i<n;i++){
-      cards[i].slot = (i === n-1) ? -1 : i;
+      if (i <= n-3)      cards[i].slot = i;
+      else if (i === n-2) cards[i].slot = -2;
+      else                cards[i].slot = -1;   // i === n-1
     }
     placeAll();
     setTrack(false);
@@ -402,37 +412,62 @@
     if (busy) return;
     busy = true;
 
-    // Advance the centre and animate the track. T is monotonic — no snap.
-    centreSlot += dir;
-    setTrack(true);
-    updateUI();
+    var newCentre = centreSlot + dir;
+    // Occupied band AFTER this step: [newCentre-2 .. newCentre+n-3].
+    var newBandLo = newCentre - 2;
+    var newBandHi = newCentre + n - 3;
 
-    // New occupied band: [centreSlot-1 .. centreSlot+n-2].
-    var bandLo = centreSlot - 1;
-    var bandHi = centreSlot + n - 2;
-
-    // After the slide completes: exactly one card now lies outside the band.
-    // Recycle it ±n to the newly-vacant slot on the far side. It is off-screen
-    // at that moment, so the jump is invisible. Reset it to its thumbnail.
-    setTimeout(function(){
+    if (dir === 1){
+      // RIGHT step. The incoming card must enter from just off the right edge
+      // (slot centreSlot+2). The card staged off the LEFT edge (slot
+      // centreSlot-2) is idle and off-screen — recycle it +n to the right
+      // BEFORE animating. At the current track position centreSlot+2 is off
+      // the right edge, so this move is invisible; the card then slides in
+      // smoothly as the track animates.
       cards.forEach(function(c){
-        if (c.slot < bandLo || c.slot > bandHi){
-          c.slot += dir * n;
+        if (c.slot < newBandLo || c.slot > newBandHi){
+          c.slot += n;
           placeCard(c);
           resetCard(c);
         }
       });
+      centreSlot = newCentre;
+      setTrack(true);
+      updateUI();
 
-      busy = false;
+      setTimeout(function(){ finishStep(finalTargetIdx); }, 480);
 
-      // Continue stepping toward a multi-step dot target.
-      if (typeof finalTargetIdx === "number" && current !== finalTargetIdx){
-        var d2 = finalTargetIdx - current;
-        if (d2 >  n/2) d2 -= n;
-        if (d2 < -n/2) d2 += n;
-        setTimeout(function(){ step(d2 > 0 ? 1 : -1, finalTargetIdx); }, 30);
-      }
-    }, 480);
+    } else {
+      // LEFT step. The incoming card is already staged at slot centreSlot-2
+      // (the new left slot) — it slides in smoothly with no pre-work.
+      centreSlot = newCentre;
+      setTrack(true);
+      updateUI();
+
+      // The outgoing card (now off the RIGHT edge) is recycled to the left
+      // AFTER the slide, while it is safely off-screen.
+      setTimeout(function(){
+        cards.forEach(function(c){
+          if (c.slot < newBandLo || c.slot > newBandHi){
+            c.slot += -n;
+            placeCard(c);
+            resetCard(c);
+          }
+        });
+        finishStep(finalTargetIdx);
+      }, 480);
+    }
+  }
+
+  function finishStep(finalTargetIdx){
+    busy = false;
+    // Continue stepping toward a multi-step dot target.
+    if (typeof finalTargetIdx === "number" && current !== finalTargetIdx){
+      var d2 = finalTargetIdx - current;
+      if (d2 >  n/2) d2 -= n;
+      if (d2 < -n/2) d2 += n;
+      setTimeout(function(){ step(d2 > 0 ? 1 : -1, finalTargetIdx); }, 30);
+    }
   }
 
   // Reposition everything on resize.
