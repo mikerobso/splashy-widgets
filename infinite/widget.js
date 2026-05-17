@@ -399,9 +399,13 @@
     // Animate to center (nextIdx slides into slot 1)
     setTranslate(centerX(), true);
 
-    // 3. After animation: commit state, reset off-screen cards
+    // 3. After animation: commit state, re-center DOM, reset off-screen cards
     setTimeout(function(){
       current = nextIdx;
+
+      // Re-center DOM on new current before deciding what's off-screen
+      setDOMOrder(current);
+      setTranslate(centerX(), false);
 
       // Reset cards that just left the window
       cards.forEach(function(c){
