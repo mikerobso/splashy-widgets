@@ -218,13 +218,10 @@
         cards.forEach(function(c){
           if (c.video === video) return;
           if (!c.video.paused) {
-            // Another video is actively playing — pause it on its current frame
             c.video.pause();
             var pi = c.el.querySelector(".sif-pause-ind");
             if (pi) pi.classList.add("visible");
           }
-          // If it's already paused, leave it on its pause frame;
-          // it will be reset naturally when it scrolls out of the 3-card window
         });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
@@ -390,49 +387,32 @@
     if (!cards[current].video.paused) fadeOutAndReset(cards[current]);
 
     // ── The key sequence ──────────────────────────────
-    // For dir=-1 (left): setDOMOrder(current) puts the incoming card at slot 0,
-    //   which is exactly at the left edge of the viewport — ready to slide in.
-    // For dir=+1 (right): we need the incoming card's successor at slot 2 (right edge).
-    //   setDOMOrder(current) puts nextIdx+1 at slot 3 — one step beyond, clipped.
-    //   Fix: for right, pre-center on nextIdx instead, then offset translateX by
-    //   +step so current still LOOKS centered. This puts nextIdx+1 at slot 2,
-    //   right at the right edge — mirroring exactly what left gets for free.
+    // Left arrow: DOM centered on current (unchanged from original — works perfectly)
+    // Right arrow: DOM pre-centered on nextIdx so nextIdx+1 sits at slot 2 (right edge)
+    //   and slides in smoothly instead of popping
+    if (dir === 1) {
+      setDOMOrder(nextIdx);
+      setTranslate(centerX() + step, false);
+    } else {
+      setDOMOrder(current);
+      setTranslate(centerX(), false);
+    }
 
-    // Both directions: pre-center DOM on nextIdx so visibleNow is always the
-    // correct 3-slot window. Offset translateX so current still appears centered.
-    // dir=+1: current ends up at slot 0 (left of nextIdx), offset = +step
-    // dir=-1: current ends up at slot 2 (right of nextIdx), offset = -step
-    var visibleNow = [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)];
-    console.log('navigate dir='+dir+' current='+current+' nextIdx='+nextIdx+' visibleNow='+JSON.stringify(visibleNow));
-    cards.forEach(function(c){
-      if (visibleNow.indexOf(c.reelIdx) === -1) {
-        console.log('  PRE-reset card '+c.reelIdx+' paused='+c.video.paused+' currentTime='+c.video.currentTime.toFixed(2));
-        resetCard(c);
-      }
-    });
-
-    setDOMOrder(nextIdx);
-    setTranslate(centerX() + dir * step, false); // offset so current appears centered
-
-    // Animate to centerX() — nextIdx slides into slot 1 from either side
-    setTranslate(centerX(), true);
+    var targetX = (dir === 1) ? centerX() : centerX() + step;
+    setTranslate(targetX, true);
 
     // 3. After animation: update current, reset DOM to new center, snap back
     setTimeout(function(){
       current = nextIdx;
 
-      // Silently re-center DOM on new current first (moves cards off-screen)
+      // Silently re-center DOM on new current
       setDOMOrder(current);
       setTranslate(centerX(), false);
 
-      // Reset cards not in the new visible 3-slot window
-      var stillVisible = [mod(current-1,n), current, mod(current+1,n)];
-      console.log('POST-animate current='+current+' stillVisible='+JSON.stringify(stillVisible));
+      // Reset any card not in the new visible 3-slot window
+      var visible = [mod(current-1,n), current, mod(current+1,n)];
       cards.forEach(function(c){
-        if (stillVisible.indexOf(c.reelIdx) === -1) {
-          console.log('  POST-reset card '+c.reelIdx+' paused='+c.video.paused+' currentTime='+c.video.currentTime.toFixed(2));
-          resetCard(c);
-        }
+        if (visible.indexOf(c.reelIdx) === -1) resetCard(c);
       });
 
       updateUI();
