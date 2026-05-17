@@ -128,6 +128,10 @@
   var globalMuted = false;
   var activeFade  = null;
   var busy        = false;
+  // True while (or just after) the user is dragging a progress bar, so the
+  // viewport swipe handler ignores that touch and doesn't navigate.
+  var scrubbing   = false;
+  var scrubEndTimer = null;
 
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
@@ -245,12 +249,18 @@
       function seekTo(p){ if (dur) video.currentTime=p*dur; }
       progBar.addEventListener("click",function(e){ e.stopPropagation(); });
       progBar.addEventListener("mousedown",function(e){ e.stopPropagation(); dragging=true; progBar.classList.add("show"); seekTo(getPct(e)); });
-      progBar.addEventListener("touchstart",function(e){ e.stopPropagation(); dragging=true; progBar.classList.add("show"); seekTo(getPct(e)); },{passive:true});
+      progBar.addEventListener("touchstart",function(e){ e.stopPropagation(); dragging=true; scrubbing=true; if(scrubEndTimer)clearTimeout(scrubEndTimer); progBar.classList.add("show"); seekTo(getPct(e)); },{passive:true});
       document.addEventListener("mousemove",function(e){ if (dragging) seekTo(getPct(e)); });
-      document.addEventListener("touchmove",function(e){ if (dragging) seekTo(getPct(e)); },{passive:true});
+      document.addEventListener("touchmove",function(e){ if (dragging){ scrubbing=true; seekTo(getPct(e)); } },{passive:true});
       document.addEventListener("mouseup",function(){ if (dragging){ dragging=false; progBar.classList.remove("show"); } });
       document.addEventListener("touchend",function(){
-        if (dragging){ dragging=false; progBar.classList.remove("show"); window._sifSE=true; setTimeout(function(){ window._sifSE=false; },300); }
+        if (dragging){
+          dragging=false; progBar.classList.remove("show");
+          // Keep `scrubbing` true briefly so the swipe handler that fires
+          // from the SAME touch release is ignored.
+          if (scrubEndTimer) clearTimeout(scrubEndTimer);
+          scrubEndTimer = setTimeout(function(){ scrubbing=false; }, 350);
+        }
       });
       video.addEventListener("play",function(){
         progBar.classList.add("show");
@@ -574,9 +584,12 @@
   var txStart=0,txStartY=0;
   viewport.addEventListener("touchstart",function(e){ txStart=e.touches[0].clientX; txStartY=e.touches[0].clientY; },{passive:true});
   viewport.addEventListener("touchend",function(e){
-    if (window._sifSE) return;
+    // Ignore the touch entirely if the user was scrubbing a progress bar.
+    if (scrubbing || window._sifSE) return;
     var dx=e.changedTouches[0].clientX-txStart,dy=Math.abs(e.changedTouches[0].clientY-txStartY);
-    if (Math.abs(dx)>38&&Math.abs(dx)>dy) navigate(mod(current+(dx<0?1:-1),n));
+    // Require a clear, mostly-horizontal swipe (threshold raised so a small
+    // drift while tapping/scrubbing doesn't trigger navigation).
+    if (Math.abs(dx)>55 && Math.abs(dx)>dy*1.4) navigate(mod(current+(dx<0?1:-1),n));
   },{passive:true});
 
   var msStart=null,msDrag=false;
