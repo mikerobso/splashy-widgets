@@ -405,8 +405,12 @@
     var visibleNow = (dir === 1)
       ? [mod(nextIdx-1,n), nextIdx, mod(nextIdx+1,n)]
       : [mod(current-1,n), current, mod(current+1,n)];
+    console.log('navigate dir='+dir+' current='+current+' nextIdx='+nextIdx+' visibleNow='+JSON.stringify(visibleNow));
     cards.forEach(function(c){
-      if (visibleNow.indexOf(c.reelIdx) === -1) resetCard(c);
+      if (visibleNow.indexOf(c.reelIdx) === -1) {
+        console.log('  PRE-reset card '+c.reelIdx+' paused='+c.video.paused+' currentTime='+c.video.currentTime.toFixed(2));
+        resetCard(c);
+      }
     });
 
     if (dir === 1) {
@@ -431,8 +435,12 @@
 
       // Reset cards not in the new visible 3-slot window
       var stillVisible = [mod(current-1,n), current, mod(current+1,n)];
+      console.log('POST-animate current='+current+' stillVisible='+JSON.stringify(stillVisible));
       cards.forEach(function(c){
-        if (stillVisible.indexOf(c.reelIdx) === -1) resetCard(c);
+        if (stillVisible.indexOf(c.reelIdx) === -1) {
+          console.log('  POST-reset card '+c.reelIdx+' paused='+c.video.paused+' currentTime='+c.video.currentTime.toFixed(2));
+          resetCard(c);
+        }
       });
 
       updateUI();
