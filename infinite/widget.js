@@ -396,8 +396,9 @@
       setTranslate(centerX(), false);
     }
 
-    // Animate to centerX() — in both cases this lands nextIdx at slot 1 (center)
-    setTranslate(centerX(), true);
+    // Animate: right goes to centerX(), left goes to centerX() + step (= 0)
+    var targetX = (dir === 1) ? centerX() : centerX() + step;
+    setTranslate(targetX, true);
 
     // 3. After animation: update current, reset DOM to new center, snap back
     setTimeout(function(){
