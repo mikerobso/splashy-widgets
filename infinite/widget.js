@@ -500,21 +500,19 @@
     var prevRealIdx = mod(current, n);
     if (targetRealIdx === prevRealIdx) return;
 
-    // Determine direction — always shortest path around the circle
+    // Always silently snap to the middle set equivalent of current position first
+    // This guarantees we always have room to slide in either direction
+    var correctVP = n + prevRealIdx;
+    if (virtualPos !== correctVP) {
+      virtualPos = correctVP;
+      setTrackBySlot(virtualPos, false);
+    }
+
+    // Determine direction — shortest path around the circle
     var delta = targetRealIdx - prevRealIdx;
     if (delta >  Math.floor(n / 2)) delta -= n;
     if (delta < -Math.floor(n / 2)) delta += n;
 
-    // Before moving, make sure we're in the middle set so we have room in both directions
-    var middleStart = n;
-    var middleEnd   = 2 * n - 1;
-    var curSlotInMiddle = n + prevRealIdx;
-    if (virtualPos !== curSlotInMiddle) {
-      virtualPos = curSlotInMiddle;
-      setTrackBySlot(virtualPos, false);
-    }
-
-    var newVirtualPos = virtualPos + delta;
     isAnimating = true;
 
     // Reset outgoing card
@@ -522,22 +520,13 @@
     fadeOutAndReset(cardEls[prevRealIdx]);
 
     current = targetRealIdx;
-    virtualPos = newVirtualPos;
+    virtualPos = virtualPos + delta;
 
     setTrackBySlot(virtualPos, true);
     updateActiveClass();
     updateDots();
 
-    // After animation, silently re-center to middle set
-    setTimeout(function(){
-      isAnimating = false;
-      var realIdx = mod(current, n);
-      var newVP   = n + realIdx;
-      if (virtualPos !== newVP) {
-        virtualPos = newVP;
-        setTrackBySlot(virtualPos, false);
-      }
-    }, 520);
+    setTimeout(function(){ isAnimating = false; }, 520);
   }
 
   // Initial position
