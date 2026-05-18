@@ -185,11 +185,6 @@
   // ── Build the circles row ───────────────────────────
   var widget = document.createElement("div");
   widget.className = "sst-widget";
-  // Logo ring colour for the player chrome. A solid colour sets
-  // --sst-logo-ring (used only by the logo border); the gradient is set as
-  // --sst-ring-grad and applied via the .sst-logo--grad markup below.
-  if (logoRingIsGradient) widget.style.setProperty("--sst-ring-grad", IG_RING);
-  else widget.style.setProperty("--sst-logo-ring", logoRing);
   var row = document.createElement("div");
   row.className = "sst-row";
   widget.appendChild(row);
@@ -316,6 +311,14 @@
       '<svg width="12" height="20" viewBox="0 0 12 20" fill="none"><polyline points="2,2 10,10 2,18" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
     '</button>';
   document.body.appendChild(overlay);
+
+  // Logo ring colour. The logo lives inside `overlay` (appended to
+  // document.body), NOT inside `.sst-widget` — so the CSS variables must be
+  // set on `overlay` for them to cascade to `.sst-logo`. A solid colour
+  // sets --sst-logo-ring (the logo border); the gradient sets --sst-ring-grad
+  // (used by the masked .sst-logo--grad ::before).
+  if (logoRingIsGradient) overlay.style.setProperty("--sst-ring-grad", IG_RING);
+  else overlay.style.setProperty("--sst-logo-ring", logoRing);
 
   var video    = overlay.querySelector(".sst-video");
   var stage    = overlay.querySelector(".sst-stage");
