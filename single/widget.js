@@ -61,13 +61,13 @@
       // Instagram-style gradient ring. The masked gradient lives on a
       // ::before pseudo-element so the mask (which punches the transparent
       // centre hole) affects ONLY the gradient — the logo is a separate,
-      // un-masked child sitting on top. To widen the gap without shrinking
-      // the logo, the OUTER circle is grown to 47.5px (radius 23.75) while
-      // the logo stays 39px. Geometry: gradient ring 23.75->21.75 (2px),
-      // transparent gap 21.75->19.5 (2.25px), logo r19.5 (39px).
-      ".srv-logo.srv-logo--grad{width:47.5px!important;height:47.5px!important;min-width:47.5px!important;min-height:47.5px!important;border:none!important;background:transparent!important;position:relative}",
-      ".srv-logo.srv-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--srv-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 21.75px, #000 21.75px);mask:radial-gradient(circle, transparent 0 21.75px, #000 21.75px)}",
-      ".srv-logo.srv-logo--grad .srv-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:39px;height:39px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
+      // un-masked child sitting on top. The logo is 42px to match the solid-
+      // ring mode exactly (where a 46px circle minus a 2px border = 42px
+      // content). Geometry: outer 50.5px (radius 25.25), gradient ring
+      // 25.25->23.25 (2px), transparent gap 23.25->21 (2.25px), logo r21 (42px).
+      ".srv-logo.srv-logo--grad{width:50.5px!important;height:50.5px!important;min-width:50.5px!important;min-height:50.5px!important;border:none!important;background:transparent!important;position:relative}",
+      ".srv-logo.srv-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--srv-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 23.25px, #000 23.25px);mask:radial-gradient(circle, transparent 0 23.25px, #000 23.25px)}",
+      ".srv-logo.srv-logo--grad .srv-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".srv-logo img{width:100%;height:100%;object-fit:cover;display:block}",
       ".srv-timer{position:relative;width:46px;height:46px;flex-shrink:0}",
       ".srv-timer svg{width:46px;height:46px;transform:rotate(-90deg)}",
