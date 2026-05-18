@@ -31,12 +31,27 @@
   // through pink/magenta into purple, like the Instagram stories ring.
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
 
+  // A circle that's already been opened this session shows a quiet gray ring
+  // instead of its gradient/colour — like Instagram's "seen" stories.
+  var VIEWED_RING = "#c7c7cc";
+
   // Resolve a ring value into a CSS background. The string "instagram"
   // (the default) becomes the gradient; anything else is treated as a
   // solid colour (default picker set to a colour, or a per-circle override).
   function resolveRing(val){
     if (!val || val === "instagram") return IG_RING;
     return val;
+  }
+
+  // Tracks which reels have been opened this session (resets on reload).
+  // ringEls keeps a reference to each circle's ring element so a viewed
+  // circle's ring can be greyed out after its player opens.
+  var viewed  = [];
+  var ringEls = [];
+  function markViewed(i){
+    if (viewed[i]) return;
+    viewed[i] = true;
+    if (ringEls[i]) ringEls[i].style.background = VIEWED_RING;
   }
 
   // ── GA4 / analytics tracking ─────────────────────────
@@ -161,7 +176,10 @@
     item.className = "sst-item";
     var ring = document.createElement("div");
     ring.className = "sst-ring";
-    ring.style.background = resolveRing(reel.ringColor || ringColor);
+    ring.style.background = viewed[i]
+      ? VIEWED_RING
+      : resolveRing(reel.ringColor || ringColor);
+    ringEls[i] = ring;
     var inner = document.createElement("div");
     inner.className = "sst-ring-inner";
     if (reel.posterUrl){
@@ -299,6 +317,7 @@
   function playIndex(i){
     if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
     cur = mod(i, n);
+    markViewed(cur);                             // greys this circle's ring
     playFired = false; progressFired = false;   // reset tracking for the new reel
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
