@@ -61,11 +61,12 @@
       // Instagram-style gradient ring. The masked gradient lives on a
       // ::before pseudo-element so the mask (which punches the transparent
       // centre hole) affects ONLY the gradient — the logo is a separate,
-      // un-masked child sitting on top. Geometry (46px / radius 23): gradient
-      // ring 23->21 (2px), transparent gap 21->19.5 (1.5px), white logo
-      // r19.5 (39px).
-      ".srv-logo.srv-logo--grad{border:none!important;background:transparent!important;position:relative}",
-      ".srv-logo.srv-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--srv-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 21px, #000 21px);mask:radial-gradient(circle, transparent 0 21px, #000 21px)}",
+      // un-masked child sitting on top. To widen the gap without shrinking
+      // the logo, the OUTER circle is grown to 47.5px (radius 23.75) while
+      // the logo stays 39px. Geometry: gradient ring 23.75->21.75 (2px),
+      // transparent gap 21.75->19.5 (2.25px), logo r19.5 (39px).
+      ".srv-logo.srv-logo--grad{width:47.5px!important;height:47.5px!important;min-width:47.5px!important;min-height:47.5px!important;border:none!important;background:transparent!important;position:relative}",
+      ".srv-logo.srv-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--srv-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 21.75px, #000 21.75px);mask:radial-gradient(circle, transparent 0 21.75px, #000 21.75px)}",
       ".srv-logo.srv-logo--grad .srv-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:39px;height:39px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".srv-logo img{width:100%;height:100%;object-fit:cover;display:block}",
       ".srv-timer{position:relative;width:46px;height:46px;flex-shrink:0}",
