@@ -4,11 +4,17 @@
      Splshy Reels Widget — Hosted Version
      splshy.com/reels/widget.js
 
+     Multi-instance: each embed pushes its config object to
+     window.SPLSHY_REELS_QUEUE. This script initialises every
+     queued config, so any number of accordion carousels can live
+     on the same page. (The legacy single global window.SPLSHY_REELS
+     is still honoured for backward compatibility.)
+
      Usage on any page:
 
      <div id="splshy-reels"></div>
      <script>
-       window.SPLSHY_REELS = {
+       (window.SPLSHY_REELS_QUEUE = window.SPLSHY_REELS_QUEUE || []).push({
          containerId:   "splshy-reels",
          followerCount: "118K followers",
          igUrl:         "https://www.instagram.com/visitraleigh/",
@@ -18,12 +24,14 @@
            { videoUrl: "https://...", posterUrl: "https://...", label: "Reel Title" },
            { videoUrl: "https://...", posterUrl: "https://...", label: "Reel Title" }
          ]
-       };
+       });
      </script>
      <script src="https://splshy.com/reels/widget.js"></script>
   ==================================================== */
 
-  var cfg           = window.SPLSHY_REELS || {};
+  function initWidget(cfg) {
+
+  cfg               = cfg || {};
   var reels         = cfg.reels           || [];
   var followerCount = cfg.followerCount   || "";
   var igUrl         = cfg.igUrl           || "https://www.instagram.com/";
@@ -415,11 +423,40 @@
   stage.addEventListener("mouseleave", function () { msStart = null; msDrag = false; });
 
   document.addEventListener("keydown", function (e) {
+    // With multiple carousels on a page, only the hovered one responds.
+    if (!widget.matches(":hover")) return;
     if (e.key === "ArrowLeft")  goTo(current - 1);
     if (e.key === "ArrowRight") goTo(current + 1);
   });
 
   layout();
   window.addEventListener("resize", layout);
+
+  } // end initWidget
+
+  // ── Multi-instance bootstrap ─────────────────────────
+  // Process every queued config. Each embed does:
+  //   (window.SPLSHY_REELS_QUEUE = window.SPLSHY_REELS_QUEUE || []).push(cfg)
+  // We replace the queue's push with one that initialises immediately, so
+  // configs added before OR after this script loads are all handled.
+  function processQueue() {
+    var q = window.SPLSHY_REELS_QUEUE;
+    if (q && q.length) {
+      // Drain any configs queued before the script loaded.
+      while (q.length) { initWidget(q.shift()); }
+    }
+    // Replace the array with a live object whose push() inits on the spot,
+    // so embeds appearing later on the page still work.
+    window.SPLSHY_REELS_QUEUE = {
+      push: function (cfg) { initWidget(cfg); }
+    };
+  }
+
+  // Backward compatibility: honour a single legacy global config.
+  if (window.SPLSHY_REELS && window.SPLSHY_REELS.reels) {
+    initWidget(window.SPLSHY_REELS);
+  }
+
+  processQueue();
 
 })();
