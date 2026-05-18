@@ -21,11 +21,23 @@
   var igUrl         = cfg.igUrl         || "https://www.instagram.com/";
   var logoUrl       = cfg.logoUrl       || "";
   var containerId   = cfg.containerId   || "splshy-stories";
-  var ringColor     = cfg.ringColor     || "#D30011";   // default ring colour
-  var GAP_MS        = 1000;                              // gap between videos
+  var ringColor     = cfg.ringColor     || "instagram";   // default: IG gradient
+  var GAP_MS        = 1000;                                // gap between videos
 
   if (!reels.length) { console.warn("Splshy Stories: no reels configured."); return; }
   var n = reels.length;
+
+  // The Instagram-style story ring — a conic gradient sweeping warm yellow
+  // through pink/magenta into purple, like the Instagram stories ring.
+  var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+
+  // Resolve a ring value into a CSS background. The string "instagram"
+  // (the default) becomes the gradient; anything else is treated as a
+  // solid colour (default picker set to a colour, or a per-circle override).
+  function resolveRing(val){
+    if (!val || val === "instagram") return IG_RING;
+    return val;
+  }
 
   // ── GA4 / analytics tracking ─────────────────────────
   // Fires an event to whichever analytics the host page uses — gtag (GA4
@@ -149,7 +161,7 @@
     item.className = "sst-item";
     var ring = document.createElement("div");
     ring.className = "sst-ring";
-    ring.style.background = reel.ringColor || ringColor;
+    ring.style.background = resolveRing(reel.ringColor || ringColor);
     var inner = document.createElement("div");
     inner.className = "sst-ring-inner";
     if (reel.posterUrl){
@@ -222,9 +234,12 @@
   }
 
   // ── Build the overlay (one per widget instance) ─────
+  // The logo fallback "S" uses a solid colour (not the ring gradient) —
+  // a conic gradient behind a tiny letter looks busy.
+  var logoBg = (ringColor && ringColor !== "instagram") ? ringColor : "#D30011";
   var resolvedLogo = logoUrl
     ? '<img src="'+logoUrl+'" alt="logo">'
-    : '<div style="width:100%;height:100%;background:'+ringColor+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
+    : '<div style="width:100%;height:100%;background:'+logoBg+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
   var RC = (2*Math.PI*23).toFixed(2);
 
   var overlay = document.createElement("div");
