@@ -100,7 +100,7 @@
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
 
       // Overlay — a flex row: [left arrow] [stage] [right arrow]
-      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s}",
+      ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
       ".sst-overlay.open{display:flex;opacity:1}",
       ".sst-stagebox{position:relative}",
       ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center}",
@@ -112,7 +112,7 @@
       // Chrome inside the stage (mirrors the card chrome)
       ".sst-top{position:absolute;top:0;left:0;right:0;padding:20px 18px 38px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       ".sst-top a{pointer-events:auto}",
-      ".sst-logo{width:50px;height:50px;border-radius:50%;border:2px solid #fff;overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".sst-logo{width:50px;height:50px;border-radius:50%;border:2px solid #D30011;overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
       ".sst-logo img{width:100%;height:100%;object-fit:cover}",
       ".sst-foll{color:rgba(255,255,255,.8);font-size:10px;font-weight:400;letter-spacing:.03em;text-shadow:0 1px 3px rgba(0,0,0,.5);margin-top:4px;text-align:center}",
       ".sst-timer{position:relative;width:50px;height:50px;flex-shrink:0}",
