@@ -58,13 +58,15 @@
       // (a CSS border can't be a gradient). The .srv-logo-ring--grad
       // modifier switches to the gradient style.
       ".srv-logo{width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;border-radius:50%!important;border:2px solid var(--srv-accent)!important;overflow:hidden!important;background:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important}",
-      // Instagram-style gradient ring. Three concentric layers: the gradient
-      // ring (outer), a transparent gap, then the white-backed logo. The gap
-      // is made by an inner wrapper sized smaller than the gradient box with
-      // a transparent background, so the page shows through — like Instagram.
-      ".srv-logo.srv-logo--grad{border:none!important;background:var(--srv-ring-grad)!important;padding:2px!important}",
-      ".srv-logo.srv-logo--grad .srv-logo-gap{width:100%;height:100%;border-radius:50%;background:transparent;padding:2.5px;display:flex;align-items:center;justify-content:center}",
-      ".srv-logo.srv-logo--grad .srv-logo-inner{width:100%;height:100%;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}",
+      // Instagram-style gradient ring. The gradient fills a circle, but a
+      // radial mask punches a transparent hole through the centre so it
+      // becomes a true RING — the page/video shows through the hole. The
+      // white-backed logo sits in that hole slightly smaller than the hole
+      // itself, leaving a thin see-through gap (like Instagram).
+      // Geometry (logo is 46px / radius 23): gradient ring 23->21 (2px),
+      // transparent gap 21->18 (3px), white logo radius 18 (36px).
+      ".srv-logo.srv-logo--grad{border:none!important;background:var(--srv-ring-grad)!important;position:relative;-webkit-mask:radial-gradient(circle, transparent 0 21px, #000 21px);mask:radial-gradient(circle, transparent 0 21px, #000 21px)}",
+      ".srv-logo.srv-logo--grad .srv-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}",
       ".srv-logo img{width:100%;height:100%;object-fit:cover;display:block}",
       ".srv-timer{position:relative;width:46px;height:46px;flex-shrink:0}",
       ".srv-timer svg{width:46px;height:46px;transform:rotate(-90deg)}",
@@ -161,11 +163,11 @@
   var logoContent = logoUrl
     ? '<img src="' + logoUrl + '" alt="logo">'
     : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
-  // For the gradient ring the logo content sits inside a transparent-gap
-  // wrapper so the gradient shows as a ring with breathing room around the
-  // logo (Instagram style); for a solid ring the border does it.
+  // For the gradient ring the logo content sits in an inner circle centred
+  // in the masked ring; the transparent hole + smaller logo create the
+  // Instagram-style see-through gap. For a solid ring the border does it.
   var logoHTML = ringIsGradient
-    ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-gap"><div class="srv-logo-inner">' + logoContent + '</div></div></div>'
+    ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
     : '<div class="srv-logo">' + logoContent + '</div>';
 
   card.insertAdjacentHTML("afterbegin",
