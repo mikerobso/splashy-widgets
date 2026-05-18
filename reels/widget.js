@@ -13,6 +13,7 @@
          followerCount: "118K followers",
          igUrl:         "https://www.instagram.com/visitraleigh/",
          logoUrl:       "",
+         logoRing:      "#D30011",
          reels: [
            { videoUrl: "https://...", posterUrl: "https://...", label: "Reel Title" },
            { videoUrl: "https://...", posterUrl: "https://...", label: "Reel Title" }
@@ -27,7 +28,12 @@
   var followerCount = cfg.followerCount   || "";
   var igUrl         = cfg.igUrl           || "https://www.instagram.com/";
   var logoUrl       = cfg.logoUrl         || "";
+  var logoRing      = cfg.logoRing        || "#D30011";
   var containerId   = cfg.containerId     || "splshy-reels";
+
+  // The Instagram-style gradient ring (matches the other Splshy widgets).
+  var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+  var ringIsGradient = (logoRing === "instagram");
 
   if (!reels.length) {
     console.warn("Splshy: no reels configured. Set window.SPLSHY_REELS.reels before loading the script.");
@@ -67,7 +73,17 @@
       ".rvc-pause-indicator .rvc-play-circle svg{margin-left:0}",
       ".rvc-top-bar{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       ".rvc-top-bar a{pointer-events:auto}",
-      ".rvc-logo{width:52px;height:52px;border-radius:50%;border:2px solid var(--rvc-accent);overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      // The logo ring. A solid ring uses the .rvc-logo border (coloured by
+      // --rvc-logo-ring, falling back to --rvc-accent red). The Instagram
+      // gradient ring uses a masked conic-gradient on a ::before pseudo-
+      // element so the mask affects ONLY the gradient — the logo is a
+      // separate un-masked child. Geometry mirrors the single widget,
+      // scaled to this widget's 52px logo: outer 60.5px (radius 30.25),
+      // gradient ring 30.25->28.25 (2px), gap 28.25->26 (2.25px), logo 52px.
+      ".rvc-logo{width:52px;height:52px;border-radius:50%;border:2px solid var(--rvc-logo-ring,var(--rvc-accent));overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".rvc-logo.rvc-logo--grad{box-sizing:border-box;width:60.5px;height:60.5px;border:none;background:transparent;position:relative;overflow:visible}",
+      ".rvc-logo.rvc-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--rvc-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px);mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px)}",
+      ".rvc-logo.rvc-logo--grad .rvc-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".rvc-logo img{width:100%;height:100%;object-fit:cover}",
       ".rvc-timer{position:relative;width:52px;height:52px;flex-shrink:0}",
       ".rvc-timer svg{width:52px;height:52px;transform:rotate(-90deg)}",
@@ -140,6 +156,13 @@
   var nextBtn = widget.querySelector(".rvc-arrow--right");
   var dotsEl  = widget.querySelector(".rvc-dots");
 
+  // Logo ring colour. A solid colour sets the dedicated --rvc-logo-ring
+  // variable (used only by the logo border, so it doesn't affect the
+  // arrows/dots which use --rvc-accent); the gradient is set as
+  // --rvc-ring-grad and applied via the .rvc-logo--grad markup per card.
+  if (ringIsGradient) widget.style.setProperty("--rvc-ring-grad", IG_RING);
+  else widget.style.setProperty("--rvc-logo-ring", logoRing);
+
   var current     = Math.floor(reels.length / 2);
   var cardEls     = [];
   var dotEls      = [];
@@ -184,14 +207,19 @@
 
     // Top bar
     var resolvedLogo = reel.logoUrl || logoUrl || "";
-    var logoInner = resolvedLogo
+    var logoContent = resolvedLogo
       ? '<img src="' + resolvedLogo + '" alt="logo">'
       : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
+    // Gradient ring wraps the logo in an inner circle (the masked ::before
+    // draws the ring); a solid ring uses the .rvc-logo border directly.
+    var logoHTML = ringIsGradient
+      ? '<div class="rvc-logo rvc-logo--grad"><div class="rvc-logo-inner">' + logoContent + '</div></div>'
+      : '<div class="rvc-logo">' + logoContent + '</div>';
     var RING_C = (2 * Math.PI * 23).toFixed(2);
     card.insertAdjacentHTML("beforeend",
       '<div class="rvc-top-bar">' +
         '<a href="' + igUrl + '" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
-          '<div class="rvc-logo">' + logoInner + '</div>' +
+          logoHTML +
           '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
         '</a>' +
         '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">' +
