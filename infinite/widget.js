@@ -18,7 +18,12 @@
   var followerCount = cfg.followerCount      || "";
   var igUrl         = cfg.igUrl             || "https://www.instagram.com/";
   var logoUrl       = cfg.logoUrl           || "";
+  var logoRing      = cfg.logoRing          || "#D30011";
   var containerId   = cfg.containerId       || "splshy-infinite";
+
+  // The Instagram-style gradient ring (matches the other Splshy widgets).
+  var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+  var ringIsGradient = (logoRing === "instagram");
 
   if (!reels.length) { console.warn("Splshy Infinite: no reels configured."); return; }
 
@@ -54,7 +59,10 @@
       ".sif-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:20px;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none}",
       ".sif-top-bar{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       ".sif-top-bar a{pointer-events:auto}",
-      ".sif-logo{width:52px;height:52px;border-radius:50%;border:2px solid var(--sif-accent);overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".sif-logo{width:52px;height:52px;border-radius:50%;border:2px solid var(--sif-logo-ring,var(--sif-accent));overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".sif-logo.sif-logo--grad{box-sizing:border-box;width:60.5px;height:60.5px;border:none;background:transparent;position:relative;overflow:visible}",
+      ".sif-logo.sif-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--sif-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px);mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px)}",
+      ".sif-logo.sif-logo--grad .sif-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".sif-logo img{width:100%;height:100%;object-fit:cover}",
       ".sif-timer{position:relative;width:52px;height:52px;flex-shrink:0}",
       ".sif-timer svg{width:52px;height:52px;transform:rotate(-90deg)}",
@@ -124,6 +132,13 @@
   var nextBtn  = widget.querySelector(".sif-arrow--right");
   var dotsEl   = widget.querySelector(".sif-dots");
 
+  // Logo ring colour. A solid colour sets the dedicated --sif-logo-ring
+  // variable (used only by the logo border, so it doesn't affect the
+  // arrows/dots which use --sif-accent); the gradient is set as
+  // --sif-ring-grad and applied via the .sif-logo--grad markup per card.
+  if (ringIsGradient) widget.style.setProperty("--sif-ring-grad", IG_RING);
+  else widget.style.setProperty("--sif-logo-ring", logoRing);
+
   var current     = 0;
   var globalMuted = false;
   var activeFade  = null;
@@ -173,15 +188,20 @@
       card.appendChild(video);
 
       var resolvedLogo = reel.logoUrl||logoUrl||"";
-      var logoInner = resolvedLogo
+      var logoContent = resolvedLogo
         ? '<img src="'+resolvedLogo+'" alt="logo">'
         : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
+      // Gradient ring wraps the logo in an inner circle (the masked ::before
+      // draws the ring); a solid ring uses the .sif-logo border directly.
+      var logoHTML = ringIsGradient
+        ? '<div class="sif-logo sif-logo--grad"><div class="sif-logo-inner">'+logoContent+'</div></div>'
+        : '<div class="sif-logo">'+logoContent+'</div>';
       var RC = (2*Math.PI*23).toFixed(2);
 
       card.insertAdjacentHTML("beforeend",
         '<div class="sif-top-bar">'+
           '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
-            '<div class="sif-logo">'+logoInner+'</div>'+
+            logoHTML+
             '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
           '</a>'+
           '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">'+
