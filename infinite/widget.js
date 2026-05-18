@@ -223,6 +223,13 @@
       var timerText=card.querySelector(".sif-timer-text");
       var RC2=2*Math.PI*23;
       ring.style.strokeDasharray=RC2;
+      // Initialise the ring to its resting "full circle" state at build time.
+      // Without this, strokeDashoffset is unset until the video plays, and the
+      // first time resetCard() sets it to 0 the CSS transition animates that
+      // change — making idle side cards' timers visibly twitch when another
+      // card is played. Setting it now (before the element is ever displayed)
+      // does not animate, and makes every later reset-to-0 a no-op.
+      ring.style.strokeDashoffset=0;
       var dur=0;
 
       video.addEventListener("loadedmetadata",function(){ dur=video.duration; timerText.textContent=fmtTime(dur); });
