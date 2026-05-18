@@ -13,6 +13,7 @@
          followerCount: "118K followers",
          igUrl:         "https://www.instagram.com/visitraleigh/",
          logoUrl:       "",
+         logoRing:      "#D30011",
          videoUrl:      "https://...",
          posterUrl:     "https://...",
          label:         "Reel Title"
@@ -26,9 +27,16 @@
   var followerCount = cfg.followerCount || "";
   var igUrl         = cfg.igUrl         || "https://www.instagram.com/";
   var logoUrl       = cfg.logoUrl       || "";
+  var logoRing      = cfg.logoRing      || "#D30011";
   var videoUrl      = cfg.videoUrl      || "";
   var posterUrl     = cfg.posterUrl     || "";
   var label         = cfg.label         || "";
+
+  // The Instagram-style gradient ring (matches the other Splshy widgets).
+  var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+  // logoRing may be a solid colour (e.g. "#D30011") or the string
+  // "instagram" for the gradient ring.
+  var ringIsGradient = (logoRing === "instagram");
 
   // ── Inject CSS (once per page) ──────────────────────
   if (!document.querySelector("style[data-splshy-single]")) {
@@ -45,7 +53,13 @@
       ".srv-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
       ".srv-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none}",
       ".srv-top-bar{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.6) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
+      // The logo ring. A solid ring uses `border`; the Instagram gradient
+      // ring uses a conic-gradient background with the logo padded inside
+      // (a CSS border can't be a gradient). The .srv-logo-ring--grad
+      // modifier switches to the gradient style.
       ".srv-logo{width:46px!important;height:46px!important;min-width:46px!important;min-height:46px!important;border-radius:50%!important;border:2px solid var(--srv-accent)!important;overflow:hidden!important;background:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;flex-shrink:0!important}",
+      ".srv-logo.srv-logo--grad{border:none!important;background:var(--srv-ring-grad)!important;padding:2.5px!important}",
+      ".srv-logo.srv-logo--grad .srv-logo-inner{width:100%;height:100%;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center}",
       ".srv-logo img{width:100%;height:100%;object-fit:cover;display:block}",
       ".srv-timer{position:relative;width:46px;height:46px;flex-shrink:0}",
       ".srv-timer svg{width:46px;height:46px;transform:rotate(-90deg)}",
@@ -119,6 +133,11 @@
   var progFill  = widget.querySelector(".srv-progress-fill");
   var progThumb = widget.querySelector(".srv-progress-thumb");
 
+  // Apply a solid logo-ring colour (set as the --srv-accent the border uses).
+  // The gradient case is handled below when the logo markup is built.
+  if (!ringIsGradient) widget.style.setProperty("--srv-accent", logoRing);
+  else widget.style.setProperty("--srv-ring-grad", IG_RING);
+
   // Label
   widget.querySelector(".srv-label").textContent = label;
 
@@ -133,14 +152,20 @@
 
   // Top bar
   var RING_C = (2 * Math.PI * 20).toFixed(2);
-  var logoInner = logoUrl
+  // The logo's inner content — an uploaded image, or the "S" fallback.
+  var logoContent = logoUrl
     ? '<img src="' + logoUrl + '" alt="logo">'
     : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
+  // For the gradient ring the logo content sits in an inner circle so the
+  // gradient shows as a ring around it; for a solid ring the border does it.
+  var logoHTML = ringIsGradient
+    ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
+    : '<div class="srv-logo">' + logoContent + '</div>';
 
   card.insertAdjacentHTML("afterbegin",
     '<div class="srv-top-bar">' +
       '<a href="' + igUrl + '" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
-        '<div class="srv-logo">' + logoInner + '</div>' +
+        logoHTML +
         '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
       '</a>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">' +
@@ -254,7 +279,7 @@
   card.addEventListener("touchstart",  startHold, { passive: true });
   card.addEventListener("mouseup",     endHold);
   card.addEventListener("mouseleave",  endHold);
-  card.addEventListener("touchend",    endHold);
   card.addEventListener("touchcancel", endHold);
+  card.addEventListener("touchend",    endHold);
 
 })();
