@@ -22,6 +22,7 @@
   var logoUrl       = cfg.logoUrl       || "";
   var containerId   = cfg.containerId   || "splshy-stories";
   var ringColor     = cfg.ringColor     || "instagram";   // default: IG gradient
+  var logoRing      = cfg.logoRing      || "#D30011";     // player-chrome logo ring
   var GAP_MS        = 1000;                                // gap between videos
 
   if (!reels.length) { console.warn("Splshy Stories: no reels configured."); return; }
@@ -30,6 +31,11 @@
   // The Instagram-style story ring — a conic gradient sweeping warm yellow
   // through pink/magenta into purple, like the Instagram stories ring.
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+
+  // logoRing controls the ring around the logo INSIDE the fullscreen player
+  // chrome (distinct from the highlight-circle ring above). It may be a solid
+  // colour (e.g. "#D30011") or the string "instagram" for the gradient ring.
+  var logoRingIsGradient = (logoRing === "instagram");
 
   // A circle that's already been opened this session shows a quiet gray ring
   // instead of its gradient/colour — like Instagram's "seen" stories.
@@ -124,10 +130,22 @@
       ".sst-close{position:absolute!important;top:-6px;right:-58px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;max-width:44px!important;max-height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;color:#fff!important;font-size:22px;line-height:1;cursor:pointer;padding:0!important;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-close:hover{background:rgba(255,255,255,.28)!important}",
 
-      // Chrome inside the stage (mirrors the card chrome)
-      ".sst-top{position:absolute;top:0;left:0;right:0;padding:20px 18px 38px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
+      // Chrome inside the stage (mirrors the card chrome). Top padding
+      // 22px/20px/40px matches the other Splshy widgets so the logo and
+      // timer ring sit the same distance down-and-in from the corners.
+      ".sst-top{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       ".sst-top a{pointer-events:auto}",
-      ".sst-logo{width:50px;height:50px;border-radius:50%;border:2px solid #D30011;overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      // The logo ring. A solid ring uses the .sst-logo border (coloured by
+      // --sst-logo-ring, default red). The Instagram gradient ring uses a
+      // masked conic-gradient on a ::before pseudo-element so the mask
+      // affects ONLY the gradient — the logo is a separate un-masked child.
+      // Geometry scaled to this widget's 50px logo: outer 58.5px
+      // (radius 29.25), gradient ring 29.25->27.25 (2px), gap 27.25->25
+      // (2.25px), logo 50px.
+      ".sst-logo{width:50px;height:50px;border-radius:50%;border:2px solid var(--sst-logo-ring,#D30011);overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".sst-logo.sst-logo--grad{box-sizing:border-box;width:58.5px;height:58.5px;border:none;background:transparent;position:relative;overflow:visible}",
+      ".sst-logo.sst-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--sst-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 27.25px, #000 27.25px);mask:radial-gradient(circle, transparent 0 27.25px, #000 27.25px)}",
+      ".sst-logo.sst-logo--grad .sst-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".sst-logo img{width:100%;height:100%;object-fit:cover}",
       ".sst-foll{color:rgba(255,255,255,.8);font-size:10px;font-weight:400;letter-spacing:.03em;text-shadow:0 1px 3px rgba(0,0,0,.5);margin-top:4px;text-align:center}",
       ".sst-timer{position:relative;width:50px;height:50px;flex-shrink:0}",
@@ -167,6 +185,11 @@
   // ── Build the circles row ───────────────────────────
   var widget = document.createElement("div");
   widget.className = "sst-widget";
+  // Logo ring colour for the player chrome. A solid colour sets
+  // --sst-logo-ring (used only by the logo border); the gradient is set as
+  // --sst-ring-grad and applied via the .sst-logo--grad markup below.
+  if (logoRingIsGradient) widget.style.setProperty("--sst-ring-grad", IG_RING);
+  else widget.style.setProperty("--sst-logo-ring", logoRing);
   var row = document.createElement("div");
   row.className = "sst-row";
   widget.appendChild(row);
@@ -255,9 +278,14 @@
   // The logo fallback "S" uses a solid colour (not the ring gradient) —
   // a conic gradient behind a tiny letter looks busy.
   var logoBg = (ringColor && ringColor !== "instagram") ? ringColor : "#D30011";
-  var resolvedLogo = logoUrl
+  var logoContent = logoUrl
     ? '<img src="'+logoUrl+'" alt="logo">'
     : '<div style="width:100%;height:100%;background:'+logoBg+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
+  // Gradient ring wraps the logo in an inner circle (the masked ::before
+  // draws the ring); a solid ring uses the .sst-logo border directly.
+  var logoHTML = logoRingIsGradient
+    ? '<div class="sst-logo sst-logo--grad"><div class="sst-logo-inner">'+logoContent+'</div></div>'
+    : '<div class="sst-logo">'+logoContent+'</div>';
   var RC = (2*Math.PI*23).toFixed(2);
 
   var overlay = document.createElement("div");
@@ -272,7 +300,7 @@
         '<video class="sst-video" playsinline webkit-playsinline muted preload="auto"></video>' +
         '<div class="sst-top">' +
           '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
-            '<div class="sst-logo">'+resolvedLogo+'</div>' +
+            logoHTML +
             '<div class="sst-foll">'+followerCount+'</div>' +
           '</a>' +
           '<div class="sst-timer"><svg viewBox="0 0 52 52"><circle class="sst-timer-bg" cx="26" cy="26" r="23"/><circle class="sst-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sst-timer-text">--</div></div>' +
