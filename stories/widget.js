@@ -360,13 +360,19 @@
     video.playbackRate = 1;
 
     // Mobile browsers block autoplay WITH sound — so on mobile we must start
-    // muted or the video never starts (it just sits on the poster showing the
-    // native play button). Desktop can usually start with sound after the tap.
+    // muted or the video never starts (it just sits showing the native play
+    // button). Desktop can usually start with sound after the tap.
     if (isMobileLayout() && !userUnmuted) globalMuted = true;
     video.muted = globalMuted;
     syncMuteIcon();
 
-    if (reel.posterUrl) video.setAttribute("poster", reel.posterUrl);
+    // No poster on the player video. The circle thumbnail is the creator's
+    // headshot; using that same image as the video poster made the headshot
+    // briefly fill the whole player frame before playback began. So we set
+    // NO poster and explicitly clear any previous one. The stage is black
+    // (CSS background:#000), so the player opens black and then shows the
+    // video's own first frame as soon as it decodes — never the headshot.
+    video.removeAttribute("poster");
     video.src = reel.videoUrl;
     video.load();
 
@@ -387,12 +393,12 @@
     }
   }
 
-  // Video failed to load. Keep the poster visible (don't show a broken
-  // player) and skip to the next reel so the widget never gets stuck.
+  // Video failed to load. The stage stays black (no poster) and we skip to
+  // the next reel so the widget never gets stuck on a broken video.
   function handleVideoError(){
     track("video_error", reelParams(cur));
     if (gapTimer){ clearTimeout(gapTimer); gapTimer = null; }
-    // Brief pause on the poster, then move on (unless it was the only reel).
+    // Brief pause, then move on (unless it was the only reel).
     if (n > 1){
       gapTimer = setTimeout(function(){ next(); }, 1200);
     }
