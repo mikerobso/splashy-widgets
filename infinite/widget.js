@@ -85,7 +85,7 @@
       ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".sif-speed.visible{opacity:1}",
       ".sif-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end}",
-      "@media(hover:hover){.sif-card.is-active:hover .sif-progress{opacity:1}}",
+      "@media(hover:hover){.sif-card.sif-playing:hover .sif-progress{opacity:1}}",
       ".sif-progress.show{opacity:1!important}",
       ".sif-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);border-radius:0 0 20px 20px;transition:height .15s;pointer-events:none}",
       ".sif-progress:hover .sif-progress-track,.sif-progress.show .sif-progress-track{height:9px}",
@@ -237,6 +237,7 @@
       });
       video.addEventListener("ended",function(){
         ring.style.strokeDashoffset=0; timerText.textContent=fmtTime(dur);
+        card.classList.remove("sif-playing");
         card.querySelector(".sif-play-btn").classList.remove("hidden");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
@@ -283,6 +284,11 @@
         }
       });
       video.addEventListener("play",function(){
+        // Mark the card as playing so the hover-reshow CSS rule
+        // (.sif-card.sif-playing:hover .sif-progress) applies to it —
+        // this is what lets a side card's scrub bar reappear on hover
+        // after the 7s auto-hide, the same way the centre card does.
+        card.classList.add("sif-playing");
         progBar.classList.add("show");
         clearTimeout(video._sifFT);
         video._sifFT=setTimeout(function(){ if (!dragging) progBar.classList.remove("show"); },7000);
@@ -513,6 +519,7 @@
   function resetCard(c){
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
     c.video.style.display="none"; c.poster.style.display="";
+    c.el.classList.remove("sif-playing");
     var pf=c.el.querySelector(".sif-progress-fill"),pt=c.el.querySelector(".sif-progress-thumb");
     if (pf) pf.style.width="0%"; if (pt) pt.style.left="0%";
     c.el.querySelector(".sif-play-btn").classList.remove("hidden");
