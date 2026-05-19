@@ -306,13 +306,16 @@
   var popBusy = false;
   var holder = null;          // placeholder occupying the card's layout slot
 
-  // The dim backdrop (one per page).
-  var overlay = document.querySelector(".srv-overlay");
-  if (!overlay) {
-    overlay = document.createElement("div");
-    overlay.className = "srv-overlay";
-    document.body.appendChild(overlay);
-  }
+  // The dim backdrop. Created PER WIDGET INSTANCE — not shared page-wide —
+  // because multiple single-reel widgets can sit on one page, each with its
+  // own logo-ring setting. A shared overlay would mean the last widget to
+  // initialise overwrites the logo-ring variable for all of them, so a
+  // popped-out widget could show another widget's ring colour. A private
+  // overlay per widget keeps each one's ring (and its backdrop-click close)
+  // correct and independent.
+  var overlay = document.createElement("div");
+  overlay.className = "srv-overlay";
+  document.body.appendChild(overlay);
   // The logo ring's colour/gradient comes from a CSS variable set on
   // .srv-widget. When the card is popped it is moved INTO this overlay —
   // outside .srv-widget — so it no longer inherits that variable and the
