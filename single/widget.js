@@ -235,6 +235,10 @@
 
   var dur = 0, muted = false, dragging = false;
   var holding = false, swallow = false, holdTimer = null;
+  // Per-widget timer handle for the scrub bar's mobile auto-hide. Kept as a
+  // local (not a window.* global) so multiple single widgets on one page each
+  // manage their own scrub bar independently.
+  var srvFade = null;
 
   function fmtTime(s) {
     var m = Math.floor(s / 60), sec = Math.floor(s % 60);
@@ -257,6 +261,7 @@
     ring.style.strokeDashoffset = 0;
     timerText.textContent = fmtTime(dur);
     progFill.style.width = "0%"; progThumb.style.left = "0%";
+    progBar.classList.remove("visible");
     video.style.display = "none"; poster.style.display = "";
     playBtn.classList.remove("hidden");
     muteBtn.classList.remove("visible");
@@ -460,8 +465,22 @@
   video.addEventListener("play", function () {
     if (window.matchMedia("(hover:none)").matches) {
       progBar.classList.add("visible");
-      clearTimeout(window._srvFade);
-      window._srvFade = setTimeout(function () { if (!dragging) progBar.classList.remove("visible"); }, 7000);
+      clearTimeout(srvFade);
+      srvFade = setTimeout(function () { if (!dragging) progBar.classList.remove("visible"); }, 7000);
+    }
+  });
+  // On mobile, when the video is PAUSED mid-playback, show the scrub bar and
+  // keep it visible — so the viewer can see how far along they are / how much
+  // is left while paused. (Mobile has no hover, so without this the bar would
+  // simply be hidden when paused.) The pending 7s auto-hide is cancelled so
+  // the bar holds for as long as the video stays paused; the next `play`
+  // re-arms the normal auto-hide. The `!video.ended` guard skips this when the
+  // pause is really the video finishing — the `ended` handler clears the bar.
+  video.addEventListener("pause", function () {
+    if (video.ended) return;
+    if (window.matchMedia("(hover:none)").matches) {
+      clearTimeout(srvFade);
+      progBar.classList.add("visible");
     }
   });
 
