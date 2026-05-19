@@ -25,6 +25,17 @@
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
   var ringIsGradient = (logoRing === "instagram");
 
+  // ── Pop-out ─────────────────────────────────────────
+  // How much bigger a popped-out card is than its inline size. Kept moderate
+  // (~1.3x) so the popped card can stay centred over its original spot
+  // without the viewport-clamp dragging it toward the screen centre.
+  var POPOUT_SCALE = 1.3;
+  // Pop-out is DESKTOP-ONLY. The button is hidden on mobile via CSS, and the
+  // openPopout() guard makes the JS a no-op there too.
+  function isDesktopLayout(){
+    return window.matchMedia("(min-width:768px) and (any-pointer:fine)").matches;
+  }
+
   if (!reels.length) { console.warn("Splshy Infinite: no reels configured."); return; }
 
   var n = reels.length;
@@ -42,6 +53,11 @@
       ".sif-track{display:flex;flex-direction:row;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform}",
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
+      // While popped out, the card is fixed-positioned (lifted into the
+      // pop-out overlay). transform-origin top-left so the scale animation
+      // lines up with the measured rect.
+      ".sif-card.sif-popped{position:fixed!important;z-index:100000!important;margin:0!important;transition:transform .34s cubic-bezier(.2,.8,.25,1),box-shadow .34s ease!important}",
+      ".sif-card.sif-popped.sif-popped--open{box-shadow:0 40px 90px rgba(0,0,0,.55)!important}",
       /* Mobile: dim side cards */
       "@media(max-width:767px){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:65vh;--sif-card-w:calc(65vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
@@ -82,6 +98,14 @@
       ".sif-mute-btn{position:absolute;bottom:58px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s}",
       ".sif-mute-btn.visible{opacity:1}",
       ".sif-mute-btn svg{width:15px;height:15px}",
+      // Pop-out button. Sits just above the mute button, same right edge.
+      // Hidden by default; shown (on desktop only) once a video is playing,
+      // mirroring the mute button's reveal. The CSS media query means it is
+      // never shown on mobile / touch — pop-out is desktop-only.
+      ".sif-popout-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s}",
+      ".sif-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
+      ".sif-popout-btn svg{width:15px;height:15px}",
+      "@media(min-width:768px) and (any-pointer:fine){.sif-popout-btn.visible{display:flex;opacity:1}}",
       ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".sif-speed.visible{opacity:1}",
       ".sif-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end}",
@@ -103,6 +127,14 @@
       ".sif-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
       ".sif-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
       ".sif-dot.is-active{background:var(--sif-accent);transform:scale(1.35)}",
+      // Dim backdrop shown behind a popped-out card. font-family is set here
+      // because a card is moved INTO this overlay (a child of document.body)
+      // while popped — outside .sif-widget — so it would otherwise lose the
+      // widget font. The --sif-* custom properties the card chrome relies on
+      // (logo ring colour / gradient) are copied onto the overlay per
+      // instance in JS, since those are per-widget values.
+      ".sif-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);opacity:0;transition:opacity .34s ease;pointer-events:none;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
+      ".sif-overlay.open{opacity:1;pointer-events:auto}",
     ].join("");
     document.head.appendChild(style);
   }
@@ -139,6 +171,17 @@
   if (ringIsGradient) widget.style.setProperty("--sif-ring-grad", IG_RING);
   else widget.style.setProperty("--sif-logo-ring", logoRing);
 
+  // ── Pop-out overlay (one per widget instance) ───────
+  // Created per instance because each carousel pops out independently. The
+  // --sif-* custom properties the card chrome uses are copied onto the
+  // overlay so the logo ring still renders correctly once the card is moved
+  // into it (the overlay is outside .sif-widget, so it can't inherit them).
+  var overlay = document.createElement("div");
+  overlay.className = "sif-overlay";
+  if (ringIsGradient) overlay.style.setProperty("--sif-ring-grad", IG_RING);
+  else overlay.style.setProperty("--sif-logo-ring", logoRing);
+  document.body.appendChild(overlay);
+
   var current     = 0;
   var globalMuted = false;
   var activeFade  = null;
@@ -147,6 +190,11 @@
   // viewport swipe handler ignores that touch and doesn't navigate.
   var scrubbing   = false;
   var scrubEndTimer = null;
+  // True while a card from THIS carousel is popped out. While popped, all
+  // carousel navigation is frozen (see navigate()/step() and the handlers).
+  var popped      = false;
+  var popBusy     = false;
+  var poppedCard  = null;   // the card object currently popped, if any
 
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
@@ -213,6 +261,10 @@
         '<div class="sif-play-btn"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>'+
         '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
         '<button class="sif-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
+        '<button class="sif-popout-btn" aria-label="Pop out video">'+
+          '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
+          '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
+        '</button>'+
         '<div class="sif-speed">2x</div>'+
         '<div class="sif-progress"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'
       );
@@ -240,12 +292,14 @@
         card.classList.remove("sif-playing");
         card.querySelector(".sif-play-btn").classList.remove("hidden");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
+        card.querySelector(".sif-popout-btn").classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         video.style.display="none"; poster.style.display="";
       });
 
       var playBtn=card.querySelector(".sif-play-btn");
       var muteBtn=card.querySelector(".sif-mute-btn");
+      var popoutBtn=card.querySelector(".sif-popout-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
         // On mobile, tapping a peeking side card should bring it to the
@@ -257,11 +311,16 @@
         cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
+        popoutBtn.classList.add("visible");   // desktop-only via CSS media query
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
       muteBtn.addEventListener("click",function(e){
         e.stopPropagation(); globalMuted=!globalMuted;
         cards.forEach(function(c){ c.video.muted=globalMuted; syncMuteIcon(c.el.querySelector(".sif-mute-btn"),globalMuted); });
+      });
+      popoutBtn.addEventListener("click",function(e){
+        e.stopPropagation();
+        togglePopout(cardObj);
       });
 
       var progBar=card.querySelector(".sif-progress");
@@ -306,10 +365,12 @@
       card.addEventListener("touchcancel",endHold);
 
       card.addEventListener("click",function(e){
-        if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||e.target.closest(".sif-progress")) return;
+        if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||
+            e.target.closest(".sif-popout-btn")||e.target.closest(".sif-progress")) return;
         if (swallow){ swallow=false; return; }
         // On mobile, tapping a peeking side card brings it to the centre.
-        if (isMobileLayout() && reelIdx !== current){
+        // (Skipped while a card is popped — the carousel is frozen.)
+        if (isMobileLayout() && reelIdx !== current && !popped){
           navigate(reelIdx);
           return;
         }
@@ -321,7 +382,8 @@
       });
 
       track.appendChild(card);
-      cards.push({ el:card, video:video, poster:poster, reelIdx:reelIdx });
+      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx };
+      cards.push(cardObj);
 
       var dot=document.createElement("button");
       dot.className="sif-dot";
@@ -356,7 +418,9 @@
   //
   //  Card DOM nodes never move (no appendChild) — so a playing <video> is
   //  never detached and never pauses. Only `left` and the track `transform`
-  //  ever change.
+  //  ever change. (Exception: the pop-out feature temporarily lifts ONE card
+  //  into a fixed overlay; while that card is popped the whole carousel is
+  //  frozen, and the card is restored to the track on pop-in.)
   // ════════════════════════════════════════════════════
 
   // Switch the track + cards to absolute positioning (overrides the flex CSS).
@@ -524,6 +588,7 @@
     if (pf) pf.style.width="0%"; if (pt) pt.style.left="0%";
     c.el.querySelector(".sif-play-btn").classList.remove("hidden");
     c.el.querySelector(".sif-mute-btn").classList.remove("visible");
+    var pob=c.el.querySelector(".sif-popout-btn"); if (pob) pob.classList.remove("visible");
     var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
     var rg=c.el.querySelector(".sif-timer-ring"); if (rg) rg.style.strokeDashoffset=0;
     var tx=c.el.querySelector(".sif-timer-text"); if (tx&&c.video.duration) tx.textContent=fmtTime(c.video.duration);
@@ -534,6 +599,131 @@
     if (c.video.style.display==="block" && !c.video.paused){
       c.video.pause();
       var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.add("visible");
+    }
+  }
+
+  // ── Pop-out ─────────────────────────────────────────
+  // Desktop-only. Lifts ONE card out of the track into the fixed pop-out
+  // overlay and animates it from its measured rect up to POPOUT_SCALE,
+  // centred over its ORIGINAL spot, clamped to the viewport. The video is
+  // never reloaded — only the card's position/scale change — so playback
+  // continues seamlessly. While a card is popped the whole carousel is
+  // frozen (navigate()/step() and all input handlers bail on `popped`).
+  // On pop-in the card is returned to the track with its slot untouched, so
+  // the carousel-engine invariant holds.
+  function popoutIcons(cardEl, showPopin){
+    var out = cardEl.querySelector(".sif-popout-icon");
+    var inn = cardEl.querySelector(".sif-popin-icon");
+    if (out) out.style.display = showPopin ? "none" : "block";
+    if (inn) inn.style.display = showPopin ? "block" : "none";
+  }
+
+  function openPopout(c){
+    if (popped || popBusy || busy || !isDesktopLayout()) return;
+    popBusy = true;
+    popped  = true;
+    poppedCard = c;
+    var el = c.el;
+
+    // Measure the card's current on-screen rect BEFORE moving it.
+    var r = el.getBoundingClientRect();
+    var w = r.width, h = r.height;
+    var tw = w * POPOUT_SCALE, th = h * POPOUT_SCALE;
+
+    // Desired top-left so the popped card is centred over its ORIGINAL centre.
+    var cx = r.left + w / 2, cy = r.top + h / 2;
+    var tx = cx - tw / 2, ty = cy - th / 2;
+
+    // Clamp so the popped card stays fully on screen (small margin).
+    var m = 16;
+    tx = Math.max(m, Math.min(tx, window.innerWidth  - tw - m));
+    ty = Math.max(m, Math.min(ty, window.innerHeight - th - m));
+
+    // Remember exactly how to put the card back on the track afterwards.
+    c._restore = {
+      left:       el.style.left,
+      top:        el.style.top,
+      zIndex:     el.style.zIndex,
+      transition: el.style.transition,
+      transform:  el.style.transform
+    };
+
+    // Lift the card into the overlay, fixed at its CURRENT rect — visually
+    // identical to where it just was, so there is no jump. (Desktop cards
+    // are absolutely positioned on the track, so removing one doesn't
+    // disturb the others' layout.)
+    el.classList.add("sif-popped");
+    el.style.transition = "none";
+    el.style.left   = r.left + "px";
+    el.style.top    = r.top  + "px";
+    el.style.width  = w + "px";
+    el.style.height = h + "px";
+    el.style.transformOrigin = "top left";
+    // The desktop CSS has `.sif-card{transform:scale(1)!important}`, which a
+    // plain inline transform can't override — so the pop transform is set
+    // with !important via setProperty, which DOES beat a stylesheet !important.
+    el.style.setProperty("transform", "translate(0px,0px) scale(1)", "important");
+    overlay.appendChild(el);
+    el.offsetHeight;                         // force reflow so the next change animates
+
+    // Animate: fade the backdrop in, grow + move the card to the target.
+    overlay.classList.add("open");
+    el.classList.add("sif-popped--open");
+    el.style.transition = "";                // re-enable the CSS transition
+    el.style.setProperty("transform",
+      "translate(" + (tx - r.left) + "px," + (ty - r.top) + "px) scale(" + POPOUT_SCALE + ")",
+      "important");
+
+    document.body.style.overflow = "hidden"; // lock page scroll while popped
+    popoutIcons(el, true);
+    setTimeout(function(){ popBusy = false; }, 360);
+  }
+
+  function closePopout(){
+    if (!popped || popBusy || !poppedCard) return;
+    popBusy = true;
+    var c  = poppedCard;
+    var el = c.el;
+
+    // Animate the card back to its original on-screen position.
+    el.style.setProperty("transform", "translate(0px,0px) scale(1)", "important");
+    overlay.classList.remove("open");
+    el.classList.remove("sif-popped--open");
+    document.body.style.overflow = "";
+
+    setTimeout(function(){
+      // Return the card to the track and restore its exact pre-pop styles.
+      el.classList.remove("sif-popped");
+      el.style.transformOrigin = "";
+      el.style.width  = "";
+      el.style.height = "";
+      // Clear the !important pop transform fully (a plain ="" doesn't always
+      // clear an !important inline value), then restore engine-owned styles.
+      el.style.removeProperty("transform");
+      var rs = c._restore || {};
+      el.style.left       = rs.left       || "";
+      el.style.top        = rs.top        || "";
+      el.style.zIndex     = rs.zIndex     || "";
+      el.style.transition = rs.transition || "";
+      if (rs.transform) el.style.transform = rs.transform;
+      track.appendChild(el);
+      c._restore = null;
+      poppedCard = null;
+      popped  = false;
+      popBusy = false;
+      popoutIcons(el, false);
+      // Re-assert the engine's layout in case anything drifted.
+      placeCard(c);
+      updateUI();
+    }, 360);
+  }
+
+  function togglePopout(c){
+    if (popped){
+      // Only the popped card's own button (or the backdrop/Escape) closes it.
+      if (poppedCard === c) closePopout();
+    } else {
+      openPopout(c);
     }
   }
 
@@ -565,7 +755,7 @@
 
   // ── Navigate ─────────────────────────────────────────
   function navigate(targetIdx){
-    if (busy) return;
+    if (busy || popped) return;          // frozen while a card is popped out
     targetIdx = mod(targetIdx, n);
     if (targetIdx === current) return;
     var delta = targetIdx - current;
@@ -575,7 +765,7 @@
   }
 
   function step(dir, finalTargetIdx){
-    if (busy) return;
+    if (busy || popped) return;          // frozen while a card is popped out
     busy = true;
 
     var newCentre = centreSlot + dir;
@@ -672,8 +862,9 @@
   var txStart=0,txStartY=0;
   viewport.addEventListener("touchstart",function(e){ txStart=e.touches[0].clientX; txStartY=e.touches[0].clientY; },{passive:true});
   viewport.addEventListener("touchend",function(e){
-    // Ignore the touch entirely if the user was scrubbing a progress bar.
-    if (scrubbing || window._sifSE) return;
+    // Ignore the touch entirely if the user was scrubbing a progress bar,
+    // or if a card is popped out (the carousel is frozen).
+    if (scrubbing || popped || window._sifSE) return;
     var dx=e.changedTouches[0].clientX-txStart,dy=Math.abs(e.changedTouches[0].clientY-txStartY);
     // Require a clear, mostly-horizontal swipe (threshold raised so a small
     // drift while tapping/scrubbing doesn't trigger navigation).
@@ -681,7 +872,7 @@
   },{passive:true});
 
   var msStart=null,msDrag=false;
-  viewport.addEventListener("mousedown",function(e){ if (e.target.closest(".sif-arrow")||e.target.closest(".sif-progress")) return; msStart=e.clientX; msDrag=false; });
+  viewport.addEventListener("mousedown",function(e){ if (popped||e.target.closest(".sif-arrow")||e.target.closest(".sif-progress")) return; msStart=e.clientX; msDrag=false; });
   viewport.addEventListener("mousemove",function(e){ if (msStart===null) return; if (Math.abs(e.clientX-msStart)>8) msDrag=true; });
   viewport.addEventListener("mouseup",function(e){
     if (msStart===null) return;
@@ -692,11 +883,19 @@
   viewport.addEventListener("mouseleave",function(){ msStart=null; msDrag=false; });
 
   document.addEventListener("keydown",function(e){
-    // Only respond to arrow keys when the pointer is over THIS carousel,
-    // so multiple carousels on a page don't all move at once.
+    // Escape closes a popped-out card.
+    if (e.key==="Escape" && popped){ closePopout(); return; }
+    // Arrow keys navigate — but only when the pointer is over THIS carousel
+    // (so multiple carousels don't all move at once) and nothing is popped.
+    if (popped) return;
     if (!widget.matches(":hover")) return;
     if (e.key==="ArrowLeft") navigate(mod(current-1,n));
     if (e.key==="ArrowRight") navigate(mod(current+1,n));
+  });
+
+  // Click the dim backdrop (outside the card) to close the pop-out.
+  overlay.addEventListener("click",function(e){
+    if (e.target === overlay) closePopout();
   });
 
   // Resize handling. On mobile, scrolling the page makes the browser's URL
@@ -706,6 +905,9 @@
   // while the user scrolls.
   var lastW = window.innerWidth;
   window.addEventListener("resize",function(){
+    // If a card is popped when the viewport changes, close it — re-clamping
+    // a live pop animation is fiddly and resizing while popped is rare.
+    if (popped && !popBusy){ closePopout(); return; }
     if (window.innerWidth === lastW) return;   // height-only change — ignore
     lastW = window.innerWidth;
     relayout();
