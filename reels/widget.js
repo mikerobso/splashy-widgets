@@ -427,6 +427,27 @@
     // plain value cleanly overrides the stylesheet rule (which now reads
     // this variable) without needing inline !important.
     var arrowOffset = fanEdge + GAP + ARROW_W;
+    // CLAMP. The CSS places each arrow at `left/right: calc(50% - offset)`,
+    // resolved against the relative wrapper. If `offset` exceeds the
+    // wrapper's half-width, `calc()` goes negative and the arrow is flung
+    // OUTSIDE the container — which is exactly what happened when the
+    // widget was dropped into a narrow ~430px Simpleview sidebar column:
+    // the visible card fan is wider than the column, so the math-derived
+    // offset (~412px) was larger than half the wrapper (~215px), giving
+    // left:-197px. So we cap the offset so the arrow's outer edge can never
+    // sit closer than EDGE_MARGIN to the container edge. When there's room
+    // (a wide page) the cap never bites and the arrows sit just outside the
+    // fan as intended; in a narrow column the arrows pin neatly to the
+    // container edge instead of escaping. (The fan itself still overflows a
+    // very narrow column — that is a separate sizing matter — but the
+    // arrows now always stay put.)
+    var EDGE_MARGIN = 4;
+    var wrapper = prevBtn.parentElement;
+    var wrapW = wrapper ? wrapper.offsetWidth : 0;
+    if (wrapW > 0) {
+      var maxOffset = wrapW / 2 - EDGE_MARGIN;
+      if (arrowOffset > maxOffset) arrowOffset = maxOffset;
+    }
     widget.style.setProperty("--rvc-arrow-offset", arrowOffset + "px");
   }
 
