@@ -120,7 +120,18 @@
       ".rvc-arrow:hover svg polyline{stroke:#fff}",
       ".rvc-arrow:disabled{opacity:.2;pointer-events:none;outline:none}",
       ".rvc-arrow:focus,.rvc-arrow:focus-visible{outline:none}",
-      "@media(min-width:600px){.rvc-arrow{display:flex!important}.rvc-arrow--left{left:calc(50% - var(--rvc-card-w)*1.4 - 56px)!important}.rvc-arrow--right{right:calc(50% - var(--rvc-card-w)*1.4 - 56px)!important}}",
+      // Arrow positioning. Anchored to the CENTRE CARD's edges, not to a
+      // full-width assumption. The centre card is var(--rvc-card-w) wide and
+      // horizontally centred in the stage, so its left edge is at
+      // calc(50% - var(--rvc-card-w)/2) and its right edge mirrors it. Each
+      // arrow (40px) straddles that edge — sitting half over the card, half
+      // outside — via an extra 20px (half the arrow) outward nudge. Because
+      // this uses only the stage centre (50%) and the card width, it is
+      // correct at ANY container width: a narrow ~35% column or a full-width
+      // page both place the arrows hugging the centre card. (The old formula
+      // `var(--rvc-card-w)*1.4 - 56px` assumed a wide layout and broke when
+      // the widget was dropped into a narrow container.)
+      "@media(min-width:600px){.rvc-arrow{display:flex!important}.rvc-arrow--left{left:calc(50% - var(--rvc-card-w)/2 - 20px)!important}.rvc-arrow--right{right:calc(50% - var(--rvc-card-w)/2 - 20px)!important}}",
       ".rvc-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
       ".rvc-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
       ".rvc-dot.is-active{background:var(--rvc-accent);transform:scale(1.35)}",
