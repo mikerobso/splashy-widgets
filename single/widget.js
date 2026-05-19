@@ -38,6 +38,19 @@
   // "instagram" for the gradient ring.
   var ringIsGradient = (logoRing === "instagram");
 
+  // ── Pop-out ─────────────────────────────────────────
+  // How much bigger the popped-out player is than the inline card.
+  // Tweak this single value to taste. Kept moderate (~1.4x) on purpose:
+  // big enough to feel like a real "pop", small enough that the popped
+  // player can stay centred over its original spot without the
+  // viewport-clamp dragging it toward the screen centre.
+  var POPOUT_SCALE = 1.4;
+  // Pop-out is a DESKTOP-ONLY feature. On mobile the button is hidden via
+  // CSS, and this guard makes the JS a no-op there too.
+  function isDesktop(){
+    return window.matchMedia("(min-width:768px) and (any-pointer:fine)").matches;
+  }
+
   // ── Inject CSS (once per page) ──────────────────────
   if (!document.querySelector("style[data-splshy-single]")) {
     var style = document.createElement("style");
@@ -48,6 +61,14 @@
       ".srv-widget,.srv-widget *{-webkit-user-select:none!important;-moz-user-select:none!important;user-select:none!important;-webkit-user-drag:none!important}",
       ".srv-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
       ".srv-card{position:relative;width:var(--srv-card-w);height:var(--srv-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-touch-callout:none;user-select:none;box-shadow:0 24px 64px rgba(0,0,0,.28);flex-shrink:0;touch-action:pan-y}",
+      // While popped out, the card is fixed-positioned (lifted into the
+      // overlay). transform-origin top-left so the scale animation lines up
+      // with the measured rect. transition drives the grow/shrink.
+      ".srv-card.srv-popped{position:fixed;z-index:100000;transition:transform .34s cubic-bezier(.2,.8,.25,1),box-shadow .34s ease}",
+      ".srv-card.srv-popped.srv-popped--open{box-shadow:0 40px 90px rgba(0,0,0,.55)}",
+      // A placeholder that holds the card's space in the page layout while
+      // the card itself is lifted out into the overlay.
+      ".srv-card-holder{flex-shrink:0}",
       ".srv-poster{position:absolute;inset:0}",
       ".srv-poster-bg{position:absolute;inset:0;background:linear-gradient(160deg,#2a1a0e 0%,#0d0804 100%)}",
       ".srv-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
@@ -88,6 +109,14 @@
       ".srv-mute-btn{position:absolute;bottom:58px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s}",
       ".srv-mute-btn.visible{opacity:1}",
       ".srv-mute-btn svg{width:15px;height:15px;display:block}",
+      // Pop-out button. Sits just above the mute button, same right edge.
+      // Hidden by default; shown (on desktop only) once a video is playing,
+      // mirroring the mute button's reveal. The CSS media query means it is
+      // never shown on mobile / touch — pop-out is desktop-only.
+      ".srv-popout-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s}",
+      ".srv-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
+      ".srv-popout-btn svg{width:15px;height:15px;display:block}",
+      "@media(min-width:768px) and (any-pointer:fine){.srv-popout-btn.visible{display:flex;opacity:1}}",
       ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".srv-speed.visible{opacity:1}",
       ".srv-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end;touch-action:none}",
@@ -100,6 +129,9 @@
       ".srv-progress:hover .srv-progress-fill,.srv-progress.dragging .srv-progress-fill{height:9px}",
       ".srv-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
       ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb{opacity:1;bottom:-2px}",
+      // Dim backdrop shown behind the popped-out player.
+      ".srv-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);opacity:0;transition:opacity .34s ease;pointer-events:none}",
+      ".srv-overlay.open{opacity:1;pointer-events:auto}",
       "@media(max-width:767px){.srv-widget{padding:20px;justify-content:center;--srv-card-w:78.2vw;--srv-card-h:calc(78.2vw*16/9)}}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-widget{--srv-card-w:280px;--srv-card-h:496px}}",
       "@media(min-width:1024px) and (any-pointer:fine){.srv-widget{--srv-card-w:320px;--srv-card-h:568px}}"
@@ -124,6 +156,10 @@
         '<div class="srv-play-btn"><div class="srv-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>' +
         '<div class="srv-pause-ind"><div class="srv-pause-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
         '<button class="srv-mute-btn" aria-label="Toggle mute"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<button class="srv-popout-btn" aria-label="Pop out video">' +
+          '<svg class="srv-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>' +
+          '<svg class="srv-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>' +
+        '</button>' +
         '<div class="srv-speed">2x</div>' +
         '<div class="srv-progress"><div class="srv-progress-track"></div><div class="srv-progress-fill"></div><div class="srv-progress-thumb"></div></div>' +
       '</div>' +
@@ -135,6 +171,7 @@
   var poster    = widget.querySelector(".srv-poster");
   var playBtn   = widget.querySelector(".srv-play-btn");
   var muteBtn   = widget.querySelector(".srv-mute-btn");
+  var popoutBtn = widget.querySelector(".srv-popout-btn");
   var pauseInd  = widget.querySelector(".srv-pause-ind");
   var speedInd  = widget.querySelector(".srv-speed");
   var progBar   = widget.querySelector(".srv-progress");
@@ -219,6 +256,7 @@
     video.style.display = "none"; poster.style.display = "";
     playBtn.classList.remove("hidden");
     muteBtn.classList.remove("visible");
+    popoutBtn.classList.remove("visible");
     pauseInd.classList.remove("visible");
   });
 
@@ -227,12 +265,14 @@
     e.stopPropagation();
     video.muted = muted; video.style.display = "block"; poster.style.display = "none";
     playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
+    popoutBtn.classList.add("visible");   // desktop-only via CSS media query
     syncMute(); video.play();
   });
 
   // Card click
   card.addEventListener("click", function (e) {
-    if (e.target.closest(".srv-play-btn") || e.target.closest(".srv-mute-btn") || e.target.closest(".srv-progress")) return;
+    if (e.target.closest(".srv-play-btn") || e.target.closest(".srv-mute-btn") ||
+        e.target.closest(".srv-popout-btn") || e.target.closest(".srv-progress")) return;
     if (swallow) { swallow = false; return; }
     if (video.style.display === "block") {
       if (video.paused) { video.play(); pauseInd.classList.remove("visible"); }
@@ -250,6 +290,142 @@
   }
   muteBtn.addEventListener("click", function (e) {
     e.stopPropagation(); muted = !muted; video.muted = muted; syncMute();
+  });
+
+  // ── Pop-out ─────────────────────────────────────────
+  // Desktop-only. The card is lifted into a fixed-position overlay and
+  // animated from its measured inline rect up to POPOUT_SCALE, centred over
+  // its ORIGINAL position but clamped so it stays fully on screen. The video
+  // element is never reloaded — only the card's position/scale change — so
+  // playback continues seamlessly through the transition.
+  var popped = false;
+  var popBusy = false;
+  var holder = null;          // placeholder occupying the card's layout slot
+
+  // The dim backdrop (one per page).
+  var overlay = document.querySelector(".srv-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.className = "srv-overlay";
+    document.body.appendChild(overlay);
+  }
+
+  function popoutIcons(showPopin){
+    var out = popoutBtn.querySelector(".srv-popout-icon");
+    var inn = popoutBtn.querySelector(".srv-popin-icon");
+    if (out) out.style.display = showPopin ? "none" : "block";
+    if (inn) inn.style.display = showPopin ? "block" : "none";
+  }
+
+  function openPopout(){
+    if (popped || popBusy || !isDesktop()) return;
+    popBusy = true;
+    popped  = true;
+
+    // Measure the card's current on-screen rect BEFORE moving it.
+    var r = card.getBoundingClientRect();
+    var w = r.width, h = r.height;
+
+    // Target (popped) size.
+    var tw = w * POPOUT_SCALE, th = h * POPOUT_SCALE;
+
+    // Desired top-left so the popped player is centred over the ORIGINAL
+    // card centre.
+    var cx = r.left + w / 2, cy = r.top + h / 2;
+    var tx = cx - tw / 2, ty = cy - th / 2;
+
+    // Clamp so the popped player stays fully on screen (with a small margin).
+    var m = 16;
+    var maxX = window.innerWidth  - tw - m;
+    var maxY = window.innerHeight - th - m;
+    tx = Math.max(m, Math.min(tx, maxX));
+    ty = Math.max(m, Math.min(ty, maxY));
+
+    // Insert a placeholder of the SAME size into the card's spot so the page
+    // layout doesn't collapse while the card is lifted out.
+    holder = document.createElement("div");
+    holder.className = "srv-card-holder";
+    holder.style.width  = w + "px";
+    holder.style.height = h + "px";
+    card.parentNode.insertBefore(holder, card);
+
+    // Lift the card into the overlay, fixed at its CURRENT rect — visually
+    // identical to where it just was, so there is no jump.
+    card.classList.add("srv-popped");
+    card.style.transition = "none";
+    card.style.left   = r.left + "px";
+    card.style.top    = r.top  + "px";
+    card.style.width  = w + "px";
+    card.style.height = h + "px";
+    card.style.transformOrigin = "top left";
+    card.style.transform = "translate(0px,0px) scale(1)";
+    overlay.appendChild(card);
+    card.offsetHeight;                       // force reflow so the next change animates
+
+    // Animate: fade the backdrop in, grow + move the card to the target.
+    overlay.classList.add("open");
+    card.classList.add("srv-popped--open");
+    card.style.transition = "";              // re-enable the CSS transition
+    card.style.transform =
+      "translate(" + (tx - r.left) + "px," + (ty - r.top) + "px) scale(" + POPOUT_SCALE + ")";
+
+    // Lock page scroll while popped.
+    document.body.style.overflow = "hidden";
+
+    popoutIcons(true);
+    setTimeout(function(){ popBusy = false; }, 360);
+  }
+
+  function closePopout(){
+    if (!popped || popBusy) return;
+    popBusy = true;
+
+    // Animate the card back to its original rect (transform identity).
+    card.style.transform = "translate(0px,0px) scale(1)";
+    overlay.classList.remove("open");
+    card.classList.remove("srv-popped--open");
+
+    document.body.style.overflow = "";
+
+    // After the transition, drop the card back into its real layout slot.
+    setTimeout(function(){
+      card.classList.remove("srv-popped");
+      card.style.transition = "";
+      card.style.transform  = "";
+      card.style.transformOrigin = "";
+      card.style.left = card.style.top = "";
+      card.style.width = card.style.height = "";
+      if (holder && holder.parentNode){
+        holder.parentNode.insertBefore(card, holder);
+        holder.parentNode.removeChild(holder);
+      }
+      holder = null;
+      popped = false;
+      popBusy = false;
+      popoutIcons(false);
+    }, 360);
+  }
+
+  function togglePopout(){
+    if (popped) closePopout(); else openPopout();
+  }
+
+  popoutBtn.addEventListener("click", function(e){
+    e.stopPropagation();
+    togglePopout();
+  });
+  // Click the dim backdrop (outside the card) to close.
+  overlay.addEventListener("click", function(e){
+    if (e.target === overlay) closePopout();
+  });
+  // Escape closes.
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" && popped) closePopout();
+  });
+  // If the viewport is resized while popped, just close — re-clamping a live
+  // animation is fiddly and a resize while popped is a rare edge case.
+  window.addEventListener("resize", function(){
+    if (popped && !popBusy) closePopout();
   });
 
   // Progress
