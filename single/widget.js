@@ -40,11 +40,11 @@
 
   // ── Pop-out ─────────────────────────────────────────
   // How much bigger the popped-out player is than the inline card.
-  // Tweak this single value to taste. Kept moderate (~1.4x) on purpose:
+  // Tweak this single value to taste. Kept moderate (~1.3x) on purpose:
   // big enough to feel like a real "pop", small enough that the popped
   // player can stay centred over its original spot without the
   // viewport-clamp dragging it toward the screen centre.
-  var POPOUT_SCALE = 1.4;
+  var POPOUT_SCALE = 1.3;
   // Pop-out is a DESKTOP-ONLY feature. On mobile the button is hidden via
   // CSS, and this guard makes the JS a no-op there too.
   function isDesktop(){
@@ -129,8 +129,12 @@
       ".srv-progress:hover .srv-progress-fill,.srv-progress.dragging .srv-progress-fill{height:9px}",
       ".srv-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
       ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb{opacity:1;bottom:-2px}",
-      // Dim backdrop shown behind the popped-out player.
-      ".srv-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);opacity:0;transition:opacity .34s ease;pointer-events:none}",
+      // Dim backdrop shown behind the popped-out player. The font-family is
+      // set here because the card is moved INTO this overlay (a child of
+      // document.body) while popped — outside .srv-widget — so it no longer
+      // inherits .srv-widget's font. Without this the title falls back to the
+      // host page's font and looks wrong (e.g. bold/serif).
+      ".srv-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);opacity:0;transition:opacity .34s ease;pointer-events:none;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
       ".srv-overlay.open{opacity:1;pointer-events:auto}",
       "@media(max-width:767px){.srv-widget{padding:20px;justify-content:center;--srv-card-w:78.2vw;--srv-card-h:calc(78.2vw*16/9)}}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-widget{--srv-card-w:280px;--srv-card-h:496px}}",
