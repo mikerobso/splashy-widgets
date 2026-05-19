@@ -120,18 +120,15 @@
       ".rvc-arrow:hover svg polyline{stroke:#fff}",
       ".rvc-arrow:disabled{opacity:.2;pointer-events:none;outline:none}",
       ".rvc-arrow:focus,.rvc-arrow:focus-visible{outline:none}",
-      // Arrow positioning. Anchored to the CENTRE CARD's edges, not to a
-      // full-width assumption. The centre card is var(--rvc-card-w) wide and
-      // horizontally centred in the stage, so its left edge is at
-      // calc(50% - var(--rvc-card-w)/2) and its right edge mirrors it. Each
-      // arrow (40px) straddles that edge — sitting half over the card, half
-      // outside — via an extra 20px (half the arrow) outward nudge. Because
-      // this uses only the stage centre (50%) and the card width, it is
-      // correct at ANY container width: a narrow ~35% column or a full-width
-      // page both place the arrows hugging the centre card. (The old formula
-      // `var(--rvc-card-w)*1.4 - 56px` assumed a wide layout and broke when
-      // the widget was dropped into a narrow container.)
-      "@media(min-width:600px){.rvc-arrow{display:flex!important}.rvc-arrow--left{left:calc(50% - var(--rvc-card-w)/2 - 20px)!important}.rvc-arrow--right{right:calc(50% - var(--rvc-card-w)/2 - 20px)!important}}",
+      // Arrow positioning. The horizontal offset is computed in JS (see
+      // layout()) and supplied as --rvc-arrow-offset: the distance from the
+      // stage centre out to the arrow's outer edge, derived from the actual
+      // card-fan layout math (translate distance + scaled half-width of the
+      // outermost visible card, + a 15px gap + the 40px arrow). This makes
+      // the arrows sit just outside the visible card fan at ANY container
+      // width — a narrow side column or a full-width page. The fallback
+      // 260px keeps the arrows sane if the variable is somehow unset.
+      "@media(min-width:600px){.rvc-arrow{display:flex!important}.rvc-arrow--left{left:calc(50% - var(--rvc-arrow-offset,260px))!important}.rvc-arrow--right{right:calc(50% - var(--rvc-arrow-offset,260px))!important}}",
       ".rvc-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
       ".rvc-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
       ".rvc-dot.is-active{background:var(--rvc-accent);transform:scale(1.35)}",
@@ -403,7 +400,36 @@
     dotEls.forEach(function (d, i) { d.classList.toggle("is-active", i === current); });
     prevBtn.disabled = current === 0;
     nextBtn.disabled = current === reels.length - 1;
+
+    // Position the navigation arrows just OUTSIDE the visible card fan.
+    // The fan's outer edge is derived from the SAME layout math used to
+    // place the cards above — so the arrows always sit correctly however
+    // wide the widget's container is (a narrow side column or full width).
+    //
+    // A side card is translated from the stage centre and then scaled about
+    // its own centre, so its visible outer edge (distance from stage centre)
+    // is:  translate distance + (cardW * scale / 2).
+    //  • is-prev / is-next card:  so          + cardW*ss/2
+    //  • is-far card:             so*1.55     + cardW*fs/2
+    // A far card is only actually visible when there are >= 4 reels (centre
+    // + one each side fills 3; far cards appear beyond that), so the far
+    // edge is only considered then. The arrows clear whichever card sticks
+    // out furthest, plus a 15px gap, plus the arrow's own 40px width.
+    var ARROW_W = 40, GAP = 15;
+    var nextEdge = so + (cardW * ss) / 2;
+    var fanEdge  = nextEdge;
+    if (reels.length >= 4) {
+      var farEdge = (so * 1.55) + (cardW * fs) / 2;
+      if (farEdge > fanEdge) fanEdge = farEdge;
+    }
+    // Distance from the stage's horizontal centre (50%) to the arrow's
+    // outer side. The arrows are positioned via a CSS custom property so a
+    // plain value cleanly overrides the stylesheet rule (which now reads
+    // this variable) without needing inline !important.
+    var arrowOffset = fanEdge + GAP + ARROW_W;
+    widget.style.setProperty("--rvc-arrow-offset", arrowOffset + "px");
   }
+
 
   // ── Navigation ──────────────────────────────────────
   var activeFade = null;
