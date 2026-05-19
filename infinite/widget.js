@@ -294,6 +294,7 @@
         card.querySelector(".sif-mute-btn").classList.remove("visible");
         card.querySelector(".sif-popout-btn").classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
+        var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         video.style.display="none"; poster.style.display="";
       });
 
@@ -351,6 +352,22 @@
         progBar.classList.add("show");
         clearTimeout(video._sifFT);
         video._sifFT=setTimeout(function(){ if (!dragging) progBar.classList.remove("show"); },7000);
+      });
+      // On mobile, when the video is PAUSED mid-playback, show the scrub bar
+      // and keep it visible — so the viewer can see how far along they are /
+      // how much is left while paused. Mobile has no hover, so without this
+      // the bar would just be hidden when paused. The pending 7s auto-hide
+      // (video._sifFT) is cancelled so the bar holds for as long as the video
+      // stays paused; the next `play` re-arms the normal auto-hide. The
+      // `!video.ended` guard skips this when the pause is the video finishing
+      // — the `ended` handler clears the bar. Desktop is unaffected: it has
+      // hover-to-reshow and this whole block is gated on (hover:none).
+      video.addEventListener("pause",function(){
+        if (video.ended) return;
+        if (window.matchMedia("(hover:none)").matches){
+          clearTimeout(video._sifFT);
+          progBar.classList.add("show");
+        }
       });
 
       var speedInd=card.querySelector(".sif-speed");
