@@ -313,6 +313,13 @@
     overlay.className = "srv-overlay";
     document.body.appendChild(overlay);
   }
+  // The logo ring's colour/gradient comes from a CSS variable set on
+  // .srv-widget. When the card is popped it is moved INTO this overlay —
+  // outside .srv-widget — so it no longer inherits that variable and the
+  // gradient ring would vanish. Copy the variable onto the overlay so the
+  // ring renders correctly while popped. (Same fix as the title font.)
+  if (ringIsGradient) overlay.style.setProperty("--srv-ring-grad", IG_RING);
+  else overlay.style.setProperty("--srv-accent", logoRing);
 
   function popoutIcons(showPopin){
     var out = popoutBtn.querySelector(".srv-popout-icon");
