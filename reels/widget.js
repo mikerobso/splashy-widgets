@@ -279,6 +279,7 @@
       timerText.textContent = formatTime(videoDuration);
       var pb = card.querySelector(".rvc-play-btn"), mb = card.querySelector(".rvc-mute-btn"), pi = card.querySelector(".rvc-pause-indicator");
       if (pb) pb.classList.remove("hidden"); if (mb) mb.classList.remove("visible"); if (pi) pi.classList.remove("visible");
+      var pg = card.querySelector(".rvc-progress"); if (pg) pg.classList.remove("visible");
       video.style.display = "none"; poster.style.display = "";
     });
 
@@ -317,7 +318,24 @@
     video.addEventListener("play", function () {
       if (window.matchMedia("(hover:none)").matches) {
         progressBar.classList.add("visible");
-        setTimeout(function () { if (!isDragging) progressBar.classList.remove("visible"); }, 7000);
+        clearTimeout(video._rvcFade);
+        video._rvcFade = setTimeout(function () { if (!isDragging) progressBar.classList.remove("visible"); }, 7000);
+      }
+    });
+    // On mobile, when the video is PAUSED mid-playback, show the scrub bar
+    // and keep it visible — so the viewer can see how far along they are /
+    // how much is left while paused. Mobile has no hover, so without this
+    // the bar would just be hidden when paused. The pending 7s auto-hide
+    // (video._rvcFade) is cancelled so the bar holds for as long as the
+    // video stays paused; the next `play` re-arms the normal auto-hide. The
+    // `!video.ended` guard skips this when the pause is the video finishing
+    // — the `ended` handler clears the bar. Desktop is unaffected: it has
+    // hover-to-reshow and this whole block is gated on (hover:none).
+    video.addEventListener("pause", function () {
+      if (video.ended) return;
+      if (window.matchMedia("(hover:none)").matches) {
+        clearTimeout(video._rvcFade);
+        progressBar.classList.add("visible");
       }
     });
 
@@ -388,6 +406,7 @@
     var p = c.el.querySelector(".rvc-pause-indicator"); if (p) p.classList.remove("visible");
     var r = c.el.querySelector(".rvc-timer-ring"); if (r) r.style.strokeDashoffset = 0;
     var tx = c.el.querySelector(".rvc-timer-text"); if (tx && c.video.duration) tx.textContent = formatTime(c.video.duration);
+    var pg = c.el.querySelector(".rvc-progress"); if (pg) pg.classList.remove("visible");
   }
   function fadeOutAndReset(c) {
     var vid = c.video;
