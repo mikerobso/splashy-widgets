@@ -171,7 +171,7 @@
       // scrub bar lives in the fullscreen overlay and is always visible there,
       // so the counter is also always visible (no transition needed). z-index
       // above the progress so the text reads cleanly. pointer-events:none.
-      ".sst-time-counter{position:absolute;bottom:25px;right:14px;font-size:12px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:21;pointer-events:none;font-variant-numeric:tabular-nums}",
+      ".sst-time-counter{position:absolute;bottom:14px;right:14px;font-size:12px;font-weight:400;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:21;pointer-events:none;font-variant-numeric:tabular-nums}",
       // Overlay arrows — in-flow flex items beside the stage; forced circles
       ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",

@@ -183,7 +183,7 @@
       // card is .sif-playing on a hover-capable pointer). tabular-nums keeps
       // the digits from jittering as they count up. pointer-events:none so
       // touches on the scrub area still go to the scrub bar underneath.
-      ".sif-time-counter{position:absolute;bottom:25px;right:14px;font-size:11px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
+      ".sif-time-counter{position:absolute;bottom:14px;right:14px;font-size:11px;font-weight:400;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
       ".sif-progress.show ~ .sif-time-counter{opacity:1}",
       "@media(hover:hover){.sif-card.sif-playing:hover .sif-time-counter{opacity:1}}",
       ".sif-arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:#fff!important;border:none!important;box-shadow:0 3px 14px rgba(0,0,0,.13);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:30;transition:background .18s,transform .18s,box-shadow .18s}",

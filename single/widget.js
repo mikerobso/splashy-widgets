@@ -134,7 +134,7 @@
       // or :hover on a hover-capable pointer). pointer-events:none so touches
       // on the scrub area underneath aren't blocked. tabular-nums keeps the
       // digits from jittering as they tick up.
-      ".srv-time-counter{position:absolute;bottom:25px;right:14px;font-size:11px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
+      ".srv-time-counter{position:absolute;bottom:14px;right:14px;font-size:11px;font-weight:400;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
       ".srv-progress.visible ~ .srv-time-counter,.srv-progress.dragging ~ .srv-time-counter{opacity:1}",
       "@media(hover:hover){.srv-card:hover .srv-time-counter{opacity:1}}",
       // Dim backdrop shown behind the popped-out player. The font-family is
