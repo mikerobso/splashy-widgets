@@ -542,4 +542,47 @@
   card.addEventListener("touchcancel", endHold);
   card.addEventListener("touchend",    endHold);
 
+  // ── Global Space-to-toggle ───────────────────────────────
+  // Document-level Space handler, made idempotent via window.SPLSHY_SPACE_HOOKED
+  // so multiple widget scripts on the same page register exactly one listener
+  // (not one per widget — that would multi-toggle and cancel out). Matches
+  // the YouTube / native-HTML5 expectation: Space pauses/resumes the currently
+  // VISIBLE video (the one with display:block set by the widget on play).
+  // Skips when typing in an input/textarea/contentEditable, and does nothing
+  // when no video is visible — so Space falls through to default page-scroll
+  // when there's nothing to toggle. Mirrors the card-click handler's pause-
+  // indicator toggle so the visual state stays consistent.
+  if (!window.SPLSHY_SPACE_HOOKED) {
+    window.SPLSHY_SPACE_HOOKED = true;
+    document.addEventListener("keydown", function(e){
+      if (e.code !== "Space" && e.key !== " ") return;
+      var t = e.target;
+      if (t){
+        var tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
+      }
+      var vids = document.querySelectorAll("video");
+      var playing = null, shown = null;
+      for (var i = 0; i < vids.length; i++){
+        var v = vids[i];
+        if (v.style.display !== "block") continue;
+        if (!v.paused){ playing = v; break; }
+        if (!shown) shown = v;
+      }
+      var target = playing || shown;
+      if (!target) return;
+      e.preventDefault();
+      var wasPaused = target.paused;
+      if (wasPaused) target.play(); else target.pause();
+      var card = target.closest(".sif-card, .srv-card, .sst-stage");
+      if (card){
+        var pi = card.querySelector(".sif-pause-ind, .srv-pause-ind, .sst-pause-ind");
+        if (pi){
+          if (wasPaused) pi.classList.remove("visible");
+          else pi.classList.add("visible");
+        }
+      }
+    });
+  }
+
 })();
