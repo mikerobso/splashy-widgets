@@ -38,7 +38,24 @@
 
   if (!reels.length) { console.warn("Splshy Infinite: no reels configured."); return; }
 
-  var n = reels.length;
+  // ── Real vs effective indexing (step 2 of the accordion plan) ─────────
+  // `reels` is the configured input; `effectiveReels` is what the engine
+  // slots against. They differ ONLY when an accordion mode doubles the
+  // list to satisfy the n >= V+2 floor (step 3). For row mode the helper
+  // is never called, so the two arrays are identical and `n === realCount`.
+  //
+  // Each card carries both `reelIdx` (effective, what the engine sees) and
+  // `realIdx = reelIdx % realCount` (user-facing: `current`, dots, navigate).
+  // With no doubling the two are equal.
+  function doubleReelsToFloor(srcReels, floor){
+    if (srcReels.length >= floor) return srcReels.slice();
+    var out = [];
+    while (out.length < floor) out = out.concat(srcReels);
+    return out;
+  }
+  var realCount      = reels.length;
+  var effectiveReels = reels.slice();   // step 3 will double for accordion modes
+  var n              = effectiveReels.length;
 
   // ── CSS ─────────────────────────────────────────────
   if (!document.querySelector("style[data-splshy-infinite]")) {
@@ -208,9 +225,16 @@
   var cards = [];
   var dots  = [];
 
+  // Under future doubling (step 3, accordion modes with small reel counts),
+  // two cards can share the same reel object — and therefore the same
+  // videoUrl/posterUrl. That is intentional: the doubled array is built in
+  // true repeating order so the engine's recycle-by-effective-n still loops
+  // cleanly. The two copies are never co-visible (proven by the V=3/V=5
+  // band derivations in the plan).
   for (var ri = 0; ri < n; ri++) {
     (function(reelIdx){
-      var reel = reels[reelIdx];
+      var realIdx = reelIdx % realCount;
+      var reel = effectiveReels[reelIdx];
       var card = document.createElement("div");
       card.className = "sif-card";
 
@@ -305,8 +329,8 @@
         e.stopPropagation();
         // On mobile, tapping a peeking side card should bring it to the
         // centre rather than play it in the background.
-        if (isMobileLayout() && reelIdx !== current){
-          navigate(reelIdx);
+        if (isMobileLayout() && realIdx !== current){
+          navigate(realIdx);
           return;
         }
         cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
@@ -387,8 +411,8 @@
         if (swallow){ swallow=false; return; }
         // On mobile, tapping a peeking side card brings it to the centre.
         // (Skipped while a card is popped — the carousel is frozen.)
-        if (isMobileLayout() && reelIdx !== current && !popped){
-          navigate(reelIdx);
+        if (isMobileLayout() && realIdx !== current && !popped){
+          navigate(realIdx);
           return;
         }
         if (video.style.display==="block"){
@@ -399,17 +423,23 @@
       });
 
       track.appendChild(card);
-      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx };
+      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx };
       cards.push(cardObj);
 
-      var dot=document.createElement("button");
-      dot.className="sif-dot";
-      dot.setAttribute("aria-label","Reel "+(reelIdx+1));
-      dot.addEventListener("click",function(){ navigate(reelIdx); });
+    })(ri);
+  }
+
+  // Dots: one per REAL reel (not per effective card). With doubling,
+  // effectiveReels has duplicates but the dot row stays at realCount.
+  for (var di = 0; di < realCount; di++){
+    (function(rIdx){
+      var dot = document.createElement("button");
+      dot.className = "sif-dot";
+      dot.setAttribute("aria-label","Reel "+(rIdx+1));
+      dot.addEventListener("click", function(){ navigate(rIdx); });
       dotsEl.appendChild(dot);
       dots.push(dot);
-
-    })(ri);
+    })(di);
   }
 
 
@@ -574,7 +604,7 @@
 
   // Reel index of the card occupying `centreSlot`.
   function centreReel(){
-    for (var i=0;i<n;i++) if (cards[i].slot === centreSlot) return cards[i].reelIdx;
+    for (var i=0;i<n;i++) if (cards[i].slot === centreSlot) return cards[i].realIdx;
     return current;
   }
 
@@ -773,11 +803,11 @@
   // ── Navigate ─────────────────────────────────────────
   function navigate(targetIdx){
     if (busy || popped) return;          // frozen while a card is popped out
-    targetIdx = mod(targetIdx, n);
+    targetIdx = mod(targetIdx, realCount);
     if (targetIdx === current) return;
     var delta = targetIdx - current;
-    if (delta >  n/2) delta -= n;
-    if (delta < -n/2) delta += n;
+    if (delta >  realCount/2) delta -= realCount;
+    if (delta < -realCount/2) delta += realCount;
     step(delta > 0 ? 1 : -1, targetIdx);
   }
 
@@ -860,8 +890,8 @@
     // Continue stepping toward a multi-step dot target.
     if (typeof finalTargetIdx === "number" && current !== finalTargetIdx){
       var d2 = finalTargetIdx - current;
-      if (d2 >  n/2) d2 -= n;
-      if (d2 < -n/2) d2 += n;
+      if (d2 >  realCount/2) d2 -= realCount;
+      if (d2 < -realCount/2) d2 += realCount;
       setTimeout(function(){ step(d2 > 0 ? 1 : -1, finalTargetIdx); }, 30);
     }
   }
@@ -873,8 +903,8 @@
   }
 
   // ── Controls ─────────────────────────────────────────
-  prevBtn.addEventListener("click",function(){ navigate(mod(current-1,n)); });
-  nextBtn.addEventListener("click",function(){ navigate(mod(current+1,n)); });
+  prevBtn.addEventListener("click",function(){ navigate(mod(current-1,realCount)); });
+  nextBtn.addEventListener("click",function(){ navigate(mod(current+1,realCount)); });
 
   var txStart=0,txStartY=0;
   viewport.addEventListener("touchstart",function(e){ txStart=e.touches[0].clientX; txStartY=e.touches[0].clientY; },{passive:true});
@@ -885,7 +915,7 @@
     var dx=e.changedTouches[0].clientX-txStart,dy=Math.abs(e.changedTouches[0].clientY-txStartY);
     // Require a clear, mostly-horizontal swipe (threshold raised so a small
     // drift while tapping/scrubbing doesn't trigger navigation).
-    if (Math.abs(dx)>42 && Math.abs(dx)>dy*1.4) navigate(mod(current+(dx<0?1:-1),n));
+    if (Math.abs(dx)>42 && Math.abs(dx)>dy*1.4) navigate(mod(current+(dx<0?1:-1),realCount));
   },{passive:true});
 
   var msStart=null,msDrag=false;
@@ -894,7 +924,7 @@
   viewport.addEventListener("mouseup",function(e){
     if (msStart===null) return;
     var dx=e.clientX-msStart; msStart=null;
-    if (msDrag&&Math.abs(dx)>50) navigate(mod(current+(dx<0?1:-1),n));
+    if (msDrag&&Math.abs(dx)>50) navigate(mod(current+(dx<0?1:-1),realCount));
     msDrag=false;
   });
   viewport.addEventListener("mouseleave",function(){ msStart=null; msDrag=false; });
@@ -906,8 +936,8 @@
     // (so multiple carousels don't all move at once) and nothing is popped.
     if (popped) return;
     if (!widget.matches(":hover")) return;
-    if (e.key==="ArrowLeft") navigate(mod(current-1,n));
-    if (e.key==="ArrowRight") navigate(mod(current+1,n));
+    if (e.key==="ArrowLeft") navigate(mod(current-1,realCount));
+    if (e.key==="ArrowRight") navigate(mod(current+1,realCount));
   });
 
   // Click the dim backdrop (outside the card) to close the pop-out.
