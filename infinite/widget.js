@@ -1358,6 +1358,16 @@
   // indicator toggle so the visual state stays consistent.
   if (!window.SPLSHY_SPACE_HOOKED) {
     window.SPLSHY_SPACE_HOOKED = true;
+
+    // Track the most recently played video so Space on a multi-widget page
+    // resumes the one the user was last watching, not whichever is first in
+    // DOM order. `play` events don't bubble, so capture-phase is required.
+    document.addEventListener("play", function(e){
+      if (e.target && e.target.tagName === "VIDEO") {
+        window.SPLSHY_LAST_PLAYED = e.target;
+      }
+    }, true);
+
     document.addEventListener("keydown", function(e){
       if (e.code !== "Space" && e.key !== " ") return;
       var t = e.target;
@@ -1365,15 +1375,26 @@
         var tag = t.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
       }
-      var vids = document.querySelectorAll("video");
-      var playing = null, shown = null;
+      var vids = document.querySelectorAll("video"), target = null;
+      // 1. Currently-playing visible video wins — clean "pause what I see".
       for (var i = 0; i < vids.length; i++){
         var v = vids[i];
-        if (v.style.display !== "block") continue;
-        if (!v.paused){ playing = v; break; }
-        if (!shown) shown = v;
+        if (v.style.display === "block" && !v.paused){ target = v; break; }
       }
-      var target = playing || shown;
+      // 2. Else the most recently played video, if still visible — handles
+      //    the multi-widget paused-paused case (resume the one I last used,
+      //    not whichever happens to be first on the page).
+      if (!target){
+        var last = window.SPLSHY_LAST_PLAYED;
+        if (last && last.style.display === "block") target = last;
+      }
+      // 3. Else first visible-but-paused (rare; e.g. autoplay scenario).
+      if (!target){
+        for (var i = 0; i < vids.length; i++){
+          var v = vids[i];
+          if (v.style.display === "block"){ target = v; break; }
+        }
+      }
       if (!target) return;
       e.preventDefault();
       var wasPaused = target.paused;
