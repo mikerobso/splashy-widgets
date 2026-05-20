@@ -707,54 +707,43 @@
   // Inline `!important` is required for transform/filter because the desktop
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
-  // Accordion slide transitions. Two variants, picked per card by
-  // applyAccordionLayout based on whether the card is heading TO off-stage:
+  // Accordion slide transition. Single string used by every animated card.
   //
-  //   ACCORDION_TRANS       — entering FROM off-stage or staying visible.
-  //                           opacity .15s with no delay, so entering cards
-  //                           become opaque promptly as they emerge from
-  //                           behind the centre and rotate outward.
-  //   ACCORDION_TRANS_EXIT  — heading TO off-stage. opacity STAYS at 1 for
-  //                           .3s then fades over .3s. Geometry note: with
-  //                           the centre card growing to scale 1 and sliding
-  //                           toward x=0, z-stacking hides the exiting card
-  //                           behind the centre around t≈.31s for V=3 (and
-  //                           t≈.21s for V=5, where the new is-prev covers
-  //                           first). The opacity-stays-1 phase aligns with
-  //                           that — the card remains fully visible during
-  //                           the inward rotation, then fades invisibly
-  //                           behind centre. Without this delay (single-curve
-  //                           opacity) the card would vanish mid-rotation,
-  //                           reading as "disappears too fast".
-  //
-  // Transform/scale/brightness/box-shadow run .6s with the same snappy
+  // Transform / scale / brightness / box-shadow run .6s with a snappy
   // ease-out — that's the "rotation around centre" pace, matched by
   // slideMs() returning 600 in accordion mode so the post-slide recycle
-  // fires after the slide ends. The base .sif-card CSS uses .35s and omits
-  // opacity, but placeCard's accordion branch sets "none" inline on recycle
-  // and applyAccordionLayout sets one of the strings below on every animated
-  // slide, so the base never leaks through in accordion mode.
+  // fires after the slide ends.
+  //
+  // Opacity is intentionally delayed: stays at 1 (or 0) for the first .3s,
+  // then transitions over .3s. Why this is symmetric for both directions:
+  //
+  //   EXIT (visible → off-stage). The exiting card rotates inward from
+  //     is-prev/is-far toward translateX(0). The arriving centre card
+  //     (z=10) doesn't start covering the middle until t≈.19s, and fully
+  //     covers the exit by t≈.31s. The delay keeps opacity at 1 during
+  //     the entire visible inward rotation; the .3s fade then runs
+  //     invisibly behind centre.
+  //
+  //   ENTRY (off-stage → visible). The entering card starts at translateX(0)
+  //     (the off-stage spot — behind centre's path). In V=3 it has z=5,
+  //     identical to the OLD centre's new z (is-prev), and the new centre's
+  //     z=10 cover doesn't kick in until t≈.19s. Without the delay, the
+  //     entering card's rising opacity would blend with the old centre at
+  //     the middle (DOM order puts entering on top at equal z) — the user
+  //     sees through the centre to the new card materialising behind it.
+  //     With the delay, opacity is 0 until t=.3s; by then the new centre
+  //     fully covers the middle, and the entry emerges from behind it on
+  //     the right (or left, for a left-arrow click) over the remaining .3s.
+  //
+  // The base .sif-card CSS uses .35s and omits opacity, but placeCard's
+  // accordion branch sets "none" inline on recycle and applyAccordionLayout
+  // sets this string on every animated slide, so the base never leaks
+  // through in accordion mode.
   var ACCORDION_TRANS =
-    "transform .6s cubic-bezier(.4,0,.2,1)," +
-    "opacity .15s cubic-bezier(.4,0,.2,1)," +
-    "filter .6s cubic-bezier(.4,0,.2,1)," +
-    "box-shadow .6s cubic-bezier(.4,0,.2,1)";
-  var ACCORDION_TRANS_EXIT =
     "transform .6s cubic-bezier(.4,0,.2,1)," +
     "opacity .3s cubic-bezier(.4,0,.2,1) .3s," +
     "filter .6s cubic-bezier(.4,0,.2,1)," +
     "box-shadow .6s cubic-bezier(.4,0,.2,1)";
-
-  // Mirror of the off-stage branch in applyAccordionCard. Used by
-  // applyAccordionLayout's pass 1 to pick the right transition string per
-  // card before pass 2 applies the new transforms. Kept as a tiny pure
-  // helper to avoid recomputing the rel→state classification twice.
-  function isAccordionOffStage(rel){
-    if (rel === 0) return false;
-    if (rel === -1 || rel === 1) return false;
-    if (V === 5 && (rel === -2 || rel === 2)) return false;
-    return true;
-  }
 
   function isAccordionDesktop(){
     return !isMobileLayout() &&
@@ -823,23 +812,16 @@
     track.style.transition = "none";
     track.style.transform  = "translateX(0px)";
 
-    // Pass 1: anchor + per-card transition. Cards heading TO off-stage get
-    // ACCORDION_TRANS_EXIT (delayed opacity fade) so the inward rotation
-    // reads as visible motion; everything else gets ACCORDION_TRANS with
-    // a quick opacity transition so entering cards become visible early.
+    // Pass 1: anchor + transition. All cards use ACCORDION_TRANS (single
+    // delayed-opacity transition — see the comment above its declaration
+    // for why exit AND entry both need the delay).
+    var trans = animated ? ACCORDION_TRANS : "none";
     cards.forEach(function(c){
       c.el.style.position   = "absolute";
       c.el.style.top        = "0";
       c.el.style.left       = "50%";
       c.el.style.marginLeft = (-getCardW()/2) + "px";
-      if (animated){
-        var newRel = c.slot - centreSlot;
-        c.el.style.transition = isAccordionOffStage(newRel)
-          ? ACCORDION_TRANS_EXIT
-          : ACCORDION_TRANS;
-      } else {
-        c.el.style.transition = "none";
-      }
+      c.el.style.transition = trans;
     });
 
     // Force the transition change to commit before applying transforms,
