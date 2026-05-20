@@ -225,23 +225,29 @@
 
   // Top bar
   var RING_C = (2 * Math.PI * 20).toFixed(2);
-  // The logo's inner content — an uploaded image, or the "S" fallback.
-  var logoContent = logoUrl
-    ? '<img src="' + logoUrl + '" alt="logo">'
-    : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
-  // For the gradient ring the logo content sits in an inner circle centred
-  // in the masked ring; the transparent hole + smaller logo create the
-  // Instagram-style see-through gap. For a solid ring the border does it.
-  var logoHTML = ringIsGradient
-    ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
-    : '<div class="srv-logo">' + logoContent + '</div>';
-
-  card.insertAdjacentHTML("afterbegin",
-    '<div class="srv-top-bar">' +
+  // Empty logoUrl means "no Instagram badge" — hide the entire top-left
+  // anchor (logo ring + follower count) rather than showing a generic 'S'
+  // placeholder. Builder users opt IN to the badge by filling in a logoUrl;
+  // leaving it blank yields a clean top-left.
+  var badgeHTML = "";
+  if (logoUrl) {
+    var logoContent = '<img src="' + logoUrl + '" alt="logo">';
+    // For the gradient ring the logo content sits in an inner circle centred
+    // in the masked ring; the transparent hole + smaller logo create the
+    // Instagram-style see-through gap. For a solid ring the border does it.
+    var logoHTML = ringIsGradient
+      ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
+      : '<div class="srv-logo">' + logoContent + '</div>';
+    badgeHTML =
       '<a href="' + igUrl + '" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
         logoHTML +
         '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
-      '</a>' +
+      '</a>';
+  }
+
+  card.insertAdjacentHTML("afterbegin",
+    '<div class="srv-top-bar">' +
+      badgeHTML +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">' +
         '<div class="srv-timer">' +
           '<svg viewBox="0 0 46 46"><circle class="srv-timer-bg" cx="23" cy="23" r="20"/><circle class="srv-timer-ring" cx="23" cy="23" r="20" stroke-dasharray="' + RING_C + '" stroke-dashoffset="0"/></svg>' +

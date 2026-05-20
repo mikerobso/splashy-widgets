@@ -349,23 +349,31 @@
       if (reel.posterUrl) video.setAttribute("poster",reel.posterUrl);
       card.appendChild(video);
 
+      // Empty logoUrl (after per-reel → global fallback) means "no Instagram
+      // badge" — hide the entire top-left anchor (logo ring + follower count)
+      // rather than showing a generic 'S' placeholder. Builder users opt IN
+      // to the badge by filling in a logoUrl; leaving it blank yields a clean
+      // top-left.
       var resolvedLogo = reel.logoUrl||logoUrl||"";
-      var logoContent = resolvedLogo
-        ? '<img src="'+resolvedLogo+'" alt="logo">'
-        : '<div style="width:100%;height:100%;background:#D30011;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
-      // Gradient ring wraps the logo in an inner circle (the masked ::before
-      // draws the ring); a solid ring uses the .sif-logo border directly.
-      var logoHTML = ringIsGradient
-        ? '<div class="sif-logo sif-logo--grad"><div class="sif-logo-inner">'+logoContent+'</div></div>'
-        : '<div class="sif-logo">'+logoContent+'</div>';
+      var badgeHTML = "";
+      if (resolvedLogo){
+        var logoContent = '<img src="'+resolvedLogo+'" alt="logo">';
+        // Gradient ring wraps the logo in an inner circle (the masked ::before
+        // draws the ring); a solid ring uses the .sif-logo border directly.
+        var logoHTML = ringIsGradient
+          ? '<div class="sif-logo sif-logo--grad"><div class="sif-logo-inner">'+logoContent+'</div></div>'
+          : '<div class="sif-logo">'+logoContent+'</div>';
+        badgeHTML =
+          '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
+            logoHTML+
+            '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
+          '</a>';
+      }
       var RC = (2*Math.PI*23).toFixed(2);
 
       card.insertAdjacentHTML("beforeend",
         '<div class="sif-top-bar">'+
-          '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
-            logoHTML+
-            '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
-          '</a>'+
+          badgeHTML+
           '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">'+
             '<div class="sif-timer"><svg viewBox="0 0 52 52"><circle class="sif-timer-bg" cx="26" cy="26" r="23"/><circle class="sif-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sif-timer-text">--</div></div>'+
             '<div style="height:13px;"></div>'+

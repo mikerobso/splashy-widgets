@@ -290,17 +290,24 @@
   }
 
   // ── Build the overlay (one per widget instance) ─────
-  // The logo fallback "S" uses a solid colour (not the ring gradient) —
-  // a conic gradient behind a tiny letter looks busy.
-  var logoBg = (ringColor && ringColor !== "instagram") ? ringColor : "#D30011";
-  var logoContent = logoUrl
-    ? '<img src="'+logoUrl+'" alt="logo">'
-    : '<div style="width:100%;height:100%;background:'+logoBg+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:16px;">S</div>';
-  // Gradient ring wraps the logo in an inner circle (the masked ::before
-  // draws the ring); a solid ring uses the .sst-logo border directly.
-  var logoHTML = logoRingIsGradient
-    ? '<div class="sst-logo sst-logo--grad"><div class="sst-logo-inner">'+logoContent+'</div></div>'
-    : '<div class="sst-logo">'+logoContent+'</div>';
+  // Empty logoUrl means "no Instagram badge" — hide the entire top-left
+  // anchor (logo ring + follower count) rather than showing a generic 'S'
+  // placeholder. Builder users opt IN to the badge by filling in a logoUrl;
+  // leaving it blank yields a clean top-left in the overlay player.
+  var badgeHTML = "";
+  if (logoUrl) {
+    var logoContent = '<img src="'+logoUrl+'" alt="logo">';
+    // Gradient ring wraps the logo in an inner circle (the masked ::before
+    // draws the ring); a solid ring uses the .sst-logo border directly.
+    var logoHTML = logoRingIsGradient
+      ? '<div class="sst-logo sst-logo--grad"><div class="sst-logo-inner">'+logoContent+'</div></div>'
+      : '<div class="sst-logo">'+logoContent+'</div>';
+    badgeHTML =
+      '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
+        logoHTML +
+        '<div class="sst-foll">'+followerCount+'</div>' +
+      '</a>';
+  }
   var RC = (2*Math.PI*23).toFixed(2);
 
   var overlay = document.createElement("div");
@@ -314,10 +321,7 @@
       '<div class="sst-stage">' +
         '<video class="sst-video" playsinline webkit-playsinline muted preload="auto"></video>' +
         '<div class="sst-top">' +
-          '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
-            logoHTML +
-            '<div class="sst-foll">'+followerCount+'</div>' +
-          '</a>' +
+          badgeHTML +
           '<div class="sst-timer"><svg viewBox="0 0 52 52"><circle class="sst-timer-bg" cx="26" cy="26" r="23"/><circle class="sst-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sst-timer-text">--</div></div>' +
         '</div>' +
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
