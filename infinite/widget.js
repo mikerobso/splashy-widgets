@@ -707,26 +707,54 @@
   // Inline `!important` is required for transform/filter because the desktop
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
-  // Source of truth for the accordion's slide transition. Transform, scale,
-  // brightness, and box-shadow run over .6s with a snappy ease-out — the
-  // slow "rotation around the centre" feel. Opacity is intentionally
-  // SHORTER (.15s): off-stage cards translate inward toward the centre as
-  // they exit, and the fade resolves quickly so the card "moves just a bit
-  // and is hidden" rather than visibly dissolving over the whole slide.
-  // The reverse (entry from off-stage) emerges from behind the centre and
-  // becomes opaque early, then continues to translate outward to is-next /
-  // is-far over the remaining .45s. The slide duration is mirrored by
+  // Accordion slide transitions. Two variants, picked per card by
+  // applyAccordionLayout based on whether the card is heading TO off-stage:
+  //
+  //   ACCORDION_TRANS       — entering FROM off-stage or staying visible.
+  //                           opacity .15s with no delay, so entering cards
+  //                           become opaque promptly as they emerge from
+  //                           behind the centre and rotate outward.
+  //   ACCORDION_TRANS_EXIT  — heading TO off-stage. opacity STAYS at 1 for
+  //                           .3s then fades over .3s. Geometry note: with
+  //                           the centre card growing to scale 1 and sliding
+  //                           toward x=0, z-stacking hides the exiting card
+  //                           behind the centre around t≈.31s for V=3 (and
+  //                           t≈.21s for V=5, where the new is-prev covers
+  //                           first). The opacity-stays-1 phase aligns with
+  //                           that — the card remains fully visible during
+  //                           the inward rotation, then fades invisibly
+  //                           behind centre. Without this delay (single-curve
+  //                           opacity) the card would vanish mid-rotation,
+  //                           reading as "disappears too fast".
+  //
+  // Transform/scale/brightness/box-shadow run .6s with the same snappy
+  // ease-out — that's the "rotation around centre" pace, matched by
   // slideMs() returning 600 in accordion mode so the post-slide recycle
-  // setTimeout doesn't fire mid-animation. The base .sif-card CSS uses .35s
-  // and omits opacity — but placeCard's accordion branch and
-  // applyAccordionLayout BOTH set this inline whenever an accordion card is
-  // touched ("none" on recycle, this string on slides), so the base never
-  // leaks through in accordion mode.
+  // fires after the slide ends. The base .sif-card CSS uses .35s and omits
+  // opacity, but placeCard's accordion branch sets "none" inline on recycle
+  // and applyAccordionLayout sets one of the strings below on every animated
+  // slide, so the base never leaks through in accordion mode.
   var ACCORDION_TRANS =
     "transform .6s cubic-bezier(.4,0,.2,1)," +
     "opacity .15s cubic-bezier(.4,0,.2,1)," +
     "filter .6s cubic-bezier(.4,0,.2,1)," +
     "box-shadow .6s cubic-bezier(.4,0,.2,1)";
+  var ACCORDION_TRANS_EXIT =
+    "transform .6s cubic-bezier(.4,0,.2,1)," +
+    "opacity .3s cubic-bezier(.4,0,.2,1) .3s," +
+    "filter .6s cubic-bezier(.4,0,.2,1)," +
+    "box-shadow .6s cubic-bezier(.4,0,.2,1)";
+
+  // Mirror of the off-stage branch in applyAccordionCard. Used by
+  // applyAccordionLayout's pass 1 to pick the right transition string per
+  // card before pass 2 applies the new transforms. Kept as a tiny pure
+  // helper to avoid recomputing the rel→state classification twice.
+  function isAccordionOffStage(rel){
+    if (rel === 0) return false;
+    if (rel === -1 || rel === 1) return false;
+    if (V === 5 && (rel === -2 || rel === 2)) return false;
+    return true;
+  }
 
   function isAccordionDesktop(){
     return !isMobileLayout() &&
@@ -795,15 +823,23 @@
     track.style.transition = "none";
     track.style.transform  = "translateX(0px)";
 
-    var trans = animated ? ACCORDION_TRANS : "none";
-
-    // Pass 1: anchor + transition.
+    // Pass 1: anchor + per-card transition. Cards heading TO off-stage get
+    // ACCORDION_TRANS_EXIT (delayed opacity fade) so the inward rotation
+    // reads as visible motion; everything else gets ACCORDION_TRANS with
+    // a quick opacity transition so entering cards become visible early.
     cards.forEach(function(c){
       c.el.style.position   = "absolute";
       c.el.style.top        = "0";
       c.el.style.left       = "50%";
       c.el.style.marginLeft = (-getCardW()/2) + "px";
-      c.el.style.transition = trans;
+      if (animated){
+        var newRel = c.slot - centreSlot;
+        c.el.style.transition = isAccordionOffStage(newRel)
+          ? ACCORDION_TRANS_EXIT
+          : ACCORDION_TRANS;
+      } else {
+        c.el.style.transition = "none";
+      }
     });
 
     // Force the transition change to commit before applying transforms,
