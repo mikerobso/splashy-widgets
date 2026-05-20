@@ -129,6 +129,14 @@
       ".srv-progress:hover .srv-progress-fill,.srv-progress.dragging .srv-progress-fill{height:9px}",
       ".srv-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
       ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb{opacity:1;bottom:-2px}",
+      // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
+      // — tied to the same visibility triggers (.visible / .dragging classes,
+      // or :hover on a hover-capable pointer). pointer-events:none so touches
+      // on the scrub area underneath aren't blocked. tabular-nums keeps the
+      // digits from jittering as they tick up.
+      ".srv-time-counter{position:absolute;bottom:25px;right:14px;font-size:11px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
+      ".srv-progress.visible ~ .srv-time-counter,.srv-progress.dragging ~ .srv-time-counter{opacity:1}",
+      "@media(hover:hover){.srv-card:hover .srv-time-counter{opacity:1}}",
       // Dim backdrop shown behind the popped-out player. The font-family is
       // set here because the card is moved INTO this overlay (a child of
       // document.body) while popped — outside .srv-widget — so it no longer
@@ -166,6 +174,7 @@
         '</button>' +
         '<div class="srv-speed">2x</div>' +
         '<div class="srv-progress"><div class="srv-progress-track"></div><div class="srv-progress-fill"></div><div class="srv-progress-thumb"></div></div>' +
+        '<div class="srv-time-counter">0:00 / 0:00</div>' +
       '</div>' +
     '</div>';
 
@@ -230,6 +239,7 @@
 
   var ring      = card.querySelector(".srv-timer-ring");
   var timerText = card.querySelector(".srv-timer-text");
+  var timeCounter = widget.querySelector(".srv-time-counter");
   var RING_C2   = 2 * Math.PI * 20;
   ring.style.strokeDasharray = RING_C2;
 
@@ -248,18 +258,21 @@
   video.addEventListener("loadedmetadata", function () {
     dur = video.duration;
     timerText.textContent = fmtTime(dur);
+    timeCounter.textContent = "0:00 / " + fmtTime(dur);
   });
   video.addEventListener("timeupdate", function () {
     if (!dur) return;
     var pct = video.currentTime / dur;
     ring.style.strokeDashoffset = RING_C2 * (1 - pct);
     timerText.textContent = fmtTime(Math.max(0, dur - video.currentTime));
+    timeCounter.textContent = fmtTime(video.currentTime) + " / " + fmtTime(dur);
     progFill.style.width = (pct * 100) + "%";
     progThumb.style.left = (pct * 100) + "%";
   });
   video.addEventListener("ended", function () {
     ring.style.strokeDashoffset = 0;
     timerText.textContent = fmtTime(dur);
+    timeCounter.textContent = fmtTime(dur) + " / " + fmtTime(dur);
     progFill.style.width = "0%"; progThumb.style.left = "0%";
     progBar.classList.remove("visible");
     video.style.display = "none"; poster.style.display = "";

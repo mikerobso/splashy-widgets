@@ -167,6 +167,11 @@
       ".sst-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);pointer-events:none}",
       ".sst-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%}",
       ".sst-progress-thumb{position:absolute;bottom:-3px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
+      // Count-up timer ("0:30 / 0:40") shown above the scrub bar. The stories
+      // scrub bar lives in the fullscreen overlay and is always visible there,
+      // so the counter is also always visible (no transition needed). z-index
+      // above the progress so the text reads cleanly. pointer-events:none.
+      ".sst-time-counter{position:absolute;bottom:25px;right:14px;font-size:12px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:21;pointer-events:none;font-variant-numeric:tabular-nums}",
       // Overlay arrows — in-flow flex items beside the stage; forced circles
       ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",
@@ -305,6 +310,7 @@
         '<div class="sst-speed">2&times;</div>' +
         '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
+        '<div class="sst-time-counter">0:00 / 0:00</div>' +
       '</div>' +
     '</div>' +
     '<button class="sst-arrow sst-arrow--right" aria-label="Next">' +
@@ -331,6 +337,7 @@
   var progBar  = overlay.querySelector(".sst-progress");
   var progFill = overlay.querySelector(".sst-progress-fill");
   var progThumb= overlay.querySelector(".sst-progress-thumb");
+  var timeCounter = overlay.querySelector(".sst-time-counter");
   var RC2 = 2*Math.PI*23;
   ringEl.style.strokeDasharray = RC2;
 
@@ -355,6 +362,7 @@
     progFill.style.width = "0%"; progThumb.style.left = "0%";
     ringEl.style.strokeDashoffset = 0;
     timerTx.textContent = "--";
+    if (timeCounter) timeCounter.textContent = "0:00 / 0:00";
     pauseInd.classList.remove("visible");
     if (speedEl) speedEl.classList.remove("visible");
     video.playbackRate = 1;
@@ -560,7 +568,10 @@
 
   // ── Video events ────────────────────────────────────
   video.addEventListener("loadedmetadata", function(){
-    if (video.duration) timerTx.textContent = fmtTime(video.duration);
+    if (video.duration) {
+      timerTx.textContent = fmtTime(video.duration);
+      timeCounter.textContent = "0:00 / " + fmtTime(video.duration);
+    }
   });
   video.addEventListener("playing", function(){
     // video_play — fired once, the first time this reel actually plays.
@@ -571,6 +582,7 @@
     var pct = video.currentTime / d;
     ringEl.style.strokeDashoffset = RC2 * (1 - pct);
     timerTx.textContent = fmtTime(Math.max(0, d - video.currentTime));
+    timeCounter.textContent = fmtTime(video.currentTime) + " / " + fmtTime(d);
     progFill.style.width = (pct*100) + "%";
     progThumb.style.left = (pct*100) + "%";
     // video_progress — fired once when the reel passes the 50% mark.

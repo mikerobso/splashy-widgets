@@ -178,6 +178,14 @@
       ".sif-progress:hover .sif-progress-fill,.sif-progress.show .sif-progress-fill{height:9px}",
       ".sif-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
       ".sif-progress:hover .sif-progress-thumb,.sif-progress.show .sif-progress-thumb{opacity:1;bottom:-2px}",
+      // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
+      // — i.e. tied to the same triggers (.show class, or :hover when the
+      // card is .sif-playing on a hover-capable pointer). tabular-nums keeps
+      // the digits from jittering as they count up. pointer-events:none so
+      // touches on the scrub area still go to the scrub bar underneath.
+      ".sif-time-counter{position:absolute;bottom:25px;right:14px;font-size:11px;font-weight:600;color:rgba(255,255,255,.95);text-shadow:0 1px 3px rgba(0,0,0,.55);letter-spacing:.02em;z-index:15;pointer-events:none;opacity:0;transition:opacity 1s;font-variant-numeric:tabular-nums}",
+      ".sif-progress.show ~ .sif-time-counter{opacity:1}",
+      "@media(hover:hover){.sif-card.sif-playing:hover .sif-time-counter{opacity:1}}",
       ".sif-arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:#fff!important;border:none!important;box-shadow:0 3px 14px rgba(0,0,0,.13);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:30;transition:background .18s,transform .18s,box-shadow .18s}",
       ".sif-arrow:hover{background:var(--sif-accent)!important;transform:translateY(-50%) scale(1.1);box-shadow:0 6px 20px rgba(211,0,17,.3)}",
       ".sif-arrow:hover svg polyline{stroke:#fff}",
@@ -355,29 +363,37 @@
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
         '</button>'+
         '<div class="sif-speed">2x</div>'+
-        '<div class="sif-progress"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'
+        '<div class="sif-progress"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'+
+        '<div class="sif-time-counter">0:00 / 0:00</div>'
       );
 
       card.addEventListener("contextmenu",function(e){ e.preventDefault(); });
 
       var ring=card.querySelector(".sif-timer-ring");
       var timerText=card.querySelector(".sif-timer-text");
+      var timeCounter=card.querySelector(".sif-time-counter");
       var RC2=2*Math.PI*23;
       ring.style.strokeDasharray=RC2;
       var dur=0;
 
-      video.addEventListener("loadedmetadata",function(){ dur=video.duration; timerText.textContent=fmtTime(dur); });
+      video.addEventListener("loadedmetadata",function(){
+        dur=video.duration;
+        timerText.textContent=fmtTime(dur);
+        timeCounter.textContent="0:00 / "+fmtTime(dur);
+      });
       video.addEventListener("timeupdate",function(){
         if (!dur) return;
         var pct=video.currentTime/dur;
         ring.style.strokeDashoffset=RC2*(1-pct);
         timerText.textContent=fmtTime(Math.max(0,dur-video.currentTime));
+        timeCounter.textContent=fmtTime(video.currentTime)+" / "+fmtTime(dur);
         var pf=card.querySelector(".sif-progress-fill"),pt=card.querySelector(".sif-progress-thumb");
         if (pf) pf.style.width=(pct*100)+"%";
         if (pt) pt.style.left=(pct*100)+"%";
       });
       video.addEventListener("ended",function(){
         ring.style.strokeDashoffset=0; timerText.textContent=fmtTime(dur);
+        timeCounter.textContent=fmtTime(dur)+" / "+fmtTime(dur);
         card.classList.remove("sif-playing");
         card.querySelector(".sif-play-btn").classList.remove("hidden");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
@@ -914,6 +930,7 @@
     var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
     var rg=c.el.querySelector(".sif-timer-ring"); if (rg) rg.style.strokeDashoffset=0;
     var tx=c.el.querySelector(".sif-timer-text"); if (tx&&c.video.duration) tx.textContent=fmtTime(c.video.duration);
+    var tc=c.el.querySelector(".sif-time-counter"); if (tc) tc.textContent="0:00 / "+(c.video.duration?fmtTime(c.video.duration):"0:00");
     var pb=c.el.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
   }
 
