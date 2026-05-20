@@ -21,6 +21,20 @@
   var logoRing      = cfg.logoRing          || "#D30011";
   var containerId   = cfg.containerId       || "splshy-infinite";
 
+  // Desktop rendering mode (step 3 of the accordion plan).
+  //   "row"         — current infinite-carousel look (the only live mode today)
+  //   "accordion-3" — wired in step 3b, V=3 band
+  //   "accordion-5" — wired in step 3c, V=5 band
+  // Default is "row". Until 3b/3c land the flag validates but does nothing —
+  // any value still renders as the row carousel. Mobile rendering is unaffected
+  // by this flag in every mode.
+  var ALLOWED_DESKTOP_STYLES = ["row", "accordion-3", "accordion-5"];
+  var desktopStyle = cfg.desktopStyle || "row";
+  if (ALLOWED_DESKTOP_STYLES.indexOf(desktopStyle) === -1){
+    console.warn("Splshy Infinite: unknown desktopStyle '" + desktopStyle + "', falling back to 'row'.");
+    desktopStyle = "row";
+  }
+
   // The Instagram-style gradient ring (matches the other Splshy widgets).
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
   var ringIsGradient = (logoRing === "instagram");
