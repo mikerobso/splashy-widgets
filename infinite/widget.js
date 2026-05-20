@@ -162,7 +162,11 @@
       ".sif-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
       ".sif-bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:40px 16px 26px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
       ".sif-title{color:#fff;font-size:16.5px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-left:4px;margin-right:20px}",
-      ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0;background:transparent;padding:0;color:inherit;font:inherit}",
+      // !important on the reset properties defeats host-page CSS that might
+      // target generic `button` (e.g. `button{background:#teal}` from the
+      // embedding theme). The play-btn is a full-card transparent overlay —
+      // any inherited background would cover the video poster.
+      ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0!important;background:transparent!important;padding:0!important;color:inherit;font:inherit;-webkit-appearance:none;appearance:none}",
       ".sif-play-btn.hidden{opacity:0;pointer-events:none}",
       ".sif-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sif-pause-ind.visible{opacity:1}",
