@@ -184,6 +184,16 @@
       ".sif-arrow:focus,.sif-arrow:focus-visible{outline:none}",
       ".sif-arrow--left{left:-24px}",
       ".sif-arrow--right{right:-24px}",
+      // Accordion-mode arrow positioning. The fan is narrower than the
+      // viewport, so the row-mode left/right:-24px would leave the arrows
+      // far from the visible card edges. JS (applyAccordionArrowOffset)
+      // writes the computed distance-from-centre into --sif-arrow-offset on
+      // every layout pass; the calc places each arrow that far from the
+      // wrapper's horizontal centre. Higher specificity than the row rules
+      // above so row mode is untouched. 300px fallback only matters if JS
+      // hasn't run yet (e.g. between markup insertion and initEngine).
+      ".sif-widget.sif-accordion .sif-arrow--left{left:calc(50% - var(--sif-arrow-offset,300px))}",
+      ".sif-widget.sif-accordion .sif-arrow--right{right:calc(50% - var(--sif-arrow-offset,300px))}",
       "@media(min-width:600px){.sif-arrow{display:flex!important}}",
       ".sif-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
       ".sif-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
@@ -382,9 +392,11 @@
       var popoutBtn=card.querySelector(".sif-popout-btn");
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
-        // On mobile, tapping a peeking side card should bring it to the
-        // centre rather than play it in the background.
-        if (isMobileLayout() && realIdx !== current){
+        // On mobile (any mode) AND in accordion desktop modes, tapping a
+        // non-centre card should bring it to the centre rather than play it
+        // in the background. Desktop ROW mode keeps the existing behaviour
+        // (start any visible card playing).
+        if ((isMobileLayout() || isAccordionDesktop()) && realIdx !== current){
           navigate(realIdx);
           return;
         }
@@ -464,9 +476,11 @@
         if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||
             e.target.closest(".sif-popout-btn")||e.target.closest(".sif-progress")) return;
         if (swallow){ swallow=false; return; }
-        // On mobile, tapping a peeking side card brings it to the centre.
-        // (Skipped while a card is popped — the carousel is frozen.)
-        if (isMobileLayout() && realIdx !== current && !popped){
+        // On mobile (any mode) AND in accordion desktop modes, tapping a
+        // non-centre card brings it to the centre. Desktop ROW mode keeps
+        // the existing behaviour (click toggles pause when the centre card
+        // is playing). Skipped while popped — the engine is frozen.
+        if ((isMobileLayout() || isAccordionDesktop()) && realIdx !== current && !popped){
           navigate(realIdx);
           return;
         }
@@ -689,6 +703,20 @@
   // Inline `!important` is required for transform/filter because the desktop
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
+  // Single source of truth for the accordion's slide transition. All four
+  // properties share one curve so transform/scale/brightness/opacity stay
+  // locked together across the slide. The base .sif-card CSS uses .35s and
+  // omits opacity — but placeCard's accordion branch and applyAccordionLayout
+  // BOTH set this inline whenever an accordion card is touched ("none" on
+  // recycle, this string on slides), so the base never leaks through in
+  // accordion mode. Verified against every code path that writes
+  // `style.transition` on a card.
+  var ACCORDION_TRANS =
+    "transform .52s cubic-bezier(.4,0,.2,1)," +
+    "opacity .52s cubic-bezier(.4,0,.2,1)," +
+    "filter .52s cubic-bezier(.4,0,.2,1)," +
+    "box-shadow .52s cubic-bezier(.4,0,.2,1)";
+
   function isAccordionDesktop(){
     return !isMobileLayout() &&
            (desktopStyle === "accordion-3" || desktopStyle === "accordion-5");
@@ -744,12 +772,7 @@
     track.style.transition = "none";
     track.style.transform  = "translateX(0px)";
 
-    var trans = animated
-      ? ("transform .52s cubic-bezier(.4,0,.2,1)," +
-         "opacity .52s cubic-bezier(.4,0,.2,1)," +
-         "filter .52s cubic-bezier(.4,0,.2,1)," +
-         "box-shadow .52s cubic-bezier(.4,0,.2,1)")
-      : "none";
+    var trans = animated ? ACCORDION_TRANS : "none";
 
     // Pass 1: anchor + transition.
     cards.forEach(function(c){
@@ -769,6 +792,42 @@
       applyAccordionCard(c);
       if (!animated) c.el.offsetHeight;
     });
+
+    // Place the navigation arrows just outside the visible fan. Recomputed
+    // every layout pass (init + step + resize) since the fan width depends
+    // on cardW, which changes with viewport.
+    applyAccordionArrowOffset();
+  }
+
+  // Position the navigation arrows just outside the visible accordion fan,
+  // plus a small gap. Ported from reels/widget.js layout(). The fan edge is
+  // the outer edge of whichever visible card is widest (is-prev/is-next for
+  // V=3; is-far for V=5, since it sits further out than the side cards). A
+  // clamp prevents the arrow from escaping a narrow wrapper.
+  function applyAccordionArrowOffset(){
+    if (!isAccordionDesktop()) return;
+    var cardW = getCardW();
+    var so    = Math.round(cardW * 0.68);
+    var ss    = 0.69;
+    var fs    = 0.56;
+    var fanEdge = so + (cardW * ss) / 2;             // is-prev / is-next outer edge
+    if (V === 5){
+      var farEdge = (so * 1.55) + (cardW * fs) / 2;  // is-far outer edge
+      if (farEdge > fanEdge) fanEdge = farEdge;
+    }
+    var ARROW_W = 40, GAP = 15, EDGE_MARGIN = 4;
+    var arrowOffset = fanEdge + GAP + ARROW_W;
+    // Clamp to the wrapper's half-width so the arrow's outer edge can never
+    // sit closer than EDGE_MARGIN to the container edge — otherwise in a
+    // narrow column (e.g. a Simpleview sidebar) the calc would go negative
+    // and fling the arrow OUTSIDE the container.
+    var wrapper = prevBtn.parentElement;
+    var wrapW = wrapper ? wrapper.offsetWidth : 0;
+    if (wrapW > 0){
+      var maxOffset = wrapW / 2 - EDGE_MARGIN;
+      if (arrowOffset > maxOffset) arrowOffset = maxOffset;
+    }
+    widget.style.setProperty("--sif-arrow-offset", arrowOffset + "px");
   }
 
   // Reel index of the card occupying `centreSlot`.
