@@ -35,13 +35,6 @@
     desktopStyle = "row";
   }
 
-  // Ambient backdrop: opt-in. When truthy, a heavily blurred + scaled copy
-  // of the centre card's current video frame (or its poster, if not playing)
-  // renders behind the widget every ~200ms — gives an Apple Music / Spotify
-  // "glowing window into the content" feel. Off by default so existing live
-  // embeds (VisitRaleigh etc.) are unaffected.
-  var ambientBackdrop = !!cfg.ambientBackdrop;
-
   // The Instagram-style gradient ring (matches the other Splshy widgets).
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
   var ringIsGradient = (logoRing === "instagram");
@@ -115,15 +108,7 @@
     style.textContent = [
       ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
       ".sif-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
-      // isolation:isolate creates a stacking context on .sif-outer so the
-      // ambient canvas's z-index:-1 stays contained instead of escaping
-      // behind whatever else is on the page. Harmless when ambient is off.
-      ".sif-outer{position:relative;display:flex;align-items:center;justify-content:center;isolation:isolate}",
-      // Ambient backdrop. JS-injected only when ambientBackdrop is enabled.
-      // Heavy blur + slight scale so the live (low-res, 128x227) video frame
-      // reads as a soft glow behind the cards. saturate lifts the colour
-      // without making it look like a colour wash.
-      ".sif-ambient{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:-1;filter:blur(80px) saturate(1.5);transform:scale(1.4);opacity:.6;display:block;will-change:filter}",
+      ".sif-outer{position:relative;display:flex;align-items:center;justify-content:center}",
       ".sif-viewport{overflow:hidden;height:var(--sif-card-h);width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2)}",
       /* Track: a flex row of cards. We move it with translateX */
       ".sif-track{display:flex;flex-direction:row;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform}",
@@ -255,21 +240,6 @@
 
   var widget   = container.querySelector(".sif-widget");
   if (desktopStyle === "accordion-3" || desktopStyle === "accordion-5") widget.classList.add("sif-accordion");
-
-  // Inject the ambient canvas (opt-in). Sits at z-index:-1 inside .sif-outer
-  // — behind the viewport but contained by .sif-outer's stacking context.
-  // Low-res buffer (128x227) because the .sif-ambient CSS blurs it heavily;
-  // pixelation is invisible at blur(80px).
-  var ambientCanvas = null;
-  if (ambientBackdrop) {
-    ambientCanvas = document.createElement("canvas");
-    ambientCanvas.className = "sif-ambient";
-    ambientCanvas.width  = 128;
-    ambientCanvas.height = 227;
-    var outerEl = widget.querySelector(".sif-outer");
-    outerEl.insertBefore(ambientCanvas, outerEl.firstChild);
-  }
-
   var viewport = widget.querySelector(".sif-viewport");
   var track    = widget.querySelector(".sif-track");
   var prevBtn  = widget.querySelector(".sif-arrow--left");
@@ -1124,38 +1094,6 @@
     setTrack(false);
     updateUI();
   })();
-
-  // ── Ambient backdrop sampler ─────────────────────────
-  // Every ~200ms (when enabled), copy the centre card's live video frame
-  // — or its poster image if the video isn't playing — to the ambient
-  // canvas. CSS does the rest (heavy blur + scale). Cross-origin sources
-  // taint the canvas but still render, so this works with any video URL.
-  function sampleAmbient(){
-    if (!ambientCanvas) return;
-    var centre = null;
-    for (var i = 0; i < cards.length; i++) {
-      if (cards[i].slot === centreSlot){ centre = cards[i]; break; }
-    }
-    if (!centre) return;
-    var src;
-    if (centre.video.style.display === "block" && centre.video.readyState >= 2){
-      src = centre.video;
-    } else {
-      var img = centre.poster.querySelector("img");
-      if (img && img.complete && img.naturalWidth > 0) src = img;
-    }
-    if (!src) return;
-    try {
-      ambientCanvas.getContext("2d").drawImage(src, 0, 0, ambientCanvas.width, ambientCanvas.height);
-    } catch (e) {
-      // Defensive — drawImage shouldn't throw on a tainted canvas, but if
-      // something else goes wrong (detached source, etc.) keep the last frame.
-    }
-  }
-  if (ambientBackdrop) {
-    sampleAmbient();
-    setInterval(sampleAmbient, 200);
-  }
 
   // ── Navigate ─────────────────────────────────────────
   function navigate(targetIdx){
