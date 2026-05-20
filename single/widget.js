@@ -90,6 +90,12 @@
       ".srv-logo.srv-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--srv-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 23.25px, #000 23.25px);mask:radial-gradient(circle, transparent 0 23.25px, #000 23.25px)}",
       ".srv-logo.srv-logo--grad .srv-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".srv-logo img{width:100%;height:100%;object-fit:cover;display:block}",
+      // Countdown ring (top-right) — hidden. Superseded by the bottom-right
+      // .srv-time-counter (current / duration). The timer markup is kept
+      // and the timeupdate / loadedmetadata handlers still write to it
+      // (harmless on a display:none element), so this can be brought back
+      // by removing the single rule below.
+      ".srv-timer{display:none!important}",
       ".srv-timer{position:relative;width:46px;height:46px;flex-shrink:0}",
       ".srv-timer svg{width:46px;height:46px;transform:rotate(-90deg)}",
       ".srv-timer-bg{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5}",

@@ -148,6 +148,12 @@
       ".sst-logo.sst-logo--grad .sst-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:50px;height:50px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".sst-logo img{width:100%;height:100%;object-fit:cover}",
       ".sst-foll{color:rgba(255,255,255,.8);font-size:10px;font-weight:400;letter-spacing:.03em;text-shadow:0 1px 3px rgba(0,0,0,.5);margin-top:4px;text-align:center}",
+      // Countdown ring (top-right) — hidden. Superseded by the bottom-right
+      // .sst-time-counter (current / duration). The timer markup is kept
+      // and the timeupdate / loadedmetadata handlers still write to it
+      // (harmless on a display:none element), so this can be brought back
+      // by removing the single rule below.
+      ".sst-timer{display:none!important}",
       ".sst-timer{position:relative;width:50px;height:50px;flex-shrink:0}",
       ".sst-timer svg{width:50px;height:50px;transform:rotate(-90deg)}",
       ".sst-timer-bg{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5}",

@@ -141,6 +141,12 @@
       ".sif-logo.sif-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:var(--sif-ring-grad);-webkit-mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px);mask:radial-gradient(circle, transparent 0 28.25px, #000 28.25px)}",
       ".sif-logo.sif-logo--grad .sif-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
       ".sif-logo img{width:100%;height:100%;object-fit:cover}",
+      // Countdown ring (top-right) — hidden. Superseded by the bottom-right
+      // .sif-time-counter (current / duration). The timer markup is kept
+      // and the timeupdate / loadedmetadata handlers still write to it
+      // (harmless on a display:none element), so this can be brought back
+      // by removing the single rule below.
+      ".sif-timer{display:none!important}",
       ".sif-timer{position:relative;width:52px;height:52px;flex-shrink:0}",
       ".sif-timer svg{width:52px;height:52px;transform:rotate(-90deg)}",
       ".sif-timer-bg{fill:none;stroke:rgba(255,255,255,.22);stroke-width:2.5}",
