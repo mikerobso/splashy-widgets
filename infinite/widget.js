@@ -728,13 +728,16 @@
     var ss    = 0.69;
     var fs    = 0.56;
     var transform, filter, opacity, zIndex;
+    var offStage = false;
     // V=3 (accordion-3): visible at rel 0, ±1; everything else is off-stage.
     // V=5 (accordion-5): visible at rel 0, ±1, ±2; |rel| >= 3 is off-stage.
-    // is-far cards (rel ±2 in V=5) and off-stage cards share the same
-    // physical spot (translateX ±so*1.55, scale fs). Off-stage just sets
-    // opacity 0 — so a card cycling from off-stage to is-far simply fades
-    // in, and the visible motion (translate + scale + brightness) happens
-    // on the NEXT step when is-far becomes is-next.
+    // Off-stage cards are slid FULLY past the viewport's overflow:hidden
+    // edge, with scale + brightness matching the adjacent visible card —
+    // so the exit/entry is a PURE TRANSLATE (no shrink, no dim, no fade).
+    // An earlier design hid off-stage cards via opacity 0 at translateX(±so*1.55);
+    // that fade-in-place caused a perceptible "flash" on the far edge during
+    // a step. Opacity now stays at 1 for every accordion card; pointer events
+    // on off-stage cards are blocked via data-offstage (decoupled from opacity).
     if (rel === 0){
       transform = "translateX(0px) scale(1)";
       filter    = "brightness(1)";
@@ -753,18 +756,26 @@
       opacity   = 1;
       zIndex    = 2;
     } else {
-      // Off-stage. |rel| >= 2 in V=3, |rel| >= 3 in V=5.
+      // Off-stage. Slid fully past the visible viewport. Scale + brightness
+      // match the ADJACENT visible card (V=3: is-prev/next at ss/.55;
+      // V=5: is-far at fs/.3) so the only animated axis is translate.
+      offStage = true;
       var dOff = rel < 0 ? -1 : 1;
-      transform = "translateX(" + (dOff * so * 1.55) + "px) scale(" + fs + ")";
-      filter    = "brightness(.3)";
-      opacity   = 0;
+      var offScale      = (V === 5) ? fs : ss;
+      var offBrightness = (V === 5) ? ".3" : ".55";
+      // Viewport is calc(cardW*3 + gap*2); half-width is 1.5*cardW + gap.
+      // 2.5*cardW + gap puts the card comfortably past the visible edge at
+      // any reasonable desktop cardW.
+      transform = "translateX(" + (dOff * (2.5 * cardW + getGap())) + "px) scale(" + offScale + ")";
+      filter    = "brightness(" + offBrightness + ")";
+      opacity   = 1;
       zIndex    = Math.max(1, 4 - Math.abs(rel));
     }
     c.el.style.setProperty("transform", transform, "important");
     c.el.style.setProperty("filter",    filter,    "important");
     c.el.style.opacity    = opacity;
     c.el.style.zIndex     = zIndex;
-    c.el.dataset.offstage = (opacity === 0) ? "1" : "0";
+    c.el.dataset.offstage = offStage ? "1" : "0";
   }
   function applyAccordionLayout(animated){
     // The track itself never moves in accordion mode — each card animates
