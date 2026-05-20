@@ -610,10 +610,10 @@
   // Slide animation duration in milliseconds.
   // Desktop: 460ms. Mobile: 520ms — matched to the reels carousel.
   function slideMs(){
-    // Accordion modes use a slower "rotation" feel (.6s, matching
+    // Accordion modes use a slightly slower "rotation" feel (.52s, matching
     // ACCORDION_TRANS) so the post-slide recycle setTimeout fires AFTER
     // the slide ends, not during it.
-    if (isAccordionDesktop()) return 600;
+    if (isAccordionDesktop()) return 520;
     return isMobileLayout() ? 520 : 460;
   }
 
@@ -709,41 +709,41 @@
   // would otherwise win over a plain inline style.
   // Accordion slide transition. Single string used by every animated card.
   //
-  // Transform / scale / brightness / box-shadow run .6s with a snappy
+  // Transform / scale / brightness / box-shadow run .52s with a snappy
   // ease-out — that's the "rotation around centre" pace, matched by
-  // slideMs() returning 600 in accordion mode so the post-slide recycle
+  // slideMs() returning 520 in accordion mode so the post-slide recycle
   // fires after the slide ends.
   //
-  // Opacity is intentionally delayed: stays at 1 (or 0) for the first .3s,
-  // then transitions over .3s. Why this is symmetric for both directions:
+  // Opacity is intentionally delayed: stays at 1 (or 0) for the first .26s,
+  // then transitions over .26s. Why this is symmetric for both directions:
   //
   //   EXIT (visible → off-stage). The exiting card rotates inward from
   //     is-prev/is-far toward translateX(0). The arriving centre card
-  //     (z=10) doesn't start covering the middle until t≈.19s, and fully
-  //     covers the exit by t≈.31s. The delay keeps opacity at 1 during
-  //     the entire visible inward rotation; the .3s fade then runs
+  //     (z=10) doesn't start covering the middle until t≈.16s, and fully
+  //     covers the exit by t≈.27s. The delay keeps opacity at 1 during
+  //     the entire visible inward rotation; the .26s fade then runs
   //     invisibly behind centre.
   //
   //   ENTRY (off-stage → visible). The entering card starts at translateX(0)
   //     (the off-stage spot — behind centre's path). In V=3 it has z=5,
   //     identical to the OLD centre's new z (is-prev), and the new centre's
-  //     z=10 cover doesn't kick in until t≈.19s. Without the delay, the
+  //     z=10 cover doesn't kick in until t≈.16s. Without the delay, the
   //     entering card's rising opacity would blend with the old centre at
   //     the middle (DOM order puts entering on top at equal z) — the user
   //     sees through the centre to the new card materialising behind it.
-  //     With the delay, opacity is 0 until t=.3s; by then the new centre
+  //     With the delay, opacity is 0 until t=.26s; by then the new centre
   //     fully covers the middle, and the entry emerges from behind it on
-  //     the right (or left, for a left-arrow click) over the remaining .3s.
+  //     the right (or left, for a left-arrow click) over the remaining .26s.
   //
   // The base .sif-card CSS uses .35s and omits opacity, but placeCard's
   // accordion branch sets "none" inline on recycle and applyAccordionLayout
   // sets this string on every animated slide, so the base never leaks
   // through in accordion mode.
   var ACCORDION_TRANS =
-    "transform .6s cubic-bezier(.4,0,.2,1)," +
-    "opacity .3s cubic-bezier(.4,0,.2,1) .3s," +
-    "filter .6s cubic-bezier(.4,0,.2,1)," +
-    "box-shadow .6s cubic-bezier(.4,0,.2,1)";
+    "transform .52s cubic-bezier(.4,0,.2,1)," +
+    "opacity .26s cubic-bezier(.4,0,.2,1) .26s," +
+    "filter .52s cubic-bezier(.4,0,.2,1)," +
+    "box-shadow .52s cubic-bezier(.4,0,.2,1)";
 
   function isAccordionDesktop(){
     return !isMobileLayout() &&
