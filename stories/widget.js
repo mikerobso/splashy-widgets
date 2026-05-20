@@ -112,7 +112,7 @@
       // coloured ring band but under the photo (.sst-ring-inner).
       ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1}",
       // Shimmer plays once via the .sst-shimmer class (JS-controlled).
-      ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(396deg);transition:transform 1.1s ease-in-out,opacity .12s ease}",
+      ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(396deg);transition:transform .9s ease-in-out,opacity .12s ease}",
       // Enlarged size holds for as long as the cursor is on the circle.
       "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
       ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
@@ -217,7 +217,7 @@
       track("story_open", reelParams(i));
       pressAndOpen(i, ring);
     });
-    // Hover plays the shimmer ONCE (1.1s). If the cursor leaves before it
+    // Hover plays the shimmer ONCE (.9s). If the cursor leaves before it
     // finishes, the shimmer is cancelled immediately. The scale-up is pure
     // CSS :hover, so it simply holds while hovering.
     var shimmerTimer = null;
@@ -227,7 +227,7 @@
       if (shimmerTimer) clearTimeout(shimmerTimer);
       shimmerTimer = setTimeout(function(){
         item.classList.remove("sst-shimmer");
-      }, 1120);
+      }, 920);
     });
     item.addEventListener("mouseleave", function(){
       if (shimmerTimer){ clearTimeout(shimmerTimer); shimmerTimer = null; }
