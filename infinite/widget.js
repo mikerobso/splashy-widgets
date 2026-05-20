@@ -68,12 +68,18 @@
     return out;
   }
   var realCount = reels.length;
-  // Defensive: accordion-5 needs >= 5 reels to show 5 DISTINCT cards at rest.
-  // The builder enforces this (step 6), but a malformed embed could still
-  // arrive here — fall back to accordion-3 with a warning.
+  // Defensive: accordion modes have minimum reel counts (see the plan).
+  // The builder is the primary gate (step 6); these checks catch a malformed
+  // embed rather than letting the visible window render misleading duplicates.
+  //   accordion-5 needs >= 5 reels to show 5 DISTINCT cards at rest.
+  //   accordion-3 needs >= 3 reels for the same reason.
   if (desktopStyle === "accordion-5" && realCount < 5){
     console.warn("Splshy Infinite: accordion-5 requires >= 5 reels; falling back to accordion-3.");
     desktopStyle = "accordion-3";
+  }
+  if (desktopStyle === "accordion-3" && realCount < 3){
+    console.warn("Splshy Infinite: accordion-3 requires >= 3 reels; falling back to row.");
+    desktopStyle = "row";
   }
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
@@ -879,6 +885,17 @@
     // plain inline transform can't override — so the pop transform is set
     // with !important via setProperty, which DOES beat a stylesheet !important.
     el.style.setProperty("transform", "translate(0px,0px) scale(1)", "important");
+    // Override accordion-mode dimming for the popped card. In row mode these
+    // are redundant (the desktop CSS already gives brightness 1); in accordion
+    // mode they undo the brightness(.55) / brightness(.3) !important values
+    // that applyAccordionCard sets on is-prev/is-next/is-far cards, so the
+    // popped card reads bright. closePopout's cleanup clears these and
+    // placeCard reapplies the accordion value on restore. data-offstage is
+    // forced to "0" so the offstage pointer-events rule can't accidentally
+    // block clicks on a popped card.
+    el.style.setProperty("filter", "brightness(1)", "important");
+    el.style.opacity      = "1";
+    el.dataset.offstage   = "0";
     overlay.appendChild(el);
     el.offsetHeight;                         // force reflow so the next change animates
 
@@ -916,6 +933,11 @@
       // Clear the !important pop transform fully (a plain ="" doesn't always
       // clear an !important inline value), then restore engine-owned styles.
       el.style.removeProperty("transform");
+      // Drop the pop-out's brightness(1) / opacity overrides. placeCard below
+      // reapplies the accordion value via applyAccordionCard; in row mode the
+      // desktop CSS provides brightness 1 once the inline value is cleared.
+      el.style.removeProperty("filter");
+      el.style.opacity = "";
       var rs = c._restore || {};
       el.style.left       = rs.left       || "";
       el.style.top        = rs.top        || "";
