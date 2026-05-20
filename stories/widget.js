@@ -160,6 +160,15 @@
       ".sst-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}",
       ".sst-mute-btn{position:absolute;bottom:54px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;padding:0;-webkit-tap-highlight-color:transparent}",
       ".sst-mute-btn svg{width:16px;height:16px}",
+      // Desktop hover-fade for the mute button. (Stories has no pop-out.)
+      // Default (stage NOT hovered) holds opacity 1 for 2s, then fades
+      // over .35s; on hover the delay is zeroed so it pops back in over
+      // .15s. Pure CSS — no JS timer. Scoped to (hover:hover) so touch
+      // devices keep the always-visible mute in the overlay player.
+      "@media(hover:hover){",
+        ".sst-stage .sst-mute-btn{opacity:0;transition:opacity .35s ease 2s}",
+        ".sst-stage:hover .sst-mute-btn{opacity:1;transition:opacity .15s ease 0s}",
+      "}",
       ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;box-sizing:border-box}",
       ".sst-speed.visible{opacity:1}",
       // Progress bar

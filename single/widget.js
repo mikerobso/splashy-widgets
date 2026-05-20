@@ -117,6 +117,15 @@
       ".srv-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
       ".srv-popout-btn svg{width:15px;height:15px;display:block}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-popout-btn.visible{display:flex;opacity:1}}",
+      // Desktop hover-fade for the mute + pop-out buttons. See infinite/widget.js
+      // for the rationale — same pattern. Transition-delay on the un-hover state
+      // gives a 2s wait before the .35s fade; the hover rule zeroes the delay
+      // so the buttons pop back in immediately. Scoped to (hover:hover) so
+      // touch devices keep the existing always-visible behaviour.
+      "@media(hover:hover){",
+        ".srv-card .srv-mute-btn.visible,.srv-card .srv-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
+        ".srv-card:hover .srv-mute-btn.visible,.srv-card:hover .srv-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
+      "}",
       ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".srv-speed.visible{opacity:1}",
       ".srv-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end;touch-action:none}",

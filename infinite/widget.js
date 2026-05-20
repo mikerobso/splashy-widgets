@@ -167,6 +167,17 @@
       ".sif-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
       ".sif-popout-btn svg{width:15px;height:15px}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-popout-btn.visible{display:flex;opacity:1}}",
+      // Desktop hover-fade for the mute + pop-out buttons. Default (card
+      // NOT hovered) holds opacity at 1 for 2s, then fades over .35s; on
+      // hover the transition-delay is zeroed so the buttons pop back in
+      // over .15s. The 2s-stay-then-fade is achieved purely through the
+      // transition-delay — no JS timer. Higher specificity than the
+      // `.visible` rules above so this wins; scoped to (hover:hover) so
+      // touch devices keep the always-visible behaviour from above.
+      "@media(hover:hover){",
+        ".sif-card .sif-mute-btn.visible,.sif-card .sif-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
+        ".sif-card:hover .sif-mute-btn.visible,.sif-card:hover .sif-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
+      "}",
       ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".sif-speed.visible{opacity:1}",
       ".sif-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end}",
