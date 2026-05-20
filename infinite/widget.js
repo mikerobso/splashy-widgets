@@ -1187,14 +1187,19 @@
     //  • Mobile: only the CENTRED card may play. Any card that has left the
     //    centre slot is reset (video + audio stop) — so audio stops after a
     //    single swipe.
-    //  • Desktop: a card may keep playing in a side slot; it is reset only
-    //    once it is fully off-screen (outside [centreSlot-1 .. centreSlot+1]).
-    var mobile  = isMobileLayout();
-    // Desktop: a card may keep playing while it's in the visible window.
-    // V=3 -> rel in [-1..+1]; V=5 -> rel in [-2..+2] (is-far cards stay live).
-    var halfVis = (V - 1) / 2;
+    //  • Desktop ACCORDION (3 / 5 visible): treated like mobile. Side and
+    //    is-far cards are scaled down and dimmed, so a video playing in
+    //    one of those slots reads as abandoned background audio — kill it
+    //    on the slide.
+    //  • Desktop ROW: a card may keep playing in a side slot; it is reset
+    //    only once it is fully off-screen (outside [centreSlot-1
+    //    .. centreSlot+1]). Side cards in row mode are full-brightness and
+    //    equal-size, so background playback there is fine.
+    var mobile    = isMobileLayout();
+    var accordion = isAccordionDesktop();
+    var halfVis   = (V - 1) / 2;
     cards.forEach(function(c){
-      var shouldStop = mobile
+      var shouldStop = (mobile || accordion)
         ? (c.slot !== centreSlot)
         : (Math.abs(c.slot - centreSlot) > halfVis);
       if (shouldStop && (!c.video.paused || c.video.style.display === "block")){
