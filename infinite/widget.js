@@ -610,6 +610,10 @@
   // Slide animation duration in milliseconds.
   // Desktop: 460ms. Mobile: 520ms — matched to the reels carousel.
   function slideMs(){
+    // Accordion modes use a slower "rotation" feel (.6s, matching
+    // ACCORDION_TRANS) so the post-slide recycle setTimeout fires AFTER
+    // the slide ends, not during it.
+    if (isAccordionDesktop()) return 600;
     return isMobileLayout() ? 520 : 460;
   }
 
@@ -704,23 +708,25 @@
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
   // Source of truth for the accordion's slide transition. Transform, scale,
-  // brightness, and box-shadow run over .52s with a snappy ease-out — the
+  // brightness, and box-shadow run over .6s with a snappy ease-out — the
   // slow "rotation around the centre" feel. Opacity is intentionally
   // SHORTER (.15s): off-stage cards translate inward toward the centre as
   // they exit, and the fade resolves quickly so the card "moves just a bit
   // and is hidden" rather than visibly dissolving over the whole slide.
   // The reverse (entry from off-stage) emerges from behind the centre and
   // becomes opaque early, then continues to translate outward to is-next /
-  // is-far over the remaining .37s. The base .sif-card CSS uses .35s and
-  // omits opacity — but placeCard's accordion branch and applyAccordionLayout
-  // BOTH set this inline whenever an accordion card is touched ("none" on
-  // recycle, this string on slides), so the base never leaks through in
-  // accordion mode.
+  // is-far over the remaining .45s. The slide duration is mirrored by
+  // slideMs() returning 600 in accordion mode so the post-slide recycle
+  // setTimeout doesn't fire mid-animation. The base .sif-card CSS uses .35s
+  // and omits opacity — but placeCard's accordion branch and
+  // applyAccordionLayout BOTH set this inline whenever an accordion card is
+  // touched ("none" on recycle, this string on slides), so the base never
+  // leaks through in accordion mode.
   var ACCORDION_TRANS =
-    "transform .52s cubic-bezier(.4,0,.2,1)," +
+    "transform .6s cubic-bezier(.4,0,.2,1)," +
     "opacity .15s cubic-bezier(.4,0,.2,1)," +
-    "filter .52s cubic-bezier(.4,0,.2,1)," +
-    "box-shadow .52s cubic-bezier(.4,0,.2,1)";
+    "filter .6s cubic-bezier(.4,0,.2,1)," +
+    "box-shadow .6s cubic-bezier(.4,0,.2,1)";
 
   function isAccordionDesktop(){
     return !isMobileLayout() &&
