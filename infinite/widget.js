@@ -67,9 +67,17 @@
     while (out.length < floor) out = out.concat(srcReels);
     return out;
   }
-  var realCount      = reels.length;
-  var effectiveReels = reels.slice();   // step 3 will double for accordion modes
-  var n              = effectiveReels.length;
+  var realCount = reels.length;
+  // Doubling: only accordion modes need the engine to have >= V+2 effective
+  // cards. Row mode never doubles (preserves the live VisitRaleigh behaviour
+  // at any reel count). "accordion-5" doubling lands in step 3c.
+  var effectiveReels;
+  if (desktopStyle === "accordion-3"){
+    effectiveReels = doubleReelsToFloor(reels, 5);   // V=3 floor = V+2 = 5
+  } else {
+    effectiveReels = reels.slice();
+  }
+  var n = effectiveReels.length;
 
   // ── CSS ─────────────────────────────────────────────
   if (!document.querySelector("style[data-splshy-infinite]")) {
@@ -166,6 +174,16 @@
       // instance in JS, since those are per-widget values.
       ".sif-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.62);opacity:0;transition:opacity .34s ease;pointer-events:none;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
       ".sif-overlay.open{opacity:1;pointer-events:auto}",
+      // Accordion mode: block pointer events on off-stage cards. Off-stage
+      // cards sit INSIDE the viewport (just translated out at opacity 0),
+      // so without this their invisible logo links / mute area would still
+      // catch clicks. Scoped to desktop because the marker class can stay
+      // set when an accordion widget is viewed at mobile width — mobile
+      // never has off-stage cards, so the rule must not apply there.
+      "@media(min-width:768px) and (any-pointer:fine){",
+        ".sif-widget.sif-accordion .sif-card[data-offstage='1'],",
+        ".sif-widget.sif-accordion .sif-card[data-offstage='1'] *{pointer-events:none!important}",
+      "}",
     ].join("");
     document.head.appendChild(style);
   }
@@ -189,6 +207,7 @@
     '</div>';
 
   var widget   = container.querySelector(".sif-widget");
+  if (desktopStyle === "accordion-3") widget.classList.add("sif-accordion");
   var viewport = widget.querySelector(".sif-viewport");
   var track    = widget.querySelector(".sif-track");
   var prevBtn  = widget.querySelector(".sif-arrow--left");
@@ -534,6 +553,12 @@
       c.el.style.transition = "none";
       c.el.style.transform  = mobileCardTransform(c.slot - centreSlot);
       c.el.offsetHeight;                       // force reflow so the jump is instant
+    } else if (isAccordionDesktop()){
+      c.el.style.left       = "50%";
+      c.el.style.marginLeft = (-getCardW()/2) + "px";
+      c.el.style.transition = "none";
+      applyAccordionCard(c);
+      c.el.offsetHeight;                       // force reflow so the jump is instant
     } else {
       c.el.style.left = (c.slot * getStep()) + "px";
     }
@@ -563,6 +588,7 @@
   //            ->  T = centreOffset() - centreSlot*step
   function setTrack(animated){
     if (isMobileLayout()){ applyMobileLayout(animated); return; }
+    if (isAccordionDesktop()){ applyAccordionLayout(animated); return; }
     track.style.transition = animated
       ? ("transform " + (slideMs()/1000) + "s " + slideEasing())
       : "none";
@@ -585,6 +611,13 @@
     return "translateX(" + x + "px) scale(" + scale + ")";
   }
   function applyMobileLayout(animated){
+    // Clear any accordion-mode inline overrides (filter !important, opacity)
+    // left over from desktop layout, so the mobile CSS applies cleanly when
+    // an accordion-3 widget is viewed at mobile width (e.g. on rotation).
+    cards.forEach(function(c){
+      c.el.style.removeProperty("filter");
+      c.el.style.opacity = "";
+    });
     var trans = animated
       ? ("transform " + slideMs() + "ms " + slideEasing() +
          ",filter " + slideMs() + "ms " + slideEasing())
@@ -616,6 +649,93 @@
     });
   }
 
+  // ── Accordion-3 desktop rendering (step 3b) ─────────────────────────
+  // Activated when desktopStyle === "accordion-3". Reuses the V=3 band
+  // (centre + two side cards visible at rest). Cards outside the visible
+  // window are positioned at the off-stage "far" spot with opacity 0; when
+  // they cycle into the visible window on a slide they translate + fade in,
+  // matching the look of the reels widget's accordion.
+  //
+  // Values lifted from reels/widget.js layout():
+  //   so = round(cardW * 0.68)   side translate distance
+  //   ss = 0.69                  side card scale
+  //   fs = 0.56                  off-stage card scale (the reels widget's
+  //                              `.is-far` slot — used here as the off-screen
+  //                              staging point)
+  //   transition .52s cubic-bezier(.4,0,.2,1) on transform/opacity/filter/box-shadow
+  //
+  // Inline `!important` is required for transform/filter because the desktop
+  // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
+  // would otherwise win over a plain inline style.
+  function isAccordionDesktop(){
+    return !isMobileLayout() && desktopStyle === "accordion-3";
+  }
+  function applyAccordionCard(c){
+    var rel   = c.slot - centreSlot;
+    var cardW = getCardW();
+    var so    = Math.round(cardW * 0.68);
+    var ss    = 0.69;
+    var fs    = 0.56;
+    var transform, filter, opacity, zIndex;
+    if (rel === 0){
+      transform = "translateX(0px) scale(1)";
+      filter    = "brightness(1)";
+      opacity   = 1;
+      zIndex    = 10;
+    } else if (rel === -1 || rel === 1){
+      transform = "translateX(" + (rel * so) + "px) scale(" + ss + ")";
+      filter    = "brightness(.55)";
+      opacity   = 1;
+      zIndex    = 5;
+    } else {
+      // Off-stage: positioned at the far-card spot, opacity 0. A card
+      // entering the visible window from here fades + slides into is-prev /
+      // is-next thanks to the unified .52s transition.
+      var d = rel < 0 ? -1 : 1;
+      transform = "translateX(" + (d * so * 1.55) + "px) scale(" + fs + ")";
+      filter    = "brightness(.3)";
+      opacity   = 0;
+      zIndex    = Math.max(1, 4 - Math.abs(rel));
+    }
+    c.el.style.setProperty("transform", transform, "important");
+    c.el.style.setProperty("filter",    filter,    "important");
+    c.el.style.opacity  = opacity;
+    c.el.style.zIndex   = zIndex;
+    c.el.dataset.offstage = (opacity === 0) ? "1" : "0";
+  }
+  function applyAccordionLayout(animated){
+    // The track itself never moves in accordion mode — each card animates
+    // its own transform (same model as applyMobileLayout above).
+    track.style.transition = "none";
+    track.style.transform  = "translateX(0px)";
+
+    var trans = animated
+      ? ("transform .52s cubic-bezier(.4,0,.2,1)," +
+         "opacity .52s cubic-bezier(.4,0,.2,1)," +
+         "filter .52s cubic-bezier(.4,0,.2,1)," +
+         "box-shadow .52s cubic-bezier(.4,0,.2,1)")
+      : "none";
+
+    // Pass 1: anchor + transition.
+    cards.forEach(function(c){
+      c.el.style.position   = "absolute";
+      c.el.style.top        = "0";
+      c.el.style.left       = "50%";
+      c.el.style.marginLeft = (-getCardW()/2) + "px";
+      c.el.style.transition = trans;
+    });
+
+    // Force the transition change to commit before applying transforms,
+    // for the same reason applyMobileLayout does it.
+    if (cards.length) cards[0].el.offsetHeight;
+
+    // Pass 2: per-card transforms.
+    cards.forEach(function(c){
+      applyAccordionCard(c);
+      if (!animated) c.el.offsetHeight;
+    });
+  }
+
   // Reel index of the card occupying `centreSlot`.
   function centreReel(){
     for (var i=0;i<n;i++) if (cards[i].slot === centreSlot) return cards[i].realIdx;
@@ -624,19 +744,25 @@
 
   function updateUI(){
     current = centreReel();
-    // Desktop: sync each card's scale transition to the slide (mobile is
-    // handled entirely by applyMobileLayout, which sets its own transitions).
-    var desktop = !isMobileLayout();
+    // Desktop row mode: sync each card's scale transition to the slide.
+    // Mobile is handled entirely by applyMobileLayout. Accordion mode is
+    // handled by applyAccordionLayout, which owns its own per-card
+    // transition AND its own z-index stacking — so this block must skip
+    // both for accordion.
+    var desktop   = !isMobileLayout();
+    var accordion = isAccordionDesktop();
     var cardTrans = "filter " + slideMs() + "ms " + slideEasing() +
                     ",box-shadow " + slideMs() + "ms " + slideEasing() +
                     ",transform " + slideMs() + "ms " + slideEasing();
     cards.forEach(function(c){
       var active = (c.slot === centreSlot);
-      if (desktop) c.el.style.transition = cardTrans;
+      if (desktop && !accordion) c.el.style.transition = cardTrans;
       c.el.classList.toggle("is-active", active);
-      // The active card must sit ON TOP of the side cards it overlaps.
-      // Cards nearer the centre stack above ones further away.
-      c.el.style.zIndex = active ? 3 : (Math.abs(c.slot - centreSlot) === 1 ? 2 : 1);
+      if (!accordion){
+        // The active card must sit ON TOP of the side cards it overlaps.
+        // Cards nearer the centre stack above ones further away.
+        c.el.style.zIndex = active ? 3 : (Math.abs(c.slot - centreSlot) === 1 ? 2 : 1);
+      }
     });
     dots.forEach(function(d,i){ d.classList.toggle("is-active", i===current); });
   }
