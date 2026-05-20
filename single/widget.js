@@ -59,7 +59,10 @@
       ".srv-widget{--srv-accent:#D30011;--srv-card-w:280px;--srv-card-h:496px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;padding:30px 60px 55px 30px;box-sizing:border-box;display:flex;align-items:flex-start}",
       ".srv-widget *{box-sizing:border-box;margin:0;padding:0}",
       ".srv-widget,.srv-widget *{-webkit-user-select:none!important;-moz-user-select:none!important;user-select:none!important;-webkit-user-drag:none!important}",
-      ".srv-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
+      // A11y: keep tap-highlight removal, restore focus outlines for keyboard
+      // users via :focus-visible (mouse clicks don't trigger it).
+      ".srv-widget button{-webkit-tap-highlight-color:transparent}",
+      ".srv-widget button:focus-visible{outline:2px solid #fff;outline-offset:2px}",
       ".srv-card{position:relative;width:var(--srv-card-w);height:var(--srv-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;-webkit-mask-image:-webkit-radial-gradient(white,black);-webkit-touch-callout:none;user-select:none;box-shadow:0 24px 64px rgba(0,0,0,.28);flex-shrink:0;touch-action:pan-y}",
       // While popped out, the card is fixed-positioned (lifted into the
       // overlay). transform-origin top-left so the scale animation lines up
@@ -103,7 +106,7 @@
       ".srv-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
       ".srv-bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:40px 16px 26px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
       ".srv-label{color:#fff;font-size:16px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);padding-left:4px;margin-right:20px}",
-      ".srv-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s}",
+      ".srv-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0;background:transparent;padding:0;color:inherit;font:inherit}",
       ".srv-play-btn.hidden{opacity:0;pointer-events:none}",
       ".srv-play-circle{width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;border-radius:50%!important;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5)!important;display:flex;align-items:center;justify-content:center;padding:0!important;transition:transform .18s,background .18s}",
       ".srv-play-btn:hover .srv-play-circle{transform:scale(1.1);background:rgba(255,255,255,.28)}",
@@ -180,9 +183,9 @@
         '<div class="srv-poster"><div class="srv-poster-bg"></div></div>' +
         '<video class="srv-video" playsinline preload="metadata"></video>' +
         '<div class="srv-bottom-bar"><div class="srv-label"></div></div>' +
-        '<div class="srv-play-btn"><div class="srv-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>' +
+        '<button class="srv-play-btn" aria-label="Play video"><div class="srv-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>' +
         '<div class="srv-pause-ind"><div class="srv-pause-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
-        '<button class="srv-mute-btn" aria-label="Toggle mute"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<button class="srv-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<button class="srv-popout-btn" aria-label="Pop out video">' +
           '<svg class="srv-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>' +
           '<svg class="srv-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>' +
@@ -330,6 +333,7 @@
     var x = muteBtn.querySelectorAll(".srv-mx1, .srv-mx2");
     u.forEach(function (el) { el.style.display = muted ? "none"  : "block"; });
     x.forEach(function (el) { el.style.display = muted ? "block" : "none";  });
+    muteBtn.setAttribute("aria-label", muted ? "Unmute audio" : "Mute audio");
   }
   muteBtn.addEventListener("click", function (e) {
     e.stopPropagation(); muted = !muted; video.muted = muted; syncMute();

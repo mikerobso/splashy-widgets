@@ -107,7 +107,15 @@
     style.setAttribute("data-splshy-infinite", "1");
     style.textContent = [
       ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
-      ".sif-widget button{outline:none!important;-webkit-tap-highlight-color:transparent}",
+      // A11y: keep the tap-highlight removal but stop forcibly removing the
+      // focus outline — keyboard users need a visible focus ring. Universal
+      // :focus-visible style is white-on-2px-offset (visible on dark cards);
+      // light-background controls (arrows are white-bg, dots sit on the page)
+      // override the colour below for contrast.
+      ".sif-widget button{-webkit-tap-highlight-color:transparent}",
+      ".sif-widget button:focus-visible{outline:2px solid #fff;outline-offset:2px}",
+      ".sif-arrow:focus-visible{outline-color:#111}",
+      ".sif-dot:focus-visible{outline-color:var(--sif-accent)}",
       ".sif-outer{position:relative;display:flex;align-items:center;justify-content:center}",
       ".sif-viewport{overflow:hidden;height:var(--sif-card-h);width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2)}",
       /* Track: a flex row of cards. We move it with translateX */
@@ -154,7 +162,7 @@
       ".sif-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
       ".sif-bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:40px 16px 26px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
       ".sif-title{color:#fff;font-size:16.5px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-left:4px;margin-right:20px}",
-      ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s}",
+      ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0;background:transparent;padding:0;color:inherit;font:inherit}",
       ".sif-play-btn.hidden{opacity:0;pointer-events:none}",
       ".sif-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sif-pause-ind.visible{opacity:1}",
@@ -206,7 +214,6 @@
       ".sif-arrow{position:absolute;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:#fff!important;border:none!important;box-shadow:0 3px 14px rgba(0,0,0,.13);cursor:pointer;display:none;align-items:center;justify-content:center;z-index:30;transition:background .18s,transform .18s,box-shadow .18s}",
       ".sif-arrow:hover{background:var(--sif-accent)!important;transform:translateY(-50%) scale(1.1);box-shadow:0 6px 20px rgba(211,0,17,.3)}",
       ".sif-arrow:hover svg polyline{stroke:#fff}",
-      ".sif-arrow:focus,.sif-arrow:focus-visible{outline:none}",
       ".sif-arrow--left{left:-24px}",
       ".sif-arrow--right{right:-24px}",
       // Accordion-mode arrow positioning. The fan is narrower than the
@@ -252,11 +259,11 @@
   container.innerHTML =
     '<div class="sif-widget">' +
       '<div class="sif-outer">' +
-        '<button class="sif-arrow sif-arrow--left" style="outline:none;padding:0!important;">' +
+        '<button class="sif-arrow sif-arrow--left" aria-label="Previous reel" style="padding:0!important;">' +
           '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;"><polyline points="10,2 2,10 10,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
         '</button>' +
         '<div class="sif-viewport"><div class="sif-track"></div></div>' +
-        '<button class="sif-arrow sif-arrow--right" style="outline:none;padding:0!important;">' +
+        '<button class="sif-arrow sif-arrow--right" aria-label="Next reel" style="padding:0!important;">' +
           '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;"><polyline points="2,2 10,10 2,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
         '</button>' +
       '</div>' +
@@ -309,6 +316,7 @@
     if (!btn) return;
     btn.querySelectorAll(".sif-unmute").forEach(function(el){ el.style.display=muted?"none":"block"; });
     btn.querySelectorAll(".sif-mx1,.sif-mx2").forEach(function(el){ el.style.display=muted?"block":"none"; });
+    btn.setAttribute("aria-label", muted ? "Unmute audio" : "Mute audio");
   }
 
   // ── Build cards ──────────────────────────────────────
@@ -380,9 +388,9 @@
           '</div>'+
         '</div>'+
         '<div class="sif-bottom-bar"><div class="sif-title">'+(reel.label||"")+'</div></div>'+
-        '<div class="sif-play-btn"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></div>'+
+        '<button class="sif-play-btn" aria-label="Play video"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>'+
         '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
-        '<button class="sif-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
+        '<button class="sif-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
         '<button class="sif-popout-btn" aria-label="Pop out video">'+
           '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+

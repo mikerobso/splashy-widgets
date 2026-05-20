@@ -317,7 +317,7 @@
       '<svg width="12" height="20" viewBox="0 0 12 20" fill="none"><polyline points="10,2 2,10 10,18" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
     '</button>' +
     '<div class="sst-stagebox">' +
-      '<button class="sst-close" aria-label="Close">&times;</button>' +
+      '<button class="sst-close" aria-label="Close stories">&times;</button>' +
       '<div class="sst-stage">' +
         '<video class="sst-video" playsinline webkit-playsinline muted preload="auto"></video>' +
         '<div class="sst-top">' +
@@ -327,7 +327,7 @@
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
         '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
         '<div class="sst-speed">2&times;</div>' +
-        '<button class="sst-mute-btn"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<button class="sst-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
         '<div class="sst-time-counter">0:00 / 0:00</div>' +
       '</div>' +
@@ -368,6 +368,7 @@
   function syncMuteIcon(){
     muteBtn.querySelectorAll(".sst-unmute").forEach(function(el){ el.style.display=globalMuted?"none":"block"; });
     muteBtn.querySelectorAll(".sst-mx1,.sst-mx2").forEach(function(el){ el.style.display=globalMuted?"block":"none"; });
+    muteBtn.setAttribute("aria-label", globalMuted ? "Unmute audio" : "Mute audio");
   }
 
   // Load + play the reel at index i.
