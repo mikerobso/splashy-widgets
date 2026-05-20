@@ -703,17 +703,22 @@
   // Inline `!important` is required for transform/filter because the desktop
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
-  // Single source of truth for the accordion's slide transition. All four
-  // properties share one curve so transform/scale/brightness/opacity stay
-  // locked together across the slide. The base .sif-card CSS uses .35s and
+  // Source of truth for the accordion's slide transition. Transform, scale,
+  // brightness, and box-shadow run over .52s with a snappy ease-out — the
+  // slow "rotation around the centre" feel. Opacity is intentionally
+  // SHORTER (.15s): off-stage cards translate inward toward the centre as
+  // they exit, and the fade resolves quickly so the card "moves just a bit
+  // and is hidden" rather than visibly dissolving over the whole slide.
+  // The reverse (entry from off-stage) emerges from behind the centre and
+  // becomes opaque early, then continues to translate outward to is-next /
+  // is-far over the remaining .37s. The base .sif-card CSS uses .35s and
   // omits opacity — but placeCard's accordion branch and applyAccordionLayout
   // BOTH set this inline whenever an accordion card is touched ("none" on
   // recycle, this string on slides), so the base never leaks through in
-  // accordion mode. Verified against every code path that writes
-  // `style.transition` on a card.
+  // accordion mode.
   var ACCORDION_TRANS =
     "transform .52s cubic-bezier(.4,0,.2,1)," +
-    "opacity .52s cubic-bezier(.4,0,.2,1)," +
+    "opacity .15s cubic-bezier(.4,0,.2,1)," +
     "filter .52s cubic-bezier(.4,0,.2,1)," +
     "box-shadow .52s cubic-bezier(.4,0,.2,1)";
 
@@ -756,19 +761,20 @@
       opacity   = 1;
       zIndex    = 2;
     } else {
-      // Off-stage. Slid fully past the visible viewport. Scale + brightness
-      // match the ADJACENT visible card (V=3: is-prev/next at ss/.55;
-      // V=5: is-far at fs/.3) so the only animated axis is translate.
+      // Off-stage. Animates INWARD toward translateX(0), shrinks small,
+      // dims, and fades quickly — reads as the card rotating "around the
+      // back" of the centre (carousel mental model). The opacity transition
+      // is .15s while transform/scale/brightness slide over the full .52s,
+      // so the card visibly moves a bit then is hidden, rather than
+      // dissolving over the whole slide. z-index is low so the off-stage
+      // card is fully behind the centre (z=10) and side cards (z=5).
+      // Entry from off-stage is the reverse: card emerges from behind the
+      // centre, becomes opaque early, then rotates outward to is-next /
+      // is-far over the rest of the .52s.
       offStage = true;
-      var dOff = rel < 0 ? -1 : 1;
-      var offScale      = (V === 5) ? fs : ss;
-      var offBrightness = (V === 5) ? ".3" : ".55";
-      // Viewport is calc(cardW*3 + gap*2); half-width is 1.5*cardW + gap.
-      // 2.5*cardW + gap puts the card comfortably past the visible edge at
-      // any reasonable desktop cardW.
-      transform = "translateX(" + (dOff * (2.5 * cardW + getGap())) + "px) scale(" + offScale + ")";
-      filter    = "brightness(" + offBrightness + ")";
-      opacity   = 1;
+      transform = "translateX(0px) scale(0.3)";
+      filter    = "brightness(.1)";
+      opacity   = 0;
       zIndex    = Math.max(1, 4 - Math.abs(rel));
     }
     c.el.style.setProperty("transform", transform, "important");
