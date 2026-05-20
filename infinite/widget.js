@@ -68,14 +68,30 @@
     return out;
   }
   var realCount = reels.length;
-  // Doubling: only accordion modes need the engine to have >= V+2 effective
-  // cards. Row mode never doubles (preserves the live VisitRaleigh behaviour
-  // at any reel count). "accordion-5" doubling lands in step 3c.
+  // Defensive: accordion-5 needs >= 5 reels to show 5 DISTINCT cards at rest.
+  // The builder enforces this (step 6), but a malformed embed could still
+  // arrive here — fall back to accordion-3 with a warning.
+  if (desktopStyle === "accordion-5" && realCount < 5){
+    console.warn("Splshy Infinite: accordion-5 requires >= 5 reels; falling back to accordion-3.");
+    desktopStyle = "accordion-3";
+  }
+  // Visible window width for the active desktop mode (V = 3 or 5, matching
+  // the plan's V=3/V=5 band derivations). Drives the band invariant and the
+  // accordion renderer; mobile rendering ignores V.
+  var V = (desktopStyle === "accordion-5") ? 5 : 3;
+  // Band left offset = -((V+1)/2). V=3 -> -2, V=5 -> -3. The band is shifted
+  // (V+1)/2 slots LEFT of symmetric so a card is always staged just off the
+  // visible left edge — see the unified pattern in the plan doc.
+  var bandLeftOffset = -(V + 1) / 2;
+  // Doubling: only accordion modes need n >= V+2 effective cards. Row mode
+  // never doubles (preserves the live behaviour at any reel count).
   var effectiveReels;
   if (desktopStyle === "accordion-3"){
-    effectiveReels = doubleReelsToFloor(reels, 5);   // V=3 floor = V+2 = 5
+    effectiveReels = doubleReelsToFloor(reels, 5);    // V=3 floor = V+2 = 5
+  } else if (desktopStyle === "accordion-5"){
+    effectiveReels = doubleReelsToFloor(reels, 7);    // V=5 floor = V+2 = 7
   } else {
-    effectiveReels = reels.slice();
+    effectiveReels = reels.slice();                   // row — unchanged
   }
   var n = effectiveReels.length;
 
@@ -207,7 +223,7 @@
     '</div>';
 
   var widget   = container.querySelector(".sif-widget");
-  if (desktopStyle === "accordion-3") widget.classList.add("sif-accordion");
+  if (desktopStyle === "accordion-3" || desktopStyle === "accordion-5") widget.classList.add("sif-accordion");
   var viewport = widget.querySelector(".sif-viewport");
   var track    = widget.querySelector(".sif-track");
   var prevBtn  = widget.querySelector(".sif-arrow--left");
@@ -668,7 +684,8 @@
   // CSS rule `.sif-card{transform:scale(1)!important;filter:brightness(1)!important}`
   // would otherwise win over a plain inline style.
   function isAccordionDesktop(){
-    return !isMobileLayout() && desktopStyle === "accordion-3";
+    return !isMobileLayout() &&
+           (desktopStyle === "accordion-3" || desktopStyle === "accordion-5");
   }
   function applyAccordionCard(c){
     var rel   = c.slot - centreSlot;
@@ -677,6 +694,13 @@
     var ss    = 0.69;
     var fs    = 0.56;
     var transform, filter, opacity, zIndex;
+    // V=3 (accordion-3): visible at rel 0, ±1; everything else is off-stage.
+    // V=5 (accordion-5): visible at rel 0, ±1, ±2; |rel| >= 3 is off-stage.
+    // is-far cards (rel ±2 in V=5) and off-stage cards share the same
+    // physical spot (translateX ±so*1.55, scale fs). Off-stage just sets
+    // opacity 0 — so a card cycling from off-stage to is-far simply fades
+    // in, and the visible motion (translate + scale + brightness) happens
+    // on the NEXT step when is-far becomes is-next.
     if (rel === 0){
       transform = "translateX(0px) scale(1)";
       filter    = "brightness(1)";
@@ -687,20 +711,25 @@
       filter    = "brightness(.55)";
       opacity   = 1;
       zIndex    = 5;
+    } else if (V === 5 && (rel === -2 || rel === 2)){
+      // is-far (V=5 only): visible, dimmed, sitting at the far spot.
+      var dFar = rel < 0 ? -1 : 1;
+      transform = "translateX(" + (dFar * so * 1.55) + "px) scale(" + fs + ")";
+      filter    = "brightness(.3)";
+      opacity   = 1;
+      zIndex    = 2;
     } else {
-      // Off-stage: positioned at the far-card spot, opacity 0. A card
-      // entering the visible window from here fades + slides into is-prev /
-      // is-next thanks to the unified .52s transition.
-      var d = rel < 0 ? -1 : 1;
-      transform = "translateX(" + (d * so * 1.55) + "px) scale(" + fs + ")";
+      // Off-stage. |rel| >= 2 in V=3, |rel| >= 3 in V=5.
+      var dOff = rel < 0 ? -1 : 1;
+      transform = "translateX(" + (dOff * so * 1.55) + "px) scale(" + fs + ")";
       filter    = "brightness(.3)";
       opacity   = 0;
       zIndex    = Math.max(1, 4 - Math.abs(rel));
     }
     c.el.style.setProperty("transform", transform, "important");
     c.el.style.setProperty("filter",    filter,    "important");
-    c.el.style.opacity  = opacity;
-    c.el.style.zIndex   = zIndex;
+    c.el.style.opacity    = opacity;
+    c.el.style.zIndex     = zIndex;
     c.el.dataset.offstage = (opacity === 0) ? "1" : "0";
   }
   function applyAccordionLayout(animated){
@@ -915,25 +944,29 @@
   }
 
   // ── Initial layout ───────────────────────────────────
-  // Invariant: cards always occupy the n consecutive slots
-  //   [centreSlot-2 .. centreSlot+n-3]
-  // The viewport shows slots [centreSlot-1 .. centreSlot+1]. The band is
-  // shifted one extra slot to the LEFT so a card is always staged just off
-  // the left edge, ready to slide in on a left step. For a right step the
-  // staged-left card is recycled to just off the right edge BEFORE animating
-  // (invisible, since it's off-screen at both ends), so it slides in smoothly
-  // too. This gives smooth entry in both directions for n = 4, 5, or 6.
-  // Start with reelIdx 0 centred (slot 0); reelIdx n-1 staged at slot -2,
-  // reelIdx n-2 at slot -1 ... i.e. the last two reels wrap to the left.
+  // Band invariant: cards always occupy the n consecutive slots
+  //   [centreSlot + bandLeftOffset .. centreSlot + bandLeftOffset + n - 1].
+  // V=3 (row, accordion-3): band [centre-2..centre+n-3]; visible window
+  //   [centre-1..centre+1].
+  // V=5 (accordion-5):       band [centre-3..centre+n-4]; visible window
+  //   [centre-2..centre+2].
+  // The band is shifted (V+1)/2 slots LEFT of symmetric, so a card is always
+  // staged just off the visible left edge. RIGHT steps recycle the staged-
+  // left card to off the right edge BEFORE animating; LEFT steps recycle
+  // the off-right card AFTER the slide. The recycle moves are invisible at
+  // both ends.
+  // Init: reel 0 starts centred (slot 0); the last (V+1)/2 reels wrap into
+  // the negative band slots so scrolling left loops cleanly. See the plan
+  // doc's V=5 derivation traces for n=7 and n=10.
   (function initEngine(){
     centreSlot = 0;
-    // Band must be [-2 .. n-3]. Assign reelIdx i to slot:
-    //   slot 0..n-3  -> reelIdx 0..n-3
-    //   slot -2, -1  -> reelIdx n-2, n-1
+    // Number of negative slots to fill = -bandLeftOffset = (V+1)/2.
+    // V=3 -> 2 (the last 2 reels wrap to slots -2, -1).
+    // V=5 -> 3 (the last 3 reels wrap to slots -3, -2, -1).
+    var negSlots = -bandLeftOffset;
     for (var i=0;i<n;i++){
-      if (i <= n-3)      cards[i].slot = i;
-      else if (i === n-2) cards[i].slot = -2;
-      else                cards[i].slot = -1;   // i === n-1
+      if (i <= n - 1 - negSlots) cards[i].slot = i;        // 0 .. n-1-negSlots
+      else                       cards[i].slot = i - n;    // -negSlots .. -1
     }
     placeAll();
     setTrack(false);
@@ -956,9 +989,10 @@
     busy = true;
 
     var newCentre = centreSlot + dir;
-    // Occupied band AFTER this step: [newCentre-2 .. newCentre+n-3].
-    var newBandLo = newCentre - 2;
-    var newBandHi = newCentre + n - 3;
+    // Occupied band AFTER this step. V=3 -> [newCentre-2 .. newCentre+n-3];
+    // V=5 -> [newCentre-3 .. newCentre+n-4]. Always exactly n slots wide.
+    var newBandLo = newCentre + bandLeftOffset;
+    var newBandHi = newBandLo + n - 1;
 
     if (dir === 1){
       // RIGHT step. The incoming card must enter from just off the right edge
@@ -1016,11 +1050,14 @@
     //    single swipe.
     //  • Desktop: a card may keep playing in a side slot; it is reset only
     //    once it is fully off-screen (outside [centreSlot-1 .. centreSlot+1]).
-    var mobile = isMobileLayout();
+    var mobile  = isMobileLayout();
+    // Desktop: a card may keep playing while it's in the visible window.
+    // V=3 -> rel in [-1..+1]; V=5 -> rel in [-2..+2] (is-far cards stay live).
+    var halfVis = (V - 1) / 2;
     cards.forEach(function(c){
       var shouldStop = mobile
         ? (c.slot !== centreSlot)
-        : (c.slot < centreSlot - 1 || c.slot > centreSlot + 1);
+        : (Math.abs(c.slot - centreSlot) > halfVis);
       if (shouldStop && (!c.video.paused || c.video.style.display === "block")){
         resetCard(c);
       }
