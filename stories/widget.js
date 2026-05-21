@@ -167,6 +167,12 @@
       ".sst-title{color:#fff;font-size:16.5px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
       ".sst-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sst-pause-ind.visible{opacity:1}",
+      // Buffering indicator: matches the other circular controls.
+      ".sst-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;opacity:0;transition:opacity .2s ease}",
+      ".sst-loading.visible{opacity:1}",
+      ".sst-loading::after{content:\"\";width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,.25);border-top-color:rgba(255,255,255,.95);animation:sst-spin .8s linear infinite}",
+      "@keyframes sst-spin{to{transform:rotate(360deg)}}",
+      "@media (prefers-reduced-motion: reduce){.sst-loading::after{animation:none}}",
       ".sst-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}",
       ".sst-mute-btn{position:absolute;bottom:54px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;padding:0;-webkit-tap-highlight-color:transparent}",
       ".sst-mute-btn svg{width:16px;height:16px}",
@@ -359,6 +365,7 @@
         '</div>' +
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
         '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
+        '<div class="sst-loading" role="status" aria-label="Loading video"></div>' +
         '<div class="sst-speed">2&times;</div>' +
         '<button class="sst-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<div class="sst-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
@@ -384,6 +391,14 @@
   var ringEl   = overlay.querySelector(".sst-timer-ring");
   var timerTx  = overlay.querySelector(".sst-timer-text");
   var pauseInd = overlay.querySelector(".sst-pause-ind");
+  var loadingEl = overlay.querySelector(".sst-loading");
+  // Buffering: show on `waiting`, hide on `playing`/`canplay`/`error`. Also
+  // hide on `loadeddata` since src changes per reel and we want a clean slate.
+  video.addEventListener("waiting",     function(){ if (loadingEl) loadingEl.classList.add("visible"); });
+  video.addEventListener("playing",     function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  video.addEventListener("canplay",     function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  video.addEventListener("loadeddata",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  video.addEventListener("error",       function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
   var speedEl  = overlay.querySelector(".sst-speed");
   var muteBtn  = overlay.querySelector(".sst-mute-btn");
   var progBar  = overlay.querySelector(".sst-progress");

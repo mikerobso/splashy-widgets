@@ -129,6 +129,13 @@
       ".srv-play-circle svg{margin-left:4px;display:block}",
       ".srv-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".srv-pause-ind.visible{opacity:1}",
+      // Buffering indicator: dark glassy circle + spinning arc, styled to
+      // match the other circular controls. Driven by waiting/playing events.
+      ".srv-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;opacity:0;transition:opacity .2s ease}",
+      ".srv-loading.visible{opacity:1}",
+      ".srv-loading::after{content:\"\";width:22px;height:22px;border-radius:50%;border:2.5px solid rgba(255,255,255,.25);border-top-color:rgba(255,255,255,.95);animation:srv-spin .8s linear infinite}",
+      "@keyframes srv-spin{to{transform:rotate(360deg)}}",
+      "@media (prefers-reduced-motion: reduce){.srv-loading::after{animation:none}}",
       ".srv-pause-circle{width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;border-radius:50%!important;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5)!important;display:flex;align-items:center;justify-content:center;padding:0!important}",
       ".srv-pause-circle svg{display:block;margin-left:0}",
       ".srv-mute-btn{position:absolute;bottom:58px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:flex;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s}",
@@ -214,6 +221,7 @@
         '<div class="srv-bottom-bar"><div class="srv-label"></div></div>' +
         '<button class="srv-play-btn" aria-label="Play video"><div class="srv-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>' +
         '<div class="srv-pause-ind"><div class="srv-pause-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
+        '<div class="srv-loading" role="status" aria-label="Loading video"></div>' +
         '<button class="srv-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<button class="srv-popout-btn" aria-label="Pop out video">' +
           '<svg class="srv-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>' +
@@ -233,6 +241,12 @@
   var muteBtn   = widget.querySelector(".srv-mute-btn");
   var popoutBtn = widget.querySelector(".srv-popout-btn");
   var pauseInd  = widget.querySelector(".srv-pause-ind");
+  var loadingEl = widget.querySelector(".srv-loading");
+  // Buffering: show on `waiting`, hide on `playing`/`canplay`/`error`.
+  video.addEventListener("waiting",  function(){ if (loadingEl) loadingEl.classList.add("visible"); });
+  video.addEventListener("playing",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  video.addEventListener("canplay",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  video.addEventListener("error",    function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
   var speedInd  = widget.querySelector(".srv-speed");
   var progBar   = widget.querySelector(".srv-progress");
   var progFill  = widget.querySelector(".srv-progress-fill");
