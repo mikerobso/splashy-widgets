@@ -185,8 +185,8 @@
       ".sif-card.sif-popped{position:fixed!important;z-index:100000!important;margin:0!important;transition:transform .34s cubic-bezier(.2,.8,.25,1),box-shadow .34s ease!important}",
       ".sif-card.sif-popped.sif-popped--open{box-shadow:0 40px 90px rgba(0,0,0,.55)!important}",
       /* Mobile: dim side cards */
-      "@media(max-width:767px){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:68vh;--sif-card-w:calc(68vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
-      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:68vh;--sif-card-w:calc(68vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(max-width:767px){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:68.25vh;--sif-card-w:calc(68.25vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
+      "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:68.25vh;--sif-card-w:calc(68.25vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget{--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:45px}}",
       /* Poster */
