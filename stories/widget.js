@@ -187,6 +187,9 @@
       ".sst-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%}",
       ".sst-progress-thumb{position:absolute;bottom:-3px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
       ".sst-progress:focus-visible{outline:2px solid #fff;outline-offset:2px}",
+      // Visually hidden but exposed to screen readers — used for the
+      // aria-live announcement region inside the overlay.
+      ".sst-live{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",
       // Count-up timer ("0:30 / 0:40") shown above the scrub bar. The stories
       // scrub bar lives in the fullscreen overlay and is always visible there,
       // so the counter is also always visible (no transition needed). z-index
@@ -325,7 +328,17 @@
 
   var overlay = document.createElement("div");
   overlay.className = "sst-overlay";
+  // Modal dialog semantics so screen readers announce overlay opening as a
+  // story-viewer dialog rather than a stray region. aria-modal hints that
+  // the rest of the page is non-interactive while this is open.
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Story viewer");
   overlay.innerHTML =
+    // Visually-hidden live region for reel-change announcements. Updated in
+    // playIndex() with "Story N of M: Title" so screen-reader users get
+    // told which story is playing on open, manual nav, AND auto-advance.
+    '<div class="sst-live" aria-live="polite" aria-atomic="true"></div>' +
     '<button class="sst-arrow sst-arrow--left" aria-label="Previous">' +
       '<svg width="12" height="20" viewBox="0 0 12 20" fill="none"><polyline points="10,2 2,10 10,18" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
     '</button>' +
@@ -393,6 +406,12 @@
     playFired = false; progressFired = false;   // reset tracking for the new reel
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
+    // a11y: announce reel change to screen readers via the live region.
+    var liveEl = overlay.querySelector(".sst-live");
+    if (liveEl) {
+      var t = reel.videoTitle || reel.label || "";
+      liveEl.textContent = "Story " + (cur + 1) + " of " + n + (t ? ": " + t : "");
+    }
     progFill.style.width = "0%"; progThumb.style.left = "0%";
     ringEl.style.strokeDashoffset = 0;
     timerTx.textContent = "--";
@@ -449,6 +468,8 @@
 
   // Remembers which ring the overlay popped out of, so closing can pop back.
   var originRing = null;
+  var originItem = null;   // the .sst-item button that opened the overlay,
+                           // so we can restore focus to it on close.
   function popMs(){ return isMobileLayout() ? 529 : 620; }
 
   // The chrome elements that stagger in after the stage pops out.
@@ -520,11 +541,20 @@
 
   function openOverlay(i, ring){
     originRing = ring || null;
+    originItem = ring && ring.closest ? ring.closest(".sst-item") : null;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
     if (originRing) originRing.style.transform = "scale(.86)";   // ring dips
     setChrome(false, true);                                      // chrome hidden
     playIndex(i);
+    // a11y: move focus into the overlay so keyboard users land on a real
+    // control (the close button is the natural entry point). preventScroll
+    // avoids the page jumping during the pop-in animation.
+    var closeBtn = overlay.querySelector(".sst-close");
+    if (closeBtn) {
+      try { closeBtn.focus({ preventScroll: true }); }
+      catch(e) { closeBtn.focus(); }
+    }
 
     var g = originRing ? ringGeometry(originRing) : null;
     if (g){
@@ -560,6 +590,14 @@
       overlay.style.transition = "";
       overlay.style.opacity = "";
       if (originRing){ originRing.style.transform = ""; originRing.style.transition = ""; originRing = null; }
+      // a11y: return focus to the story circle that opened the overlay, so
+      // a keyboard user lands back where they started instead of at the
+      // top of the page.
+      if (originItem) {
+        try { originItem.focus({ preventScroll: true }); }
+        catch(e) { originItem.focus(); }
+        originItem = null;
+      }
       setChrome(true, true);   // reset for next open
       video.removeAttribute("src");
       video.load();
@@ -733,6 +771,31 @@
       handled = true;
     }
     if (handled){ e.preventDefault(); e.stopPropagation(); }
+  });
+
+  // a11y: focus trap. While the overlay is open, Tab / Shift+Tab cycle
+  // through the overlay's focusable controls instead of escaping to the
+  // page behind it. Matches the standard modal-dialog pattern.
+  overlay.addEventListener("keydown", function(e){
+    if (e.key !== "Tab") return;
+    if (!overlay.classList.contains("open")) return;
+    var focusable = overlay.querySelectorAll(
+      "button:not([disabled]), [tabindex='0'], a[href]"
+    );
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   });
 
   // Swipe left/right inside the overlay to change reel.
