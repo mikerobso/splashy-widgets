@@ -387,6 +387,9 @@
       video.src=reel.videoUrl;
       video.setAttribute("playsinline","");
       video.setAttribute("preload","metadata");
+      // a11y: label the video so screen-reader rotor / video-element nav
+      // identifies it by reel title rather than as an unnamed media element.
+      video.setAttribute("aria-label", "Video: " + (reel.label || "Untitled"));
       if (reel.posterUrl) video.setAttribute("poster",reel.posterUrl);
       card.appendChild(video);
 
@@ -1006,6 +1009,22 @@
       }
     });
     dots.forEach(function(d,i){ d.classList.toggle("is-active", i===current); });
+    // a11y: only the centre card's interactive elements stay in the tab
+    // order. Off-centre cards (visible on row mode, faded on accordion)
+    // get tabindex="-1" on IG link / mute / pop-out / scrub bar so a Tab
+    // user goes ARROWS → centre card's controls → DOTS, instead of having
+    // to tab through every card's controls in sequence. The popped-card
+    // path (openPopout) overrides this for whichever card is popped.
+    cards.forEach(function(c){
+      var isCentre = (c.slot === centreSlot);
+      var skippable = c.el.querySelectorAll(".sif-top-bar a, .sif-mute-btn, .sif-popout-btn");
+      skippable.forEach(function(el){
+        if (isCentre) el.removeAttribute("tabindex");
+        else el.setAttribute("tabindex", "-1");
+      });
+      var pg = c.el.querySelector(".sif-progress");
+      if (pg) pg.setAttribute("tabindex", isCentre ? "0" : "-1");
+    });
     // a11y: announce reel change via the live region. updateUI fires on
     // every step (arrow / dot / swipe / keyboard nav) AND on initial layout.
     // Setting the live region during initial render doesn't cause an
@@ -1135,6 +1154,14 @@
     document.body.style.overflow = "hidden"; // lock page scroll while popped
     popoutIcons(el, true);
     setTimeout(function(){ popBusy = false; }, 360);
+    // a11y: restore tabindex on the popped card's interactive elements
+    // (updateUI may have set them to "-1" if this was an off-centre card)
+    // so the focus trap can find them.
+    el.querySelectorAll(".sif-top-bar a, .sif-mute-btn, .sif-popout-btn").forEach(function(b){
+      b.removeAttribute("tabindex");
+    });
+    var prog = el.querySelector(".sif-progress");
+    if (prog) prog.setAttribute("tabindex", "0");
     // a11y: move keyboard focus to the pop-out button (which now acts as
     // close) so the user has a clear path out. Animations need a moment
     // to settle; preventScroll keeps the page from jumping.
@@ -1470,6 +1497,45 @@
   // when there's nothing to toggle (e.g. after an accordion slide on a card
   // that hasn't been played yet). Mirrors the card-click handler's pause-
   // indicator toggle so the visual state stays consistent.
+  // M = toggle mute on the currently-active video (YouTube convention).
+  // Idempotent across widget scripts via window.SPLSHY_MUTE_HOOKED. Same
+  // target-finding strategy as the Space handler. Dispatches a click on
+  // the widget's own mute button so all the existing state-sync (icon,
+  // aria-label, aria-pressed, global mute) runs as if the user clicked.
+  if (!window.SPLSHY_MUTE_HOOKED) {
+    window.SPLSHY_MUTE_HOOKED = true;
+    document.addEventListener("keydown", function(e){
+      if (e.key !== "m" && e.key !== "M") return;
+      var t = e.target;
+      if (t){
+        var tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
+      }
+      var vids = document.querySelectorAll("video"), target = null;
+      for (var i = 0; i < vids.length; i++){
+        var v = vids[i];
+        if (v.style.display === "block" && !v.paused){ target = v; break; }
+      }
+      if (!target){
+        var last = window.SPLSHY_LAST_PLAYED;
+        if (last && last.style.display === "block") target = last;
+      }
+      if (!target){
+        for (var i = 0; i < vids.length; i++){
+          var v = vids[i];
+          if (v.style.display === "block"){ target = v; break; }
+        }
+      }
+      if (!target) return;
+      var card = target.closest(".sif-card, .srv-card, .sst-stage");
+      if (!card) return;
+      var muteBtn = card.querySelector(".sif-mute-btn, .srv-mute-btn, .sst-mute-btn");
+      if (!muteBtn) return;
+      e.preventDefault();
+      muteBtn.click();
+    });
+  }
+
   if (!window.SPLSHY_SPACE_HOOKED) {
     window.SPLSHY_SPACE_HOOKED = true;
 

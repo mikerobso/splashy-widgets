@@ -223,6 +223,9 @@
   var widget = document.createElement("div");
   widget.className = "sst-widget";
   var row = document.createElement("div");
+  // a11y: expose the row as a list of stories so screen readers announce
+  // "list of N stories" and offer list-item navigation.
+  row.setAttribute("role", "list");
   row.className = "sst-row";
   widget.appendChild(row);
 
@@ -230,6 +233,7 @@
     var item = document.createElement("button");
     item.className = "sst-item";
     item.setAttribute("type", "button");  // prevent any wrapping <form> submission
+    item.setAttribute("role", "listitem"); // paired with role="list" on the row
     item.setAttribute("aria-label", reel.label ? "Open story: " + reel.label : "Open story " + (i + 1));
     var ring = document.createElement("div");
     ring.className = "sst-ring";
@@ -438,6 +442,8 @@
     // video's own first frame as soon as it decodes — never the headshot.
     video.removeAttribute("poster");
     video.src = reel.videoUrl;
+    // a11y: name the video element with the current reel's title.
+    video.setAttribute("aria-label", "Video: " + (reel.videoTitle || reel.label || "Story " + (cur + 1)));
     video.load();
 
     function tryPlay(){
@@ -847,6 +853,42 @@
   // when no video is visible — so Space falls through to default page-scroll
   // when there's nothing to toggle. Mirrors the card-click handler's pause-
   // indicator toggle so the visual state stays consistent.
+  // M = toggle mute on the currently-active video. Idempotent via the
+  // SPLSHY_MUTE_HOOKED flag.
+  if (!window.SPLSHY_MUTE_HOOKED) {
+    window.SPLSHY_MUTE_HOOKED = true;
+    document.addEventListener("keydown", function(e){
+      if (e.key !== "m" && e.key !== "M") return;
+      var t = e.target;
+      if (t){
+        var tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
+      }
+      var vids = document.querySelectorAll("video"), target = null;
+      for (var i = 0; i < vids.length; i++){
+        var v = vids[i];
+        if (v.style.display === "block" && !v.paused){ target = v; break; }
+      }
+      if (!target){
+        var last = window.SPLSHY_LAST_PLAYED;
+        if (last && last.style.display === "block") target = last;
+      }
+      if (!target){
+        for (var i = 0; i < vids.length; i++){
+          var v = vids[i];
+          if (v.style.display === "block"){ target = v; break; }
+        }
+      }
+      if (!target) return;
+      var card = target.closest(".sif-card, .srv-card, .sst-stage");
+      if (!card) return;
+      var muteBtn = card.querySelector(".sif-mute-btn, .srv-mute-btn, .sst-mute-btn");
+      if (!muteBtn) return;
+      e.preventDefault();
+      muteBtn.click();
+    });
+  }
+
   if (!window.SPLSHY_SPACE_HOOKED) {
     window.SPLSHY_SPACE_HOOKED = true;
 

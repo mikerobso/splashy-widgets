@@ -242,6 +242,9 @@
     video.setAttribute("poster", posterUrl);
   }
   if (videoUrl) video.src = videoUrl;
+  // a11y: name the video so screen-reader rotor / video-element nav
+  // identifies it by reel title rather than as an unnamed media element.
+  video.setAttribute("aria-label", "Video: " + (label || "Untitled"));
 
   // Top bar
   var RING_C = (2 * Math.PI * 20).toFixed(2);
@@ -626,6 +629,42 @@
   // when no video is visible — so Space falls through to default page-scroll
   // when there's nothing to toggle. Mirrors the card-click handler's pause-
   // indicator toggle so the visual state stays consistent.
+  // M = toggle mute on the currently-active video. Idempotent via the
+  // SPLSHY_MUTE_HOOKED flag (same pattern as the Space hook).
+  if (!window.SPLSHY_MUTE_HOOKED) {
+    window.SPLSHY_MUTE_HOOKED = true;
+    document.addEventListener("keydown", function(e){
+      if (e.key !== "m" && e.key !== "M") return;
+      var t = e.target;
+      if (t){
+        var tag = t.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || t.isContentEditable) return;
+      }
+      var vids = document.querySelectorAll("video"), target = null;
+      for (var i = 0; i < vids.length; i++){
+        var v = vids[i];
+        if (v.style.display === "block" && !v.paused){ target = v; break; }
+      }
+      if (!target){
+        var last = window.SPLSHY_LAST_PLAYED;
+        if (last && last.style.display === "block") target = last;
+      }
+      if (!target){
+        for (var i = 0; i < vids.length; i++){
+          var v = vids[i];
+          if (v.style.display === "block"){ target = v; break; }
+        }
+      }
+      if (!target) return;
+      var card = target.closest(".sif-card, .srv-card, .sst-stage");
+      if (!card) return;
+      var muteBtn = card.querySelector(".sif-mute-btn, .srv-mute-btn, .sst-mute-btn");
+      if (!muteBtn) return;
+      e.preventDefault();
+      muteBtn.click();
+    });
+  }
+
   if (!window.SPLSHY_SPACE_HOOKED) {
     window.SPLSHY_SPACE_HOOKED = true;
 
