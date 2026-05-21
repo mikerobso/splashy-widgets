@@ -31,6 +31,11 @@
   var videoUrl      = cfg.videoUrl      || "";
   var posterUrl     = cfg.posterUrl     || "";
   var label         = cfg.label         || "";
+  // Hover preview: 1.25s after the cursor lands on the card, the video plays
+  // muted from 0.5s for 5s, then freezes on the last frame. Clicking the
+  // card during preview commits to real playback. Default ON; builder
+  // emits `hoverPreview: false` to disable per-embed.
+  var hoverPreview  = cfg.hoverPreview !== false;
 
   // The Instagram-style gradient ring (matches the other Splshy widgets).
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
@@ -341,6 +346,7 @@
   var previewTimer = null;
   var previewEndTimer = null;
   function startPreview(){
+    if (!hoverPreview) return;
     if (previewState !== "idle") return;
     if (video.style.display === "block") return;
     if (popped || popBusy) return;
@@ -354,7 +360,7 @@
     if (previewEndTimer) clearTimeout(previewEndTimer);
     previewEndTimer = setTimeout(function(){
       if (previewState === "previewing") video.pause();
-    }, 3000);
+    }, 5000);
   }
   function endPreview(){
     if (previewState !== "previewing") return;

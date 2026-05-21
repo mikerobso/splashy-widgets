@@ -81,6 +81,11 @@
     console.warn("Splshy Infinite: accordion-3 requires >= 3 reels; falling back to row.");
     desktopStyle = "row";
   }
+  // Hover preview: when a card is hovered for 1.25s, it plays a muted 5s
+  // preview from the 0.5s mark and freezes on the last frame. Clicking the
+  // card during preview commits to real playback (resets to 0, plays with
+  // audio). Default ON; builder emits `hoverPreview: false` to disable.
+  var hoverPreview = cfg.hoverPreview !== false;
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
   // accordion renderer; mobile rendering ignores V.
@@ -495,6 +500,7 @@
       var previewTimer = null;
       var previewEndTimer = null;
       function shouldStartPreview(){
+        if (!hoverPreview) return false;
         if (isMobileLayout()) return false;
         if (popped) return false;
         if (busy) return false;
@@ -516,7 +522,7 @@
         if (previewEndTimer) clearTimeout(previewEndTimer);
         previewEndTimer = setTimeout(function(){
           if (previewState === "previewing") video.pause();   // freeze on last frame
-        }, 3000);
+        }, 5000);
       }
       function endPreview(){
         if (previewState !== "previewing") return;
