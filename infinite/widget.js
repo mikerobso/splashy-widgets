@@ -196,6 +196,13 @@
         ".sif-card .sif-mute-btn.visible,.sif-card .sif-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
         ".sif-card:hover .sif-mute-btn.visible,.sif-card:hover .sif-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
       "}",
+      // Keyboard-focused mute/pop-out reappear immediately even if the
+      // hover-fade has dropped them to opacity:0 — otherwise a Tab user
+      // lands on an invisible button with no visible focus state.
+      ".sif-mute-btn:focus-visible,.sif-popout-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
+      // Visually-hidden live region: SR-only "Reel N of M" announcements
+      // on carousel navigation (set in updateUI).
+      ".sif-live{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",
       ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".sif-speed.visible{opacity:1}",
       ".sif-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end}",
@@ -286,6 +293,7 @@
         '</button>' +
       '</div>' +
       '<div class="sif-dots"></div>' +
+      '<div class="sif-live" aria-live="polite" aria-atomic="true"></div>' +
     '</div>';
 
   var widget   = container.querySelector(".sif-widget");
@@ -310,6 +318,12 @@
   // into it (the overlay is outside .sif-widget, so it can't inherit them).
   var overlay = document.createElement("div");
   overlay.className = "sif-overlay";
+  // Pop-out overlay is a modal dialog — same a11y pattern as the stories
+  // overlay: SR announces "Video pop-out dialog", aria-modal hints that the
+  // rest of the page is non-interactive while it's open.
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Video pop-out");
   if (ringIsGradient) overlay.style.setProperty("--sif-ring-grad", IG_RING);
   else overlay.style.setProperty("--sif-logo-ring", logoRing);
   document.body.appendChild(overlay);
@@ -992,6 +1006,21 @@
       }
     });
     dots.forEach(function(d,i){ d.classList.toggle("is-active", i===current); });
+    // a11y: announce reel change via the live region. updateUI fires on
+    // every step (arrow / dot / swipe / keyboard nav) AND on initial layout.
+    // Setting the live region during initial render doesn't cause an
+    // announcement (SRs only fire on changes after page-load settles).
+    var liveEl = widget.querySelector(".sif-live");
+    if (liveEl){
+      var centreCard = null;
+      for (var i = 0; i < cards.length; i++){
+        if (cards[i].slot === centreSlot){ centreCard = cards[i]; break; }
+      }
+      if (centreCard){
+        var lbl = (effectiveReels[centreCard.reelIdx] && effectiveReels[centreCard.reelIdx].label) || "";
+        liveEl.textContent = "Reel " + (current + 1) + " of " + realCount + (lbl ? ": " + lbl : "");
+      }
+    }
   }
 
   function resetCard(c){
@@ -1031,6 +1060,9 @@
     var inn = cardEl.querySelector(".sif-popin-icon");
     if (out) out.style.display = showPopin ? "none" : "block";
     if (inn) inn.style.display = showPopin ? "block" : "none";
+    // a11y: keep the button's aria-label in sync with what it now does.
+    var btn = cardEl.querySelector(".sif-popout-btn");
+    if (btn) btn.setAttribute("aria-label", showPopin ? "Close pop-out" : "Pop out video");
   }
 
   function openPopout(c){
@@ -1103,6 +1135,16 @@
     document.body.style.overflow = "hidden"; // lock page scroll while popped
     popoutIcons(el, true);
     setTimeout(function(){ popBusy = false; }, 360);
+    // a11y: move keyboard focus to the pop-out button (which now acts as
+    // close) so the user has a clear path out. Animations need a moment
+    // to settle; preventScroll keeps the page from jumping.
+    setTimeout(function(){
+      var btn = el.querySelector(".sif-popout-btn");
+      if (btn) {
+        try { btn.focus({ preventScroll: true }); }
+        catch(err) { btn.focus(); }
+      }
+    }, 380);
   }
 
   function closePopout(){
@@ -1146,6 +1188,14 @@
       // Re-assert the engine's layout in case anything drifted.
       placeCard(c);
       updateUI();
+      // a11y: return focus to the pop-out button on the now-on-track card,
+      // so the keyboard user lands back where they triggered the pop-out
+      // (the button is still visible since the video is still playing).
+      var btn = el.querySelector(".sif-popout-btn");
+      if (btn) {
+        try { btn.focus({ preventScroll: true }); }
+        catch(err) { btn.focus(); }
+      }
     }, 360);
   }
 
@@ -1340,6 +1390,31 @@
   // Click the dim backdrop (outside the card) to close the pop-out.
   overlay.addEventListener("click",function(e){
     if (e.target === overlay) closePopout();
+  });
+
+  // a11y: focus trap while popped. Tab / Shift+Tab cycles through the
+  // popped card's interactive controls (IG link, mute, pop-out, scrub)
+  // instead of escaping to the page behind the overlay.
+  overlay.addEventListener("keydown", function(e){
+    if (e.key !== "Tab") return;
+    if (!overlay.classList.contains("open")) return;
+    var focusable = overlay.querySelectorAll(
+      "button:not([disabled]), [tabindex='0'], a[href]"
+    );
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   });
 
   // Resize handling. On mobile, scrolling the page makes the browser's URL

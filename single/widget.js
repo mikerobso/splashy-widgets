@@ -139,6 +139,9 @@
         ".srv-card .srv-mute-btn.visible,.srv-card .srv-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
         ".srv-card:hover .srv-mute-btn.visible,.srv-card:hover .srv-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
       "}",
+      // Keyboard-focused mute/pop-out reappear immediately even if the
+      // hover-fade has dropped them to opacity:0.
+      ".srv-mute-btn:focus-visible,.srv-popout-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
       ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".srv-speed.visible{opacity:1}",
       ".srv-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end;touch-action:none}",
@@ -374,6 +377,11 @@
   // correct and independent.
   var overlay = document.createElement("div");
   overlay.className = "srv-overlay";
+  // Pop-out overlay is a modal dialog (same pattern as the stories overlay
+  // and the infinite pop-out).
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Video pop-out");
   document.body.appendChild(overlay);
   // The logo ring's colour/gradient comes from a CSS variable set on
   // .srv-widget. When the card is popped it is moved INTO this overlay —
@@ -388,6 +396,8 @@
     var inn = popoutBtn.querySelector(".srv-popin-icon");
     if (out) out.style.display = showPopin ? "none" : "block";
     if (inn) inn.style.display = showPopin ? "block" : "none";
+    // a11y: keep the button's aria-label in sync with what it now does.
+    popoutBtn.setAttribute("aria-label", showPopin ? "Close pop-out" : "Pop out video");
   }
 
   function openPopout(){
@@ -447,6 +457,12 @@
 
     popoutIcons(true);
     setTimeout(function(){ popBusy = false; }, 360);
+    // a11y: move focus to the pop-out button (now acting as close) once
+    // the animation has settled.
+    setTimeout(function(){
+      try { popoutBtn.focus({ preventScroll: true }); }
+      catch(err) { popoutBtn.focus(); }
+    }, 380);
   }
 
   function closePopout(){
@@ -476,6 +492,10 @@
       popped = false;
       popBusy = false;
       popoutIcons(false);
+      // a11y: restore focus to the pop-out button (now on the card back
+      // in its layout slot) so keyboard users land where they started.
+      try { popoutBtn.focus({ preventScroll: true }); }
+      catch(err) { popoutBtn.focus(); }
     }, 360);
   }
 
@@ -486,6 +506,29 @@
   popoutBtn.addEventListener("click", function(e){
     e.stopPropagation();
     togglePopout();
+  });
+  // a11y: focus trap while popped. Tab / Shift+Tab cycles through the
+  // popped card's interactive controls instead of escaping to the page.
+  overlay.addEventListener("keydown", function(e){
+    if (e.key !== "Tab") return;
+    if (!overlay.classList.contains("open")) return;
+    var focusable = overlay.querySelectorAll(
+      "button:not([disabled]), [tabindex='0'], a[href]"
+    );
+    if (!focusable.length) return;
+    var first = focusable[0];
+    var last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (document.activeElement === last || !overlay.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   });
   // Click the dim backdrop (outside the card) to close.
   overlay.addEventListener("click", function(e){

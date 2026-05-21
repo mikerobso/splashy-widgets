@@ -179,6 +179,9 @@
         ".sst-stage .sst-mute-btn{opacity:0;transition:opacity .35s ease 2s}",
         ".sst-stage:hover .sst-mute-btn{opacity:1;transition:opacity .15s ease 0s}",
       "}",
+      // Keyboard-focused mute reappears immediately even if the hover-fade
+      // has dropped it to opacity:0.
+      ".sst-mute-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
       ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;box-sizing:border-box}",
       ".sst-speed.visible{opacity:1}",
       // Progress bar
