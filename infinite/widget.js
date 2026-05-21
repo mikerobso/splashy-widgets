@@ -614,10 +614,9 @@
         fadeIn();
         playBtn.classList.add("preview-active");
         video.play().catch(function(){});
-        if (previewEndTimer) clearTimeout(previewEndTimer);
-        previewEndTimer = setTimeout(function(){
-          if (previewState === "previewing") video.pause();   // freeze on last frame
-        }, 5000);
+        // No auto-pause: preview plays as long as the cursor stays on the
+        // card. mouseleave (endPreview) is the only thing that stops it.
+        // Matches the single widget's behavior.
       }
       function endPreview(){
         if (previewState !== "previewing") return;
