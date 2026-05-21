@@ -111,8 +111,8 @@
   // Fires an event to whichever analytics the host page uses — gtag (GA4
   // direct) or dataLayer (Google Tag Manager). If neither exists, it does
   // nothing, so the widget never errors on a page without analytics.
-  // (Mirrors the stories widget's track() pattern.)
-  function track(eventName, params){
+  // (Mirrors the stories widget's trackEvent() pattern.)
+  function trackEvent(eventName, params){
     try {
       var data = params || {};
       data.widget_type     = "infinite_carousel";
@@ -543,7 +543,7 @@
         // GA4: video_progress at the 50% mark, once per playback session.
         if (!cardObj._progressFired && pct >= 0.5){
           cardObj._progressFired = true;
-          track("video_progress", reelParams(cardObj.reelIdx));
+          trackEvent("video_progress", reelParams(cardObj.reelIdx));
         }
       });
       video.addEventListener("ended",function(){
@@ -734,14 +734,14 @@
       video.addEventListener("playing", function(){
         if (!cardObj._playFired){
           cardObj._playFired = true;
-          track("video_play", reelParams(cardObj.reelIdx));
+          trackEvent("video_play", reelParams(cardObj.reelIdx));
         }
       });
       video.addEventListener("ended", function(){
-        track("video_complete", reelParams(cardObj.reelIdx));
+        trackEvent("video_complete", reelParams(cardObj.reelIdx));
       });
       video.addEventListener("error", function(){
-        track("video_error", reelParams(cardObj.reelIdx));
+        trackEvent("video_error", reelParams(cardObj.reelIdx));
       });
 
       var progBar=card.querySelector(".sif-progress");
@@ -867,7 +867,7 @@
       dot.className = "sif-dot";
       dot.setAttribute("aria-label","Reel "+(rIdx+1));
       dot.addEventListener("click", function(){
-        track("widget_navigate", { direction: "dot", from_reel: current, target_reel: rIdx });
+        trackEvent("widget_navigate", { direction: "dot", from_reel: current, target_reel: rIdx });
         navigate(rIdx);
       });
       dotsEl.appendChild(dot);
@@ -1347,7 +1347,7 @@
     popped  = true;
     poppedCard = c;
     var el = c.el;
-    track("video_popout", reelParams(c.reelIdx));
+    trackEvent("video_popout", reelParams(c.reelIdx));
 
     // Measure the card's current on-screen rect BEFORE moving it.
     var r = el.getBoundingClientRect();
@@ -1522,7 +1522,7 @@
     setTrack(false);
     updateUI();
     // GA4: widget_impression — fires once per widget instance after init.
-    track("widget_impression", { reel_count: realCount, desktop_style: desktopStyle });
+    trackEvent("widget_impression", { reel_count: realCount, desktop_style: desktopStyle });
   })();
 
   // ── Navigate ─────────────────────────────────────────
@@ -1651,11 +1651,11 @@
 
   // ── Controls ─────────────────────────────────────────
   prevBtn.addEventListener("click",function(){
-    track("widget_navigate", { direction: "prev", from_reel: current });
+    trackEvent("widget_navigate", { direction: "prev", from_reel: current });
     navigate(mod(current-1,realCount));
   });
   nextBtn.addEventListener("click",function(){
-    track("widget_navigate", { direction: "next", from_reel: current });
+    trackEvent("widget_navigate", { direction: "next", from_reel: current });
     navigate(mod(current+1,realCount));
   });
 
