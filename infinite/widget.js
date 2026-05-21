@@ -317,9 +317,15 @@
       ".sif-widget.sif-accordion .sif-arrow--left{left:calc(50% - var(--sif-arrow-offset,300px))}",
       ".sif-widget.sif-accordion .sif-arrow--right{right:calc(50% - var(--sif-arrow-offset,300px))}",
       "@media(min-width:600px){.sif-arrow{display:flex!important}}",
-      ".sif-dots{display:flex;justify-content:center;gap:8.5px;margin-top:18px}",
-      ".sif-dot{width:8.5px!important;height:8.5px!important;min-width:8.5px!important;min-height:8.5px!important;border-radius:50%!important;background:#ccc;border:none!important;cursor:pointer;padding:0!important;transition:background .25s,transform .25s}",
-      ".sif-dot.is-active{background:var(--sif-accent);transform:scale(1.35)}",
+      // Dots: the BUTTON is a 24x24 transparent hit area (meets WCAG 2.2 AA
+      // 2.5.8 Target Size Minimum); the actual visible dot is a centered
+      // 8.5x8.5 ::before pseudo-element. gap:0 because hit areas already
+      // touch — visible dots end up ~15.5px apart, slightly wider than the
+      // previous 8.5px gap but still tight.
+      ".sif-dots{display:flex;justify-content:center;gap:0;margin-top:18px}",
+      ".sif-dot{width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;border-radius:50%!important;background:transparent!important;border:none!important;cursor:pointer;padding:0!important;display:flex;align-items:center;justify-content:center}",
+      ".sif-dot::before{content:\"\";display:block;width:8.5px;height:8.5px;border-radius:50%;background:#ccc;transition:background .25s,transform .25s}",
+      ".sif-dot.is-active::before{background:var(--sif-accent);transform:scale(1.35)}",
       // Dim backdrop shown behind a popped-out card. font-family is set here
       // because a card is moved INTO this overlay (a child of document.body)
       // while popped — outside .sif-widget — so it would otherwise lose the
