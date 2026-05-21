@@ -82,7 +82,9 @@
       ".srv-poster{position:absolute;inset:0}",
       ".srv-poster-bg{position:absolute;inset:0;background:linear-gradient(160deg,#2a1a0e 0%,#0d0804 100%)}",
       ".srv-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
-      ".srv-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none}",
+      // opacity transition powers the poster<->video crossfade. See infinite
+      // for the longer explanation — same idea, 150ms ease.
+      ".srv-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none;opacity:0;transition:opacity .15s ease}",
       ".srv-top-bar{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.6) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       // The logo ring. A solid ring uses `border`; the Instagram gradient
       // ring uses a conic-gradient background with the logo padded inside
@@ -330,7 +332,7 @@
     timeCounter.textContent = fmtTime(dur) + " / " + fmtTime(dur);
     progFill.style.width = "0%"; progThumb.style.left = "0%";
     progBar.classList.remove("visible");
-    video.style.display = "none"; poster.style.display = "";
+    fadeOut();
     playBtn.classList.remove("hidden");
     playBtn.classList.remove("preview-active");
     muteBtn.classList.remove("visible");
@@ -347,6 +349,24 @@
   var previewState = "idle";
   var previewTimer = null;
   var previewEndTimer = null;
+  // Crossfade helpers — see infinite for the full rationale. Replace direct
+  // display:block/none on the video with fadeIn/fadeOut so the poster<->video
+  // swap reads as a 150ms opacity crossfade.
+  function fadeIn(){
+    video.style.opacity = "0";
+    video.style.display = "block";
+    void video.offsetHeight;
+    video.style.opacity = "1";
+  }
+  function fadeOut(){
+    video.style.opacity = "0";
+    setTimeout(function(){
+      if (video.style.opacity === "0") {
+        video.style.display = "none";
+        video.style.opacity = "";
+      }
+    }, 160);
+  }
   function startPreview(){
     if (!hoverPreview) return;
     if (previewState !== "idle") return;
@@ -355,8 +375,7 @@
     previewState = "previewing";
     video.muted = true;
     try { video.currentTime = 0.5; } catch(err){}
-    video.style.display = "block";
-    poster.style.display = "none";
+    fadeIn();
     playBtn.classList.add("preview-active");
     video.play().catch(function(){});
     // No auto-pause: preview plays as long as the cursor stays on the card.
@@ -370,8 +389,7 @@
     previewState = "idle";
     video.pause();
     try { video.currentTime = 0; } catch(err){}
-    video.style.display = "none";
-    poster.style.display = "";
+    fadeOut();
     playBtn.classList.remove("preview-active");
     progBar.classList.remove("visible");
     video.muted = muted;
@@ -406,7 +424,8 @@
       transitionPreviewToPlay();
       return;
     }
-    video.muted = muted; video.style.display = "block"; poster.style.display = "none";
+    video.muted = muted;
+    fadeIn();
     playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
     popoutBtn.classList.add("visible");   // desktop-only via CSS media query
     previewState = "playing";

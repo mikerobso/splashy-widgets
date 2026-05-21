@@ -147,7 +147,11 @@
       ".sif-poster-ph[data-idx='3']{background:linear-gradient(160deg,#10243a 0%,#05121f 100%)}",
       ".sif-poster-ph[data-idx='4']{background:linear-gradient(160deg,#1a3020 0%,#0a1810 100%)}",
       ".sif-poster img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:20px}",
-      ".sif-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:20px;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none}",
+      // opacity transition powers the poster<->video crossfade. .sif-video
+      // sits ABOVE the poster in DOM order (so opacity 1 fully obscures it,
+      // opacity 0 reveals the poster beneath). 150ms is short enough to feel
+      // snappy, long enough to read as a deliberate fade rather than a snap.
+      ".sif-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:20px;display:none;background:#000;pointer-events:none;-webkit-touch-callout:none;opacity:0;transition:opacity .15s ease}",
       ".sif-top-bar{position:absolute;top:0;left:0;right:0;padding:22px 20px 40px;background:linear-gradient(to bottom,rgba(0,0,0,.55) 0%,transparent 100%);display:flex;align-items:flex-start;justify-content:space-between;z-index:13;pointer-events:none}",
       ".sif-top-bar a{pointer-events:auto}",
       ".sif-logo{width:52px;height:52px;border-radius:50%;border:2px solid var(--sif-logo-ring,var(--sif-accent));overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
@@ -488,7 +492,7 @@
         card.querySelector(".sif-popout-btn").classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
-        video.style.display="none"; poster.style.display="";
+        fadeOut();
       });
 
       var playBtn=card.querySelector(".sif-play-btn");
@@ -502,6 +506,27 @@
       // to real playback: video resets to 0 and plays with audio (per the
       // user's globalMuted state). Skipped on touch (no mouseenter) and
       // on accordion non-centre cards (only the centre previews there).
+      // Crossfade helpers. Replace direct `video.style.display=block/none`
+      // toggles with fadeIn/fadeOut so the swap reads as a 150ms opacity
+      // crossfade instead of a snap. Poster stays display:block beneath at
+      // all times — video opacity 1 covers it, opacity 0 reveals it.
+      function fadeIn(){
+        video.style.opacity = "0";
+        video.style.display = "block";
+        void video.offsetHeight;          // force a reflow so the transition fires
+        video.style.opacity = "1";
+      }
+      function fadeOut(){
+        video.style.opacity = "0";
+        setTimeout(function(){
+          // Defensive: only hide if no one re-revealed it during the fade.
+          if (video.style.opacity === "0") {
+            video.style.display = "none";
+            video.style.opacity = "";       // back to CSS default for the next fadeIn
+          }
+        }, 160);
+      }
+
       var previewState = "idle";   // "idle" | "previewing" | "playing"
       var previewTimer = null;
       var previewEndTimer = null;
@@ -521,8 +546,7 @@
         previewState = "previewing";
         video.muted = true;
         try { video.currentTime = 0.5; } catch(err){}
-        video.style.display = "block";
-        poster.style.display = "none";
+        fadeIn();
         playBtn.classList.add("preview-active");
         video.play().catch(function(){});
         if (previewEndTimer) clearTimeout(previewEndTimer);
@@ -536,8 +560,7 @@
         previewState = "idle";
         video.pause();
         try { video.currentTime = 0; } catch(err){}
-        video.style.display = "none";
-        poster.style.display = "";
+        fadeOut();
         playBtn.classList.remove("preview-active");
         card.classList.remove("sif-playing");
         if (progBar) progBar.classList.remove("show");
@@ -601,7 +624,8 @@
           return;
         }
         cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
-        video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
+        video.muted=globalMuted;
+        fadeIn();
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");   // desktop-only via CSS media query
         previewState = "playing";
@@ -725,7 +749,7 @@
       });
 
       track.appendChild(card);
-      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview, schedulePostNavPreview:schedulePostNavPreview, previewPending:false };
+      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview, schedulePostNavPreview:schedulePostNavPreview, previewPending:false, fadeOut:fadeOut };
       cards.push(cardObj);
 
     })(ri);
@@ -1169,7 +1193,7 @@
   function resetCard(c){
     if (c.endPreview) c.endPreview();   // cancel any active hover preview
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
-    c.video.style.display="none"; c.poster.style.display="";
+    if (c.fadeOut) c.fadeOut(); else { c.video.style.display="none"; }
     c.el.classList.remove("sif-playing");
     var pf=c.el.querySelector(".sif-progress-fill"),pt=c.el.querySelector(".sif-progress-thumb");
     if (pf) pf.style.width="0%"; if (pt) pt.style.left="0%";
