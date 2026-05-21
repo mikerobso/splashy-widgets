@@ -282,23 +282,6 @@
   var popoutBtn = widget.querySelector(".srv-popout-btn");
   var pauseInd  = widget.querySelector(".srv-pause-ind");
   var loadingEl = widget.querySelector(".srv-loading");
-  // Mobile auto-pause: when a playing video scrolls more than ~1 phone-
-  // length out of the viewport, pause it and show the pause indicator.
-  // Mobile-only (desktop = !isDesktop()-inverse check). See infinite for
-  // the longer rationale.
-  if (window.IntersectionObserver) {
-    var scrollPauseObs = new IntersectionObserver(function(entries){
-      if (isDesktop()) return;
-      entries.forEach(function(entry){
-        if (entry.isIntersecting) return;
-        if (video.paused) return;
-        if (video.style.display !== "block") return;
-        video.pause();
-        if (pauseInd) pauseInd.classList.add("visible");
-      });
-    }, { rootMargin: "100% 0px 100% 0px", threshold: 0 });
-    scrollPauseObs.observe(video);
-  }
   // GA4: video_play (first playing), video_progress (50%), video_complete,
   // video_error.
   var _playFired = false, _progressFired = false;

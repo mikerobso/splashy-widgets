@@ -728,28 +728,6 @@
       video.addEventListener("canplay",  hideLoading);
       video.addEventListener("error",    hideLoading);
 
-      // Mobile auto-pause: when a playing video scrolls more than ~1 phone-
-      // length out of the viewport (either direction), pause it and show the
-      // pause indicator. Keeps audio from playing into background when the
-      // user has clearly scrolled past. Mobile-only — desktop users may want
-      // background playback. rootMargin "100% 0 100% 0" extends the root by
-      // 1 viewport top + bottom so the callback only fires once the video has
-      // cleared a full viewport beyond the visible area.
-      if (window.IntersectionObserver) {
-        var scrollPauseObs = new IntersectionObserver(function(entries){
-          if (!isMobileLayout()) return;
-          entries.forEach(function(entry){
-            if (entry.isIntersecting) return;
-            if (video.paused) return;
-            if (video.style.display !== "block") return;
-            video.pause();
-            var pi = card.querySelector(".sif-pause-ind");
-            if (pi) pi.classList.add("visible");
-          });
-        }, { rootMargin: "100% 0px 100% 0px", threshold: 0 });
-        scrollPauseObs.observe(video);
-      }
-
       // GA4 / analytics: video_play (first playing), video_progress (50%),
       // video_complete (ended), video_error. playFired / progressFired flags
       // are reset in resetCard so a recycled card can fire fresh events.
