@@ -128,7 +128,7 @@
       ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
       ".sst-overlay.open{display:flex;opacity:1}",
       ".sst-stagebox{position:relative}",
-      ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center}",
+      ".sst-stage{position:relative;height:75vh;max-height:75vh;aspect-ratio:9/16;border-radius:18px;overflow:hidden;background:#000;-webkit-mask-image:-webkit-radial-gradient(white,black);transform-origin:center center;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}",
       ".sst-stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;pointer-events:none;-webkit-touch-callout:none}",
       // Round buttons — !important on dimensions so host CSS can't squash them
       ".sst-close{position:absolute!important;top:-6px;right:-58px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;max-width:44px!important;max-height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;color:#fff!important;font-size:22px;line-height:1;cursor:pointer;padding:0!important;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
