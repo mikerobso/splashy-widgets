@@ -150,7 +150,9 @@
       ".srv-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%;transition:height .15s}",
       ".srv-progress:hover .srv-progress-fill,.srv-progress.dragging .srv-progress-fill{height:9px}",
       ".srv-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb{opacity:1;bottom:-2px}",
+      ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb,.srv-progress:focus .srv-progress-thumb{opacity:1;bottom:-2px}",
+      ".srv-progress:focus,.srv-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
+      ".srv-progress:focus .srv-progress-track,.srv-progress:focus-visible .srv-progress-track,.srv-progress:focus .srv-progress-fill,.srv-progress:focus-visible .srv-progress-fill{height:9px}",
       // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
       // — tied to the same visibility triggers (.visible / .dragging classes,
       // or :hover on a hover-capable pointer). pointer-events:none so touches
@@ -168,7 +170,13 @@
       ".srv-overlay.open{opacity:1;pointer-events:auto}",
       "@media(max-width:767px){.srv-widget{padding:20px;justify-content:center;--srv-card-w:78.2vw;--srv-card-h:calc(78.2vw*16/9)}}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-widget{--srv-card-w:280px;--srv-card-h:496px}}",
-      "@media(min-width:1024px) and (any-pointer:fine){.srv-widget{--srv-card-w:320px;--srv-card-h:568px}}"
+      "@media(min-width:1024px) and (any-pointer:fine){.srv-widget{--srv-card-w:320px;--srv-card-h:568px}}",
+      // Respect prefers-reduced-motion: kill the long widget animations
+      // (pop-out grow/shrink, overlay fade). Short hover/feedback transitions
+      // are kept since they're not the kind of motion the preference targets.
+      "@media (prefers-reduced-motion: reduce){",
+        ".srv-card,.srv-card.srv-popped,.srv-overlay{transition:none!important}",
+      "}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -189,13 +197,13 @@
         '<div class="srv-bottom-bar"><div class="srv-label"></div></div>' +
         '<button class="srv-play-btn" aria-label="Play video"><div class="srv-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>' +
         '<div class="srv-pause-ind"><div class="srv-pause-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
-        '<button class="srv-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<button class="srv-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="srv-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="srv-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="srv-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
         '<button class="srv-popout-btn" aria-label="Pop out video">' +
           '<svg class="srv-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>' +
           '<svg class="srv-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>' +
         '</button>' +
         '<div class="srv-speed">2x</div>' +
-        '<div class="srv-progress"><div class="srv-progress-track"></div><div class="srv-progress-fill"></div><div class="srv-progress-thumb"></div></div>' +
+        '<div class="srv-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="srv-progress-track"></div><div class="srv-progress-fill"></div><div class="srv-progress-thumb"></div></div>' +
         '<div class="srv-time-counter">0:00 / 0:00</div>' +
       '</div>' +
     '</div>';
@@ -246,7 +254,7 @@
       ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
       : '<div class="srv-logo">' + logoContent + '</div>';
     badgeHTML =
-      '<a href="' + igUrl + '" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
+      '<a href="' + igUrl + '" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
         logoHTML +
         '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
       '</a>';
@@ -296,6 +304,7 @@
     timeCounter.textContent = fmtTime(video.currentTime) + " / " + fmtTime(dur);
     progFill.style.width = (pct * 100) + "%";
     progThumb.style.left = (pct * 100) + "%";
+    progBar.setAttribute("aria-valuenow", Math.round(pct * 100));
   });
   video.addEventListener("ended", function () {
     ring.style.strokeDashoffset = 0;
@@ -338,6 +347,7 @@
     u.forEach(function (el) { el.style.display = muted ? "none"  : "block"; });
     x.forEach(function (el) { el.style.display = muted ? "block" : "none";  });
     muteBtn.setAttribute("aria-label", muted ? "Unmute audio" : "Mute audio");
+    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
   }
   muteBtn.addEventListener("click", function (e) {
     e.stopPropagation(); muted = !muted; video.muted = muted; syncMute();
@@ -504,6 +514,25 @@
   function endDrag() { if (dragging) { dragging = false; progBar.classList.remove("dragging"); window._srvScrubEnd = true; setTimeout(function () { window._srvScrubEnd = false; }, 300); } }
   document.addEventListener("mouseup",  endDrag);
   document.addEventListener("touchend", endDrag);
+  // a11y: keyboard scrubbing. ← / → seek ±5s, Home / End jump to ends.
+  progBar.addEventListener("keydown", function(e){
+    if (!dur) return;
+    var handled = false;
+    if (e.key === "ArrowLeft"){
+      video.currentTime = Math.max(0, video.currentTime - 5);
+      handled = true;
+    } else if (e.key === "ArrowRight"){
+      video.currentTime = Math.min(dur, video.currentTime + 5);
+      handled = true;
+    } else if (e.key === "Home"){
+      video.currentTime = 0;
+      handled = true;
+    } else if (e.key === "End"){
+      video.currentTime = dur;
+      handled = true;
+    }
+    if (handled){ e.preventDefault(); e.stopPropagation(); }
+  });
   video.addEventListener("play", function () {
     if (window.matchMedia("(hover:none)").matches) {
       progBar.classList.add("visible");

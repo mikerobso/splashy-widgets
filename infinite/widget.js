@@ -206,7 +206,12 @@
       ".sif-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%;transition:height .15s;border-radius:0 0 0 20px}",
       ".sif-progress:hover .sif-progress-fill,.sif-progress.show .sif-progress-fill{height:9px}",
       ".sif-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      ".sif-progress:hover .sif-progress-thumb,.sif-progress.show .sif-progress-thumb{opacity:1;bottom:-2px}",
+      ".sif-progress:hover .sif-progress-thumb,.sif-progress.show .sif-progress-thumb,.sif-progress:focus .sif-progress-thumb{opacity:1;bottom:-2px}",
+      // Keyboard-focused scrub bar is fully visible (the existing :hover and
+      // .show rules don't cover keyboard focus). Outline matches the rest of
+      // the focus-ring styling.
+      ".sif-progress:focus,.sif-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
+      ".sif-progress:focus .sif-progress-track,.sif-progress:focus-visible .sif-progress-track,.sif-progress:focus .sif-progress-fill,.sif-progress:focus-visible .sif-progress-fill{height:9px}",
       // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
       // — i.e. tied to the same triggers (.show class, or :hover when the
       // card is .sif-playing on a hover-capable pointer). tabular-nums keeps
@@ -251,6 +256,14 @@
       "@media(min-width:768px) and (any-pointer:fine){",
         ".sif-widget.sif-accordion .sif-card[data-offstage='1'],",
         ".sif-widget.sif-accordion .sif-card[data-offstage='1'] *{pointer-events:none!important}",
+      "}",
+      // Respect prefers-reduced-motion: kill the long widget animations
+      // (carousel slide, accordion fan rotation, pop-out grow/shrink, overlay
+      // fade). Short hover/feedback transitions (under ~.25s) are kept since
+      // they're not the kind of motion the preference targets. Specificity
+      // matches the original rules so later-wins covers !important ones.
+      "@media (prefers-reduced-motion: reduce){",
+        ".sif-track,.sif-card,.sif-card.sif-popped,.sif-overlay{transition:none!important}",
       "}",
     ].join("");
     document.head.appendChild(style);
@@ -321,6 +334,7 @@
     btn.querySelectorAll(".sif-unmute").forEach(function(el){ el.style.display=muted?"none":"block"; });
     btn.querySelectorAll(".sif-mx1,.sif-mx2").forEach(function(el){ el.style.display=muted?"block":"none"; });
     btn.setAttribute("aria-label", muted ? "Unmute audio" : "Mute audio");
+    btn.setAttribute("aria-pressed", muted ? "true" : "false");
   }
 
   // ── Build cards ──────────────────────────────────────
@@ -376,7 +390,7 @@
           ? '<div class="sif-logo sif-logo--grad"><div class="sif-logo-inner">'+logoContent+'</div></div>'
           : '<div class="sif-logo">'+logoContent+'</div>';
         badgeHTML =
-          '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
+          '<a href="'+igUrl+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
             logoHTML+
             '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
           '</a>';
@@ -394,13 +408,13 @@
         '<div class="sif-bottom-bar"><div class="sif-title">'+(reel.label||"")+'</div></div>'+
         '<button class="sif-play-btn" aria-label="Play video"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>'+
         '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
-        '<button class="sif-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
+        '<button class="sif-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
         '<button class="sif-popout-btn" aria-label="Pop out video">'+
           '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
         '</button>'+
         '<div class="sif-speed">2x</div>'+
-        '<div class="sif-progress"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'+
+        '<div class="sif-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'+
         '<div class="sif-time-counter">0:00 / 0:00</div>'
       );
 
@@ -427,6 +441,8 @@
         var pf=card.querySelector(".sif-progress-fill"),pt=card.querySelector(".sif-progress-thumb");
         if (pf) pf.style.width=(pct*100)+"%";
         if (pt) pt.style.left=(pct*100)+"%";
+        // a11y: keep slider aria-valuenow in sync with the visual fill.
+        progBar.setAttribute("aria-valuenow", Math.round(pct*100));
       });
       video.addEventListener("ended",function(){
         ring.style.strokeDashoffset=0; timerText.textContent=fmtTime(dur);
@@ -486,6 +502,28 @@
           if (scrubEndTimer) clearTimeout(scrubEndTimer);
           scrubEndTimer = setTimeout(function(){ scrubbing=false; }, 350);
         }
+      });
+      // a11y: keyboard scrubbing. ← / → seek ±5s, Home / End jump to ends.
+      // stopPropagation prevents the widget-level Arrow handler (which
+      // navigates the carousel) from also firing while the scrub bar has
+      // focus.
+      progBar.addEventListener("keydown", function(e){
+        if (!dur) return;
+        var handled = false;
+        if (e.key === "ArrowLeft"){
+          video.currentTime = Math.max(0, video.currentTime - 5);
+          handled = true;
+        } else if (e.key === "ArrowRight"){
+          video.currentTime = Math.min(dur, video.currentTime + 5);
+          handled = true;
+        } else if (e.key === "Home"){
+          video.currentTime = 0;
+          handled = true;
+        } else if (e.key === "End"){
+          video.currentTime = dur;
+          handled = true;
+        }
+        if (handled){ e.preventDefault(); e.stopPropagation(); }
       });
       video.addEventListener("play",function(){
         // Mark the card as playing so the hover-reshow CSS rule

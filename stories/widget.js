@@ -182,6 +182,7 @@
       ".sst-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);pointer-events:none}",
       ".sst-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%}",
       ".sst-progress-thumb{position:absolute;bottom:-3px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
+      ".sst-progress:focus,.sst-progress:focus-visible{outline:2px solid #fff;outline-offset:2px}",
       // Count-up timer ("0:30 / 0:40") shown above the scrub bar. The stories
       // scrub bar lives in the fullscreen overlay and is always visible there,
       // so the counter is also always visible (no transition needed). z-index
@@ -190,7 +191,13 @@
       // Overlay arrows — in-flow flex items beside the stage; forced circles
       ".sst-arrow{flex:0 0 auto;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;max-width:48px!important;max-height:48px!important;border-radius:50%!important;background:rgba(255,255,255,.14)!important;border:1.5px solid rgba(255,255,255,.4)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0!important;-webkit-tap-highlight-color:transparent;box-sizing:border-box}",
       ".sst-arrow:hover{background:rgba(255,255,255,.28)!important}",
-      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:80vh!important;max-height:80vh!important;width:auto!important;max-width:92vw;aspect-ratio:9/16;border-radius:16px}.sst-stagebox{max-width:92vw}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;background:rgba(0,0,0,.4)!important;z-index:5}.sst-arrow--left{left:6px}.sst-arrow--right{right:6px}.sst-close{position:absolute!important;top:-52px;right:0;left:auto}}"
+      "@media(max-width:767px){.sst-overlay{gap:0}.sst-stage{height:80vh!important;max-height:80vh!important;width:auto!important;max-width:92vw;aspect-ratio:9/16;border-radius:16px}.sst-stagebox{max-width:92vw}.sst-arrow{position:absolute!important;top:50%;transform:translateY(-50%);width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;max-width:40px!important;max-height:40px!important;background:rgba(0,0,0,.4)!important;z-index:5}.sst-arrow--left{left:6px}.sst-arrow--right{right:6px}.sst-close{position:absolute!important;top:-52px;right:0;left:auto}}",
+      // Respect prefers-reduced-motion: kill the long widget animations
+      // (shimmer, overlay fade, ring hover scale). Specificity of the
+      // shimmer override matches the source rule so later-wins applies.
+      "@media (prefers-reduced-motion: reduce){",
+        ".sst-item.sst-shimmer .sst-ring::before,.sst-ring,.sst-overlay{transition:none!important}",
+      "}"
     ].join("");
     document.head.appendChild(style);
   }
@@ -303,7 +310,7 @@
       ? '<div class="sst-logo sst-logo--grad"><div class="sst-logo-inner">'+logoContent+'</div></div>'
       : '<div class="sst-logo">'+logoContent+'</div>';
     badgeHTML =
-      '<a href="'+igUrl+'" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
+      '<a href="'+igUrl+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
         logoHTML +
         '<div class="sst-foll">'+followerCount+'</div>' +
       '</a>';
@@ -327,8 +334,8 @@
         '<div class="sst-bottom"><div class="sst-title"></div></div>' +
         '<div class="sst-pause-ind"><div class="sst-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>' +
         '<div class="sst-speed">2&times;</div>' +
-        '<button class="sst-mute-btn" aria-label="Mute audio"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
-        '<div class="sst-progress"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
+        '<button class="sst-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        '<div class="sst-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
         '<div class="sst-time-counter">0:00 / 0:00</div>' +
       '</div>' +
     '</div>' +
@@ -369,6 +376,7 @@
     muteBtn.querySelectorAll(".sst-unmute").forEach(function(el){ el.style.display=globalMuted?"none":"block"; });
     muteBtn.querySelectorAll(".sst-mx1,.sst-mx2").forEach(function(el){ el.style.display=globalMuted?"block":"none"; });
     muteBtn.setAttribute("aria-label", globalMuted ? "Unmute audio" : "Mute audio");
+    muteBtn.setAttribute("aria-pressed", globalMuted ? "true" : "false");
   }
 
   // Load + play the reel at index i.
@@ -605,6 +613,7 @@
     timeCounter.textContent = fmtTime(video.currentTime) + " / " + fmtTime(d);
     progFill.style.width = (pct*100) + "%";
     progThumb.style.left = (pct*100) + "%";
+    progBar.setAttribute("aria-valuenow", Math.round(pct * 100));
     // video_progress — fired once when the reel passes the 50% mark.
     if (!progressFired && pct >= 0.5){
       progressFired = true;
@@ -697,6 +706,27 @@
   document.addEventListener("mouseup", function(){ dragging = false; });
   document.addEventListener("touchend", function(){
     if (dragging){ dragging = false; swallowTap = true; setTimeout(function(){ swallowTap=false; }, 300); }
+  });
+  // a11y: keyboard scrubbing. ← / → seek ±5s, Home / End jump to ends.
+  // stopPropagation so the overlay-level Arrow handler (next/prev reel)
+  // doesn't also fire while the scrub bar has focus.
+  progBar.addEventListener("keydown", function(e){
+    var d = video.duration; if (!d) return;
+    var handled = false;
+    if (e.key === "ArrowLeft"){
+      video.currentTime = Math.max(0, video.currentTime - 5);
+      handled = true;
+    } else if (e.key === "ArrowRight"){
+      video.currentTime = Math.min(d, video.currentTime + 5);
+      handled = true;
+    } else if (e.key === "Home"){
+      video.currentTime = 0;
+      handled = true;
+    } else if (e.key === "End"){
+      video.currentTime = d;
+      handled = true;
+    }
+    if (handled){ e.preventDefault(); e.stopPropagation(); }
   });
 
   // Swipe left/right inside the overlay to change reel.
