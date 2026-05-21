@@ -150,9 +150,11 @@
       ".srv-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%;transition:height .15s}",
       ".srv-progress:hover .srv-progress-fill,.srv-progress.dragging .srv-progress-fill{height:9px}",
       ".srv-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb,.srv-progress:focus .srv-progress-thumb{opacity:1;bottom:-2px}",
-      ".srv-progress:focus,.srv-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
-      ".srv-progress:focus .srv-progress-track,.srv-progress:focus-visible .srv-progress-track,.srv-progress:focus .srv-progress-fill,.srv-progress:focus-visible .srv-progress-fill{height:9px}",
+      ".srv-progress:hover .srv-progress-thumb,.srv-progress.dragging .srv-progress-thumb,.srv-progress:focus-visible .srv-progress-thumb{opacity:1;bottom:-2px}",
+      // :focus-visible only — mouse clicks on the bar focus it but the
+      // heuristic suppresses the visible style, so mouse users see no ring.
+      ".srv-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
+      ".srv-progress:focus-visible .srv-progress-track,.srv-progress:focus-visible .srv-progress-fill{height:9px}",
       // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
       // — tied to the same visibility triggers (.visible / .dragging classes,
       // or :hover on a hover-capable pointer). pointer-events:none so touches

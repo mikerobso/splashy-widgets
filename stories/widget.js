@@ -105,7 +105,11 @@
       ".sst-widget{font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:18px 0}",
       ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:30px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
       ".sst-row::-webkit-scrollbar{display:none}",
-      ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;width:168px}",
+      // .sst-item is now a real <button> (was a <div>) so keyboard users can
+      // open a story with Enter/Space. The !important resets defeat host-
+      // page CSS that might target generic `button` from the embedding
+      // theme (same defensive pattern as .sif-play-btn / .srv-play-btn).
+      ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;width:168px;border:0!important;background:transparent!important;padding:0!important;color:inherit;font:inherit;-webkit-appearance:none;appearance:none;text-align:inherit}",
       ".sst-ring{position:relative;width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
       // Hover shimmer: a conic-gradient overlay with one bright arc that
       // rotates once around the ring. Desktop hover only; sits over the
@@ -182,7 +186,7 @@
       ".sst-progress-track{position:absolute;bottom:0;left:0;right:0;height:6px;background:rgba(255,255,255,.25);pointer-events:none}",
       ".sst-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%}",
       ".sst-progress-thumb{position:absolute;bottom:-3px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      ".sst-progress:focus,.sst-progress:focus-visible{outline:2px solid #fff;outline-offset:2px}",
+      ".sst-progress:focus-visible{outline:2px solid #fff;outline-offset:2px}",
       // Count-up timer ("0:30 / 0:40") shown above the scrub bar. The stories
       // scrub bar lives in the fullscreen overlay and is always visible there,
       // so the counter is also always visible (no transition needed). z-index
@@ -217,8 +221,10 @@
   widget.appendChild(row);
 
   reels.forEach(function(reel, i){
-    var item = document.createElement("div");
+    var item = document.createElement("button");
     item.className = "sst-item";
+    item.setAttribute("type", "button");  // prevent any wrapping <form> submission
+    item.setAttribute("aria-label", reel.label ? "Open story: " + reel.label : "Open story " + (i + 1));
     var ring = document.createElement("div");
     ring.className = "sst-ring";
     ring.style.background = viewed[i]

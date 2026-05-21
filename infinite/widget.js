@@ -206,12 +206,13 @@
       ".sif-progress-fill{position:absolute;bottom:0;left:0;height:6px;background:#fff;pointer-events:none;width:0%;transition:height .15s;border-radius:0 0 0 20px}",
       ".sif-progress:hover .sif-progress-fill,.sif-progress.show .sif-progress-fill{height:9px}",
       ".sif-progress-thumb{position:absolute;bottom:-3.5px;width:13px;height:13px;background:#fff;border-radius:50%;transform:translateX(-50%);pointer-events:none;opacity:0;transition:opacity .15s,bottom .15s;box-shadow:0 1px 4px rgba(0,0,0,.4)}",
-      ".sif-progress:hover .sif-progress-thumb,.sif-progress.show .sif-progress-thumb,.sif-progress:focus .sif-progress-thumb{opacity:1;bottom:-2px}",
+      ".sif-progress:hover .sif-progress-thumb,.sif-progress.show .sif-progress-thumb,.sif-progress:focus-visible .sif-progress-thumb{opacity:1;bottom:-2px}",
       // Keyboard-focused scrub bar is fully visible (the existing :hover and
-      // .show rules don't cover keyboard focus). Outline matches the rest of
-      // the focus-ring styling.
-      ".sif-progress:focus,.sif-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
-      ".sif-progress:focus .sif-progress-track,.sif-progress:focus-visible .sif-progress-track,.sif-progress:focus .sif-progress-fill,.sif-progress:focus-visible .sif-progress-fill{height:9px}",
+      // .show rules don't cover keyboard focus). :focus-visible only — mouse
+      // clicks on the bar already focus it but the heuristic suppresses the
+      // visible style, so mouse users never see the outline.
+      ".sif-progress:focus-visible{opacity:1!important;outline:2px solid #fff;outline-offset:2px}",
+      ".sif-progress:focus-visible .sif-progress-track,.sif-progress:focus-visible .sif-progress-fill{height:9px}",
       // Count-up timer ("0:30 / 0:40"), shown whenever the scrub bar is shown
       // — i.e. tied to the same triggers (.show class, or :hover when the
       // card is .sif-playing on a hover-capable pointer). tabular-nums keeps
