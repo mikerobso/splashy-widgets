@@ -308,6 +308,11 @@
 
   var widget   = container.querySelector(".sif-widget");
   if (desktopStyle === "accordion-3" || desktopStyle === "accordion-5") widget.classList.add("sif-accordion");
+  // Cancel any pending click-to-centre preview intent if the user leaves the
+  // widget area before the slide finishes — they've moved on, don't preview.
+  widget.addEventListener("mouseleave", function(){
+    cards.forEach(function(c){ c.previewPending = false; });
+  });
   var viewport = widget.querySelector(".sif-viewport");
   var track    = widget.querySelector(".sif-track");
   var prevBtn  = widget.querySelector(".sif-arrow--left");
@@ -553,10 +558,26 @@
         syncMuteIcon(muteBtn, globalMuted);
         video.play().catch(function(){});
       }
+      // a11y / UX note: this is the "user lingered on a card" trigger. The
+      // separate post-navigation trigger (schedulePostNavPreview below)
+      // handles the case where a user clicks a side card to bring it to
+      // centre — for that flow we want the 1s delay to start when the card
+      // LANDS at centre, not from the original side-card hover.
       card.addEventListener("mouseenter", function(){
         if (previewTimer) clearTimeout(previewTimer);
-        previewTimer = setTimeout(startPreview, 1250);
+        previewTimer = setTimeout(startPreview, 1000);
       });
+      // Click-to-centre flow: the click handler sets cardObj.previewPending,
+      // then navigate() runs the slide. finishStep — after the slide finishes
+      // and busy goes false — calls this on the now-centred card to start a
+      // FRESH 1s timer. So the user gets a true "1s after centred" delay
+      // regardless of how long the slide animation took.
+      function schedulePostNavPreview(){
+        if (!hoverPreview) return;
+        if (isMobileLayout()) return;
+        if (previewTimer) clearTimeout(previewTimer);
+        previewTimer = setTimeout(startPreview, 1000);
+      }
       card.addEventListener("mouseleave", function(){
         if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }
         endPreview();
@@ -569,6 +590,7 @@
         // in the background. Desktop ROW mode keeps the existing behaviour
         // (start any visible card playing).
         if ((isMobileLayout() || isAccordionDesktop()) && realIdx !== current){
+          cardObj.previewPending = true;
           navigate(realIdx);
           return;
         }
@@ -686,6 +708,7 @@
         // the existing behaviour (click toggles pause when the centre card
         // is playing). Skipped while popped — the engine is frozen.
         if ((isMobileLayout() || isAccordionDesktop()) && realIdx !== current && !popped){
+          cardObj.previewPending = true;
           navigate(realIdx);
           return;
         }
@@ -702,7 +725,7 @@
       });
 
       track.appendChild(card);
-      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview };
+      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview, schedulePostNavPreview:schedulePostNavPreview, previewPending:false };
       cards.push(cardObj);
 
     })(ri);
@@ -1469,6 +1492,19 @@
       if (d2 >  realCount/2) d2 -= realCount;
       if (d2 < -realCount/2) d2 += realCount;
       setTimeout(function(){ step(d2 > 0 ? 1 : -1, finalTargetIdx); }, 30);
+    } else {
+      // Navigation is fully complete (we're at the final target). Process the
+      // per-card click-to-centre intent: any card with previewPending that
+      // landed at centre gets a FRESH 1s timer, then preview starts. Cards
+      // that were marked pending but didn't end up centred (rare, multi-step
+      // edge cases) have the flag cleared.
+      cards.forEach(function(c){
+        if (!c.previewPending) return;
+        if (c.slot === centreSlot && c.schedulePostNavPreview) {
+          c.schedulePostNavPreview();
+        }
+        c.previewPending = false;
+      });
     }
   }
 
