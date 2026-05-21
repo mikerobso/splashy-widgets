@@ -112,6 +112,9 @@
       // the video poster.
       ".srv-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0!important;background:transparent!important;padding:0!important;color:inherit;font:inherit;-webkit-appearance:none;appearance:none}",
       ".srv-play-btn.hidden{opacity:0;pointer-events:none}",
+      // Hover-preview: same visual as .hidden but stays clickable so a
+      // click during preview transitions cleanly to real playback.
+      ".srv-play-btn.preview-active{opacity:0}",
       ".srv-play-circle{width:56px!important;height:56px!important;min-width:56px!important;min-height:56px!important;border-radius:50%!important;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5)!important;display:flex;align-items:center;justify-content:center;padding:0!important;transition:transform .18s,background .18s}",
       ".srv-play-btn:hover .srv-play-circle{transform:scale(1.1);background:rgba(255,255,255,.28)}",
       ".srv-play-circle svg{margin-left:4px;display:block}",
@@ -322,25 +325,99 @@
     progBar.classList.remove("visible");
     video.style.display = "none"; poster.style.display = "";
     playBtn.classList.remove("hidden");
+    playBtn.classList.remove("preview-active");
     muteBtn.classList.remove("visible");
     popoutBtn.classList.remove("visible");
     pauseInd.classList.remove("visible");
+    previewState = "idle";
+  });
+
+  // ── Hover preview ────────────────────────────────────
+  // 1.25s after mouseenter, the video plays muted from 0.5s for 3s, then
+  // freezes on the last frame. mouseleave snaps back to the poster. Clicking
+  // the card (or the play button) during preview resets to 0 and plays with
+  // audio. Skipped on touch (no mouseenter fires).
+  var previewState = "idle";
+  var previewTimer = null;
+  var previewEndTimer = null;
+  function startPreview(){
+    if (previewState !== "idle") return;
+    if (video.style.display === "block") return;
+    if (popped || popBusy) return;
+    previewState = "previewing";
+    video.muted = true;
+    try { video.currentTime = 0.5; } catch(err){}
+    video.style.display = "block";
+    poster.style.display = "none";
+    playBtn.classList.add("preview-active");
+    video.play().catch(function(){});
+    if (previewEndTimer) clearTimeout(previewEndTimer);
+    previewEndTimer = setTimeout(function(){
+      if (previewState === "previewing") video.pause();
+    }, 3000);
+  }
+  function endPreview(){
+    if (previewState !== "previewing") return;
+    if (previewEndTimer){ clearTimeout(previewEndTimer); previewEndTimer = null; }
+    previewState = "idle";
+    video.pause();
+    try { video.currentTime = 0; } catch(err){}
+    video.style.display = "none";
+    poster.style.display = "";
+    playBtn.classList.remove("preview-active");
+    progBar.classList.remove("visible");
+    video.muted = muted;
+  }
+  function transitionPreviewToPlay(){
+    if (previewState !== "previewing") return;
+    if (previewEndTimer){ clearTimeout(previewEndTimer); previewEndTimer = null; }
+    previewState = "playing";
+    try { video.currentTime = 0; } catch(err){}
+    video.muted = muted;
+    playBtn.classList.remove("preview-active");
+    playBtn.classList.add("hidden");
+    muteBtn.classList.add("visible");
+    popoutBtn.classList.add("visible");
+    syncMute();
+    video.play().catch(function(){});
+  }
+  card.addEventListener("mouseenter", function(){
+    if (previewTimer) clearTimeout(previewTimer);
+    previewTimer = setTimeout(startPreview, 1250);
+  });
+  card.addEventListener("mouseleave", function(){
+    if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }
+    endPreview();
   });
 
   // Play
   playBtn.addEventListener("click", function (e) {
     e.stopPropagation();
+    if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }
+    if (previewState === "previewing"){
+      transitionPreviewToPlay();
+      return;
+    }
     video.muted = muted; video.style.display = "block"; poster.style.display = "none";
     playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
     popoutBtn.classList.add("visible");   // desktop-only via CSS media query
+    previewState = "playing";
     syncMute(); video.play();
   });
 
   // Card click
   card.addEventListener("click", function (e) {
-    if (e.target.closest(".srv-play-btn") || e.target.closest(".srv-mute-btn") ||
+    if (e.target.closest(".srv-mute-btn") ||
         e.target.closest(".srv-popout-btn") || e.target.closest(".srv-progress")) return;
+    // Play btn is .preview-active (clickable) during preview — let those
+    // clicks reach this handler so we can transition. Outside preview, the
+    // play btn has its own handler and should bypass us as before.
+    if (e.target.closest(".srv-play-btn") && previewState !== "previewing") return;
     if (swallow) { swallow = false; return; }
+    if (previewState === "previewing"){
+      transitionPreviewToPlay();
+      return;
+    }
     if (video.style.display === "block") {
       if (video.paused) { video.play(); pauseInd.classList.remove("visible"); }
       else { video.pause(); pauseInd.classList.add("visible"); }

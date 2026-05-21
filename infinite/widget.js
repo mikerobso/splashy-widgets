@@ -168,6 +168,10 @@
       // any inherited background would cover the video poster.
       ".sif-play-btn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;cursor:pointer;transition:opacity .2s;border:0!important;background:transparent!important;padding:0!important;color:inherit;font:inherit;-webkit-appearance:none;appearance:none}",
       ".sif-play-btn.hidden{opacity:0;pointer-events:none}",
+      // Hover-preview: same visual as .hidden (opacity 0) but stays clickable,
+      // so the user can transition from preview → real play by clicking
+      // anywhere on the card (including the area where the play button is).
+      ".sif-play-btn.preview-active{opacity:0}",
       ".sif-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sif-pause-ind.visible{opacity:1}",
       ".sif-play-circle{width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center;transition:transform .18s,background .18s}",
@@ -465,8 +469,10 @@
       video.addEventListener("ended",function(){
         ring.style.strokeDashoffset=0; timerText.textContent=fmtTime(dur);
         timeCounter.textContent=fmtTime(dur)+" / "+fmtTime(dur);
+        previewState = "idle";
         card.classList.remove("sif-playing");
         card.querySelector(".sif-play-btn").classList.remove("hidden");
+        card.querySelector(".sif-play-btn").classList.remove("preview-active");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
         card.querySelector(".sif-popout-btn").classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
@@ -477,6 +483,78 @@
       var playBtn=card.querySelector(".sif-play-btn");
       var muteBtn=card.querySelector(".sif-mute-btn");
       var popoutBtn=card.querySelector(".sif-popout-btn");
+
+      // ── Hover preview ──────────────────────────────────
+      // 1.25s after mouseenter, the video plays muted from 0.5s for 3s,
+      // then freezes on the last frame. mouseleave snaps back to the poster.
+      // Clicking the card (or the play button) during preview transitions
+      // to real playback: video resets to 0 and plays with audio (per the
+      // user's globalMuted state). Skipped on touch (no mouseenter) and
+      // on accordion non-centre cards (only the centre previews there).
+      var previewState = "idle";   // "idle" | "previewing" | "playing"
+      var previewTimer = null;
+      var previewEndTimer = null;
+      function shouldStartPreview(){
+        if (isMobileLayout()) return false;
+        if (popped) return false;
+        if (busy) return false;
+        if (previewState !== "idle") return false;
+        if (video.style.display === "block") return false;  // already playing for real
+        // Accordion modes: only the centre card previews. Row mode: any card.
+        if (isAccordionDesktop() && cardObj.slot !== centreSlot) return false;
+        return true;
+      }
+      function startPreview(){
+        if (!shouldStartPreview()) return;
+        previewState = "previewing";
+        video.muted = true;
+        try { video.currentTime = 0.5; } catch(err){}
+        video.style.display = "block";
+        poster.style.display = "none";
+        playBtn.classList.add("preview-active");
+        video.play().catch(function(){});
+        if (previewEndTimer) clearTimeout(previewEndTimer);
+        previewEndTimer = setTimeout(function(){
+          if (previewState === "previewing") video.pause();   // freeze on last frame
+        }, 3000);
+      }
+      function endPreview(){
+        if (previewState !== "previewing") return;
+        if (previewEndTimer){ clearTimeout(previewEndTimer); previewEndTimer = null; }
+        previewState = "idle";
+        video.pause();
+        try { video.currentTime = 0; } catch(err){}
+        video.style.display = "none";
+        poster.style.display = "";
+        playBtn.classList.remove("preview-active");
+        card.classList.remove("sif-playing");
+        if (progBar) progBar.classList.remove("show");
+        if (video._sifFT){ clearTimeout(video._sifFT); video._sifFT = null; }
+        video.muted = globalMuted;
+      }
+      function transitionPreviewToPlay(){
+        if (previewState !== "previewing") return;
+        if (previewEndTimer){ clearTimeout(previewEndTimer); previewEndTimer = null; }
+        previewState = "playing";
+        try { video.currentTime = 0; } catch(err){}
+        video.muted = globalMuted;
+        playBtn.classList.remove("preview-active");
+        cards.forEach(function(c){ if (c.video !== video) resetCard(c); });
+        playBtn.classList.add("hidden");
+        muteBtn.classList.add("visible");
+        popoutBtn.classList.add("visible");
+        syncMuteIcon(muteBtn, globalMuted);
+        video.play().catch(function(){});
+      }
+      card.addEventListener("mouseenter", function(){
+        if (previewTimer) clearTimeout(previewTimer);
+        previewTimer = setTimeout(startPreview, 1250);
+      });
+      card.addEventListener("mouseleave", function(){
+        if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }
+        endPreview();
+      });
+
       playBtn.addEventListener("click",function(e){
         e.stopPropagation();
         // On mobile (any mode) AND in accordion desktop modes, tapping a
@@ -487,10 +565,17 @@
           navigate(realIdx);
           return;
         }
+        // Cancel any pending preview and transition straight to real play.
+        if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }
+        if (previewState === "previewing"){
+          transitionPreviewToPlay();
+          return;
+        }
         cards.forEach(function(c){ if (c.video!==video) resetCard(c); });
         video.muted=globalMuted; video.style.display="block"; poster.style.display="none";
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");   // desktop-only via CSS media query
+        previewState = "playing";
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
       muteBtn.addEventListener("click",function(e){
@@ -582,8 +667,12 @@
       card.addEventListener("touchcancel",endHold);
 
       card.addEventListener("click",function(e){
-        if (e.target.closest(".sif-play-btn")||e.target.closest(".sif-mute-btn")||
+        if (e.target.closest(".sif-mute-btn")||
             e.target.closest(".sif-popout-btn")||e.target.closest(".sif-progress")) return;
+        // The play button has .preview-active during preview (clickable). A
+        // click in its area should transition to real play, not be ignored —
+        // so don't short-circuit when target is .sif-play-btn during preview.
+        if (e.target.closest(".sif-play-btn") && previewState !== "previewing") return;
         if (swallow){ swallow=false; return; }
         // On mobile (any mode) AND in accordion desktop modes, tapping a
         // non-centre card brings it to the centre. Desktop ROW mode keeps
@@ -591,6 +680,11 @@
         // is playing). Skipped while popped — the engine is frozen.
         if ((isMobileLayout() || isAccordionDesktop()) && realIdx !== current && !popped){
           navigate(realIdx);
+          return;
+        }
+        // Click during preview → transition to real play.
+        if (previewState === "previewing"){
+          transitionPreviewToPlay();
           return;
         }
         if (video.style.display==="block"){
@@ -601,7 +695,7 @@
       });
 
       track.appendChild(card);
-      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx };
+      var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview };
       cards.push(cardObj);
 
     })(ri);
@@ -1043,6 +1137,7 @@
   }
 
   function resetCard(c){
+    if (c.endPreview) c.endPreview();   // cancel any active hover preview
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
     c.video.style.display="none"; c.poster.style.display="";
     c.el.classList.remove("sif-playing");
