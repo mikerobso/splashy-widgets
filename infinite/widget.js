@@ -650,13 +650,27 @@
       });
 
       // Buffering indicator: show on `waiting` (browser stalled), hide on
-      // `playing`/`canplay` (data arrived). Also hide on `error` so a
-      // permanently-broken stream doesn't get stuck with a spinner.
+      // `playing`/`canplay` (data arrived). 400ms grace period before the
+      // spinner appears — every play() call fires `waiting` for a tick while
+      // the browser decodes the first frame, so without the delay the spinner
+      // flashes on every click. Also hide on `error` so a permanently-broken
+      // stream doesn't get stuck with a spinner.
       var loadingEl = card.querySelector(".sif-loading");
-      video.addEventListener("waiting",  function(){ if (loadingEl) loadingEl.classList.add("visible"); });
-      video.addEventListener("playing",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-      video.addEventListener("canplay",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-      video.addEventListener("error",    function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+      var waitTimer = null;
+      function showLoading(){
+        if (waitTimer) clearTimeout(waitTimer);
+        waitTimer = setTimeout(function(){
+          if (loadingEl) loadingEl.classList.add("visible");
+        }, 400);
+      }
+      function hideLoading(){
+        if (waitTimer){ clearTimeout(waitTimer); waitTimer = null; }
+        if (loadingEl) loadingEl.classList.remove("visible");
+      }
+      video.addEventListener("waiting",  showLoading);
+      video.addEventListener("playing",  hideLoading);
+      video.addEventListener("canplay",  hideLoading);
+      video.addEventListener("error",    hideLoading);
 
       var progBar=card.querySelector(".sif-progress");
       var dragging=false;

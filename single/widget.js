@@ -242,11 +242,24 @@
   var popoutBtn = widget.querySelector(".srv-popout-btn");
   var pauseInd  = widget.querySelector(".srv-pause-ind");
   var loadingEl = widget.querySelector(".srv-loading");
-  // Buffering: show on `waiting`, hide on `playing`/`canplay`/`error`.
-  video.addEventListener("waiting",  function(){ if (loadingEl) loadingEl.classList.add("visible"); });
-  video.addEventListener("playing",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-  video.addEventListener("canplay",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-  video.addEventListener("error",    function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  // Buffering: 400ms grace period before the spinner shows (every play()
+  // call fires `waiting` briefly while the browser decodes — without the
+  // delay the spinner flashes on every click).
+  var waitTimer = null;
+  function showLoading(){
+    if (waitTimer) clearTimeout(waitTimer);
+    waitTimer = setTimeout(function(){
+      if (loadingEl) loadingEl.classList.add("visible");
+    }, 400);
+  }
+  function hideLoading(){
+    if (waitTimer){ clearTimeout(waitTimer); waitTimer = null; }
+    if (loadingEl) loadingEl.classList.remove("visible");
+  }
+  video.addEventListener("waiting",  showLoading);
+  video.addEventListener("playing",  hideLoading);
+  video.addEventListener("canplay",  hideLoading);
+  video.addEventListener("error",    hideLoading);
   var speedInd  = widget.querySelector(".srv-speed");
   var progBar   = widget.querySelector(".srv-progress");
   var progFill  = widget.querySelector(".srv-progress-fill");

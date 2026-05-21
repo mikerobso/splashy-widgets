@@ -392,13 +392,26 @@
   var timerTx  = overlay.querySelector(".sst-timer-text");
   var pauseInd = overlay.querySelector(".sst-pause-ind");
   var loadingEl = overlay.querySelector(".sst-loading");
-  // Buffering: show on `waiting`, hide on `playing`/`canplay`/`error`. Also
-  // hide on `loadeddata` since src changes per reel and we want a clean slate.
-  video.addEventListener("waiting",     function(){ if (loadingEl) loadingEl.classList.add("visible"); });
-  video.addEventListener("playing",     function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-  video.addEventListener("canplay",     function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-  video.addEventListener("loadeddata",  function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
-  video.addEventListener("error",       function(){ if (loadingEl) loadingEl.classList.remove("visible"); });
+  // Buffering: 400ms grace before the spinner shows (every play() fires
+  // `waiting` briefly while the browser decodes the first frame; without the
+  // delay it flashes on every click). Also hide on `loadeddata` since src
+  // changes per reel.
+  var waitTimer = null;
+  function showLoading(){
+    if (waitTimer) clearTimeout(waitTimer);
+    waitTimer = setTimeout(function(){
+      if (loadingEl) loadingEl.classList.add("visible");
+    }, 400);
+  }
+  function hideLoading(){
+    if (waitTimer){ clearTimeout(waitTimer); waitTimer = null; }
+    if (loadingEl) loadingEl.classList.remove("visible");
+  }
+  video.addEventListener("waiting",     showLoading);
+  video.addEventListener("playing",     hideLoading);
+  video.addEventListener("canplay",     hideLoading);
+  video.addEventListener("loadeddata",  hideLoading);
+  video.addEventListener("error",       hideLoading);
   var speedEl  = overlay.querySelector(".sst-speed");
   var muteBtn  = overlay.querySelector(".sst-mute-btn");
   var progBar  = overlay.querySelector(".sst-progress");
