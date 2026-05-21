@@ -61,6 +61,24 @@
     return { reel_label: label || "", video_url: videoUrl || "" };
   }
 
+  // ── XSS hardening ────────────────────────────────────
+  // Escape any cfg-sourced value before interpolating into an HTML string.
+  // textContent / setAttribute paths are already safe.
+  function escapeHTML(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function safeUrl(u){
+    if (!u) return "";
+    var s = String(u).trim();
+    if (/^javascript:/i.test(s)) return "";
+    return escapeHTML(s);
+  }
+
   // The Instagram-style gradient ring (matches the other Splshy widgets).
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
   // logoRing may be a solid colour (e.g. "#D30011") or the string
@@ -328,7 +346,7 @@
   // leaving it blank yields a clean top-left.
   var badgeHTML = "";
   if (logoUrl) {
-    var logoContent = '<img src="' + logoUrl + '" alt="logo">';
+    var logoContent = '<img src="' + safeUrl(logoUrl) + '" alt="logo">';
     // For the gradient ring the logo content sits in an inner circle centred
     // in the masked ring; the transparent hole + smaller logo create the
     // Instagram-style see-through gap. For a solid ring the border does it.
@@ -336,9 +354,9 @@
       ? '<div class="srv-logo srv-logo--grad"><div class="srv-logo-inner">' + logoContent + '</div></div>'
       : '<div class="srv-logo">' + logoContent + '</div>';
     badgeHTML =
-      '<a href="' + igUrl + '" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
+      '<a href="' + safeUrl(igUrl) + '" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">' +
         logoHTML +
-        '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + followerCount + '</div>' +
+        '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">' + escapeHTML(followerCount) + '</div>' +
       '</a>';
   }
 

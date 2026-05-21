@@ -135,6 +135,29 @@
     };
   }
 
+  // ── XSS hardening ────────────────────────────────────
+  // Every value pulled from cfg (reel labels, URLs, follower count) is
+  // attacker-controllable if the embed config or the CMS holding it is
+  // compromised. escapeHTML neutralises HTML special chars before inter-
+  // polation; safeUrl additionally blocks `javascript:` URLs from landing
+  // in href/src attributes. Apply at every HTML-string interpolation point
+  // (textContent and setAttribute are already safe — the browser handles
+  // those).
+  function escapeHTML(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function safeUrl(u){
+    if (!u) return "";
+    var s = String(u).trim();
+    if (/^javascript:/i.test(s)) return "";
+    return escapeHTML(s);
+  }
+
   // ── CSS ─────────────────────────────────────────────
   if (!document.querySelector("style[data-splshy-infinite]")) {
     var style = document.createElement("style");
@@ -456,16 +479,16 @@
       var resolvedLogo = reel.logoUrl||logoUrl||"";
       var badgeHTML = "";
       if (resolvedLogo){
-        var logoContent = '<img src="'+resolvedLogo+'" alt="logo">';
+        var logoContent = '<img src="'+safeUrl(resolvedLogo)+'" alt="logo">';
         // Gradient ring wraps the logo in an inner circle (the masked ::before
         // draws the ring); a solid ring uses the .sif-logo border directly.
         var logoHTML = ringIsGradient
           ? '<div class="sif-logo sif-logo--grad"><div class="sif-logo-inner">'+logoContent+'</div></div>'
           : '<div class="sif-logo">'+logoContent+'</div>';
         badgeHTML =
-          '<a href="'+igUrl+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
+          '<a href="'+safeUrl(igUrl)+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;pointer-events:auto;text-decoration:none;gap:5px;">'+
             logoHTML+
-            '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+followerCount+'</div>'+
+            '<div style="color:rgba(255,255,255,0.7);font-size:10px;font-weight:400;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.5);">'+escapeHTML(followerCount)+'</div>'+
           '</a>';
       }
       var RC = (2*Math.PI*23).toFixed(2);
@@ -478,7 +501,7 @@
             '<div style="height:13px;"></div>'+
           '</div>'+
         '</div>'+
-        '<div class="sif-bottom-bar"><div class="sif-title">'+(reel.label||"")+'</div></div>'+
+        '<div class="sif-bottom-bar"><div class="sif-title">'+escapeHTML(reel.label||"")+'</div></div>'+
         '<button class="sif-play-btn" aria-label="Play video"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>'+
         '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
         '<div class="sif-loading" role="status" aria-label="Loading video"></div>'+

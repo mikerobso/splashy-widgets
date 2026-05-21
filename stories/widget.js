@@ -89,6 +89,24 @@
     };
   }
 
+  // ── XSS hardening ────────────────────────────────────
+  // Escape any cfg-sourced value before interpolating into an HTML string.
+  // textContent / setAttribute paths are already safe.
+  function escapeHTML(s){
+    return String(s == null ? "" : s)
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#39;');
+  }
+  function safeUrl(u){
+    if (!u) return "";
+    var s = String(u).trim();
+    if (/^javascript:/i.test(s)) return "";
+    return escapeHTML(s);
+  }
+
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
   // True on phones / small touch screens — drives the simpler pop animation.
@@ -325,16 +343,16 @@
   // leaving it blank yields a clean top-left in the overlay player.
   var badgeHTML = "";
   if (logoUrl) {
-    var logoContent = '<img src="'+logoUrl+'" alt="logo">';
+    var logoContent = '<img src="'+safeUrl(logoUrl)+'" alt="logo">';
     // Gradient ring wraps the logo in an inner circle (the masked ::before
     // draws the ring); a solid ring uses the .sst-logo border directly.
     var logoHTML = logoRingIsGradient
       ? '<div class="sst-logo sst-logo--grad"><div class="sst-logo-inner">'+logoContent+'</div></div>'
       : '<div class="sst-logo">'+logoContent+'</div>';
     badgeHTML =
-      '<a href="'+igUrl+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
+      '<a href="'+safeUrl(igUrl)+'" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)" style="display:flex;flex-direction:column;align-items:center;text-decoration:none;">' +
         logoHTML +
-        '<div class="sst-foll">'+followerCount+'</div>' +
+        '<div class="sst-foll">'+escapeHTML(followerCount)+'</div>' +
       '</a>';
   }
   var RC = (2*Math.PI*23).toFixed(2);
