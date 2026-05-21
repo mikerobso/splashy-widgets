@@ -31,10 +31,12 @@
   var videoUrl      = cfg.videoUrl      || "";
   var posterUrl     = cfg.posterUrl     || "";
   var label         = cfg.label         || "";
-  // Hover preview: 1.25s after the cursor lands on the card, the video plays
-  // muted from 0.5s for 5s, then freezes on the last frame. Clicking the
-  // card during preview commits to real playback. Default ON; builder
-  // emits `hoverPreview: false` to disable per-embed.
+  // Hover preview: 1s after the cursor lands on the card, the video plays
+  // muted from the 0.5s mark and keeps playing for as long as the cursor
+  // stays on the card. mouseleave snaps back to the poster. Clicking the
+  // card during preview commits to real playback (resets to 0, plays with
+  // audio). Default ON for single; builder emits `hoverPreview: false` to
+  // disable per-embed.
   var hoverPreview  = cfg.hoverPreview !== false;
 
   // The Instagram-style gradient ring (matches the other Splshy widgets).
@@ -357,10 +359,10 @@
     poster.style.display = "none";
     playBtn.classList.add("preview-active");
     video.play().catch(function(){});
-    if (previewEndTimer) clearTimeout(previewEndTimer);
-    previewEndTimer = setTimeout(function(){
-      if (previewState === "previewing") video.pause();
-    }, 5000);
+    // No auto-pause: preview plays as long as the cursor stays on the card.
+    // mouseleave (endPreview) is the only thing that stops the preview;
+    // a natural `ended` event will also fall through to the existing handler
+    // which snaps back to the poster.
   }
   function endPreview(){
     if (previewState !== "previewing") return;
@@ -389,7 +391,7 @@
   }
   card.addEventListener("mouseenter", function(){
     if (previewTimer) clearTimeout(previewTimer);
-    previewTimer = setTimeout(startPreview, 1250);
+    previewTimer = setTimeout(startPreview, 1000);
   });
   card.addEventListener("mouseleave", function(){
     if (previewTimer){ clearTimeout(previewTimer); previewTimer = null; }

@@ -84,8 +84,9 @@
   // Hover preview: when a card is hovered for 1.25s, it plays a muted 5s
   // preview from the 0.5s mark and freezes on the last frame. Clicking the
   // card during preview commits to real playback (resets to 0, plays with
-  // audio). Default ON; builder emits `hoverPreview: false` to disable.
-  var hoverPreview = cfg.hoverPreview !== false;
+  // audio). Default OFF for infinite; builder opts in by emitting
+  // `hoverPreview: true`.
+  var hoverPreview = !!cfg.hoverPreview;
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
   // accordion renderer; mobile rendering ignores V.
