@@ -107,6 +107,34 @@
   }
   var n = effectiveReels.length;
 
+  // ── GA4 / analytics tracking ─────────────────────────
+  // Fires an event to whichever analytics the host page uses — gtag (GA4
+  // direct) or dataLayer (Google Tag Manager). If neither exists, it does
+  // nothing, so the widget never errors on a page without analytics.
+  // (Mirrors the stories widget's track() pattern.)
+  function track(eventName, params){
+    try {
+      var data = params || {};
+      data.widget_type     = "infinite_carousel";
+      data.widget_instance = containerId;
+      if (typeof window.gtag === "function"){
+        window.gtag("event", eventName, data);
+      } else if (window.dataLayer && typeof window.dataLayer.push === "function"){
+        var payload = { event: eventName };
+        for (var k in data){ if (data.hasOwnProperty(k)) payload[k] = data[k]; }
+        window.dataLayer.push(payload);
+      }
+    } catch (e) { /* analytics must never break the widget */ }
+  }
+  function reelParams(reelIdx){
+    var r = effectiveReels[reelIdx] || {};
+    return {
+      reel_index: reelIdx,
+      reel_label: r.label || "",
+      video_url:  r.videoUrl || ""
+    };
+  }
+
   // ── CSS ─────────────────────────────────────────────
   if (!document.querySelector("style[data-splshy-infinite]")) {
     var style = document.createElement("style");
@@ -489,6 +517,11 @@
         if (pt) pt.style.left=(pct*100)+"%";
         // a11y: keep slider aria-valuenow in sync with the visual fill.
         progBar.setAttribute("aria-valuenow", Math.round(pct*100));
+        // GA4: video_progress at the 50% mark, once per playback session.
+        if (!cardObj._progressFired && pct >= 0.5){
+          cardObj._progressFired = true;
+          track("video_progress", reelParams(cardObj.reelIdx));
+        }
       });
       video.addEventListener("ended",function(){
         ring.style.strokeDashoffset=0; timerText.textContent=fmtTime(dur);
@@ -672,6 +705,22 @@
       video.addEventListener("canplay",  hideLoading);
       video.addEventListener("error",    hideLoading);
 
+      // GA4 / analytics: video_play (first playing), video_progress (50%),
+      // video_complete (ended), video_error. playFired / progressFired flags
+      // are reset in resetCard so a recycled card can fire fresh events.
+      video.addEventListener("playing", function(){
+        if (!cardObj._playFired){
+          cardObj._playFired = true;
+          track("video_play", reelParams(cardObj.reelIdx));
+        }
+      });
+      video.addEventListener("ended", function(){
+        track("video_complete", reelParams(cardObj.reelIdx));
+      });
+      video.addEventListener("error", function(){
+        track("video_error", reelParams(cardObj.reelIdx));
+      });
+
       var progBar=card.querySelector(".sif-progress");
       var dragging=false;
       function getPct(e){ var r=progBar.getBoundingClientRect(); return Math.max(0,Math.min(1,((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width)); }
@@ -794,7 +843,10 @@
       var dot = document.createElement("button");
       dot.className = "sif-dot";
       dot.setAttribute("aria-label","Reel "+(rIdx+1));
-      dot.addEventListener("click", function(){ navigate(rIdx); });
+      dot.addEventListener("click", function(){
+        track("widget_navigate", { direction: "dot", from_reel: current, target_reel: rIdx });
+        navigate(rIdx);
+      });
       dotsEl.appendChild(dot);
       dots.push(dot);
     })(di);
@@ -1225,6 +1277,7 @@
   function resetCard(c){
     if (c.endPreview) c.endPreview();   // cancel any active hover preview
     c.video.pause(); c.video.currentTime=0; c.video.playbackRate=1; c.video.volume=1;
+    c._playFired = false; c._progressFired = false;  // reset GA flags for next play
     if (c.fadeOut) c.fadeOut(); else { c.video.style.display="none"; }
     c.el.classList.remove("sif-playing");
     var pf=c.el.querySelector(".sif-progress-fill"),pt=c.el.querySelector(".sif-progress-thumb");
@@ -1271,6 +1324,7 @@
     popped  = true;
     poppedCard = c;
     var el = c.el;
+    track("video_popout", reelParams(c.reelIdx));
 
     // Measure the card's current on-screen rect BEFORE moving it.
     var r = el.getBoundingClientRect();
@@ -1444,6 +1498,8 @@
     placeAll();
     setTrack(false);
     updateUI();
+    // GA4: widget_impression — fires once per widget instance after init.
+    track("widget_impression", { reel_count: realCount, desktop_style: desktopStyle });
   })();
 
   // ── Navigate ─────────────────────────────────────────
@@ -1571,8 +1627,14 @@
   }
 
   // ── Controls ─────────────────────────────────────────
-  prevBtn.addEventListener("click",function(){ navigate(mod(current-1,realCount)); });
-  nextBtn.addEventListener("click",function(){ navigate(mod(current+1,realCount)); });
+  prevBtn.addEventListener("click",function(){
+    track("widget_navigate", { direction: "prev", from_reel: current });
+    navigate(mod(current-1,realCount));
+  });
+  nextBtn.addEventListener("click",function(){
+    track("widget_navigate", { direction: "next", from_reel: current });
+    navigate(mod(current+1,realCount));
+  });
 
   var txStart=0,txStartY=0;
   viewport.addEventListener("touchstart",function(e){ txStart=e.touches[0].clientX; txStartY=e.touches[0].clientY; },{passive:true});

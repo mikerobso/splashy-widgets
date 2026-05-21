@@ -39,6 +39,28 @@
   // disable per-embed.
   var hoverPreview  = cfg.hoverPreview !== false;
 
+  // ── GA4 / analytics tracking ─────────────────────────
+  // Fires an event to whichever analytics the host page uses — gtag (GA4
+  // direct) or dataLayer (Google Tag Manager). If neither exists, it does
+  // nothing, so the widget never errors on a page without analytics.
+  function track(eventName, params){
+    try {
+      var data = params || {};
+      data.widget_type     = "single_reel";
+      data.widget_instance = containerId;
+      if (typeof window.gtag === "function"){
+        window.gtag("event", eventName, data);
+      } else if (window.dataLayer && typeof window.dataLayer.push === "function"){
+        var payload = { event: eventName };
+        for (var k in data){ if (data.hasOwnProperty(k)) payload[k] = data[k]; }
+        window.dataLayer.push(payload);
+      }
+    } catch (e) { /* analytics must never break the widget */ }
+  }
+  function reelParams(){
+    return { reel_label: label || "", video_url: videoUrl || "" };
+  }
+
   // The Instagram-style gradient ring (matches the other Splshy widgets).
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
   // logoRing may be a solid colour (e.g. "#D30011") or the string
@@ -242,6 +264,19 @@
   var popoutBtn = widget.querySelector(".srv-popout-btn");
   var pauseInd  = widget.querySelector(".srv-pause-ind");
   var loadingEl = widget.querySelector(".srv-loading");
+  // GA4: video_play (first playing), video_progress (50%), video_complete,
+  // video_error.
+  var _playFired = false, _progressFired = false;
+  video.addEventListener("playing", function(){
+    if (!_playFired){ _playFired = true; track("video_play", reelParams()); }
+  });
+  video.addEventListener("ended", function(){
+    track("video_complete", reelParams());
+    _playFired = false; _progressFired = false;
+  });
+  video.addEventListener("error", function(){
+    track("video_error", reelParams());
+  });
   // Buffering: 400ms grace period before the spinner shows (every play()
   // call fires `waiting` briefly while the browser decodes — without the
   // delay the spinner flashes on every click).
@@ -352,6 +387,10 @@
     progFill.style.width = (pct * 100) + "%";
     progThumb.style.left = (pct * 100) + "%";
     progBar.setAttribute("aria-valuenow", Math.round(pct * 100));
+    if (!_progressFired && pct >= 0.5){
+      _progressFired = true;
+      track("video_progress", reelParams());
+    }
   });
   video.addEventListener("ended", function () {
     ring.style.strokeDashoffset = 0;
@@ -538,6 +577,7 @@
     if (popped || popBusy || !isDesktop()) return;
     popBusy = true;
     popped  = true;
+    track("video_popout", reelParams());
 
     // Measure the card's current on-screen rect BEFORE moving it.
     var r = card.getBoundingClientRect();
@@ -749,6 +789,9 @@
   card.addEventListener("mouseleave",  endHold);
   card.addEventListener("touchcancel", endHold);
   card.addEventListener("touchend",    endHold);
+
+  // GA4: widget_impression — fires once per widget instance after setup.
+  track("widget_impression", {});
 
   // ── Global Space-to-toggle ───────────────────────────────
   // Document-level Space handler, made idempotent via window.SPLSHY_SPACE_HOOKED
