@@ -617,12 +617,20 @@
           var targetRealIdx = mod(cardObj.realIdx + 1, realCount);
           if (rel === -1) {
             // Target is already centre — no slide; play centre directly.
-            cards.forEach(function(c){
-              if (c.realIdx === targetRealIdx) {
-                var pb = c.el.querySelector(".sif-play-btn");
-                if (pb) pb.click();
+            // Pick exactly ONE matching card (preferring the one at centre)
+            // — accordion modes use doubling so multiple cards can share a
+            // realIdx, and clicking play on more than one chains resets.
+            var pickL = null;
+            for (var iL = 0; iL < cards.length; iL++) {
+              if (cards[iL].realIdx === targetRealIdx) {
+                if (cards[iL].slot === centreSlot) { pickL = cards[iL]; break; }
+                if (!pickL) pickL = cards[iL];
               }
-            });
+            }
+            if (pickL) {
+              var pbL = pickL.el.querySelector(".sif-play-btn");
+              if (pbL) pbL.click();
+            }
           } else {
             // Slide one forward; play the target card once it lands.
             pendingAutoAdvanceTarget = targetRealIdx;
@@ -1713,16 +1721,24 @@
       // Auto-advance landing: a reel just ended and we slid one over.
       // Click play on the card that holds the target reel (realIdx =
       // ended.realIdx + 1). For centre-ended that card lands at the new
-      // centre; for right-ended it lands at the new right.
+      // centre; for right-ended it lands at the new right. Pick ONE
+      // matching card (accordion doubling means multiple cards can share a
+      // realIdx — preferring the centre, falling back to the closest slot
+      // to centre, so the play stays on a visible card).
       if (pendingAutoAdvanceTarget !== null) {
         var target = pendingAutoAdvanceTarget;
         pendingAutoAdvanceTarget = null;
-        cards.forEach(function(c){
-          if (c.realIdx === target) {
-            var pb = c.el.querySelector(".sif-play-btn");
-            if (pb) pb.click();
+        var pick = null, pickDist = Infinity;
+        for (var i = 0; i < cards.length; i++) {
+          if (cards[i].realIdx === target) {
+            var d = Math.abs(cards[i].slot - centreSlot);
+            if (d < pickDist) { pick = cards[i]; pickDist = d; }
           }
-        });
+        }
+        if (pick) {
+          var pb = pick.el.querySelector(".sif-play-btn");
+          if (pb) pb.click();
+        }
       }
     }
   }
