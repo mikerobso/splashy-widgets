@@ -23,6 +23,17 @@
   ==================================================== */
 
   var cfg           = window.SPLSHY_SINGLE || {};
+  // Host whitelist: see infinite widget for the longer rationale. Soft per-
+  // embed licensing — refuses to render on hosts not in cfg.allowedOrigins.
+  var allowedOrigins = cfg.allowedOrigins || [];
+  if (allowedOrigins.length) {
+    var host = (window.location && window.location.hostname) || "";
+    var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);
+    if (!isDev && allowedOrigins.indexOf(host) === -1) {
+      try { console.warn("SPLSHY single: host '" + host + "' not in allowedOrigins ["+allowedOrigins.join(", ")+"], widget will not render."); } catch(e){}
+      return;
+    }
+  }
   var containerId   = cfg.containerId   || "splshy-single";
   var followerCount = cfg.followerCount || "";
   var igUrl         = cfg.igUrl         || "https://www.instagram.com/";

@@ -14,6 +14,21 @@
   function initWidget(cfg) {
 
   cfg               = cfg || {};
+  // Host whitelist: if `allowedOrigins` is a non-empty array, the widget
+  // only renders when window.location.hostname is in the list. Localhost
+  // and *.local are exempted so dev environments keep working. Empty list
+  // (default) means no enforcement. Soft control — bypassable by a forked
+  // widget.js but blocks casual copy-paste of the embed snippet to other
+  // sites.
+  var allowedOrigins = cfg.allowedOrigins || [];
+  if (allowedOrigins.length) {
+    var host = (window.location && window.location.hostname) || "";
+    var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);
+    if (!isDev && allowedOrigins.indexOf(host) === -1) {
+      try { console.warn("SPLSHY infinite: host '" + host + "' not in allowedOrigins ["+allowedOrigins.join(", ")+"], widget will not render."); } catch(e){}
+      return;
+    }
+  }
   var reels         = cfg.reels              || [];
   var followerCount = cfg.followerCount      || "";
   var igUrl         = cfg.igUrl             || "https://www.instagram.com/";
