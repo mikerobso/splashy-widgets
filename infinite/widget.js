@@ -593,15 +593,32 @@
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
-        // Auto-advance: this reel just ended — slide to the reel AFTER it.
-        // Works whether the card was centre or a side card (row mode lets
-        // side cards play); we navigate based on the ended card's own
-        // realIdx so the advance is contextual to whatever the user was
-        // actually watching. Skipped while popped (engine frozen), busy
-        // (mid-slide — first-ended wins), or when disabled via cfg.
+        // Auto-advance — behavior depends on which slot the ended card was
+        // in (row mode is the only mode where side cards play; accordion
+        // resets side cards on slide so only centre reaches `ended` there).
+        //
+        //   • Ended in CENTRE or RIGHT → carousel slides ONE forward. Played
+        //     card becomes the new is-prev (or new centre for right). The
+        //     reel after the current centre becomes the new centre and plays.
+        //   • Ended in LEFT (is-prev)  → DON'T slide. Just kick off the
+        //     centre card's play button. The user's focal point stays where
+        //     it is; playback continues naturally with whatever's centred.
+        //
+        // Skipped while popped (engine frozen), busy (mid-slide — first
+        // ended wins), or when disabled via cfg.
         if (autoAdvance && !popped && !busy) {
-          pendingAutoAdvance = true;
-          navigate(mod(cardObj.realIdx + 1, realCount));
+          var rel = cardObj.slot - centreSlot;
+          if (rel === -1) {
+            cards.forEach(function(c){
+              if (c.slot === centreSlot) {
+                var pb = c.el.querySelector(".sif-play-btn");
+                if (pb) pb.click();
+              }
+            });
+          } else {
+            pendingAutoAdvance = true;
+            navigate(mod(current + 1, realCount));
+          }
         }
       });
 
