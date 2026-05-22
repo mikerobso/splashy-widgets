@@ -115,7 +115,10 @@
   // disable. `pendingAutoAdvance` is the per-step flag — set in the ended
   // handler, consumed in finishStep to trigger play on the new centre.
   var autoAdvance = cfg.autoAdvance !== false;
-  var pendingAutoAdvance = false;
+  // After an auto-advance slide, this is the realIdx of the card that
+  // should be played (null when no advance pending). Cleared in finishStep
+  // once we've dispatched the play click on the matching card.
+  var pendingAutoAdvanceTarget = null;
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
   // accordion renderer; mobile rendering ignores V.
@@ -593,30 +596,36 @@
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
-        // Auto-advance — behavior depends on which slot the ended card was
-        // in (row mode is the only mode where side cards play; accordion
-        // resets side cards on slide so only centre reaches `ended` there).
+        // Auto-advance — the underlying rule is: after a reel ends, the
+        // NEXT reel (ended.realIdx + 1) should play. Where that target reel
+        // currently is determines whether we need to slide first:
         //
-        //   • Ended in CENTRE or RIGHT → carousel slides ONE forward. Played
-        //     card becomes the new is-prev (or new centre for right). The
-        //     reel after the current centre becomes the new centre and plays.
-        //   • Ended in LEFT (is-prev)  → DON'T slide. Just kick off the
-        //     centre card's play button. The user's focal point stays where
-        //     it is; playback continues naturally with whatever's centred.
+        //   • Ended in CENTRE  → target is current is-next. Slide 1 right;
+        //     target lands at the new centre and plays.
+        //   • Ended in RIGHT (is-next) → target is the off-screen reel after
+        //     it. Slide 1 right; target lands at the new is-next (right)
+        //     slot and plays — the played reel keeps its visible position
+        //     by becoming the new centre.
+        //   • Ended in LEFT (is-prev)  → target is already the current
+        //     centre. DON'T slide; just kick off centre's play button. The
+        //     user's focal point doesn't shift.
         //
         // Skipped while popped (engine frozen), busy (mid-slide — first
         // ended wins), or when disabled via cfg.
         if (autoAdvance && !popped && !busy) {
           var rel = cardObj.slot - centreSlot;
+          var targetRealIdx = mod(cardObj.realIdx + 1, realCount);
           if (rel === -1) {
+            // Target is already centre — no slide; play centre directly.
             cards.forEach(function(c){
-              if (c.slot === centreSlot) {
+              if (c.realIdx === targetRealIdx) {
                 var pb = c.el.querySelector(".sif-play-btn");
                 if (pb) pb.click();
               }
             });
           } else {
-            pendingAutoAdvance = true;
+            // Slide one forward; play the target card once it lands.
+            pendingAutoAdvanceTarget = targetRealIdx;
             navigate(mod(current + 1, realCount));
           }
         }
@@ -1701,13 +1710,15 @@
         }
         c.previewPending = false;
       });
-      // Auto-advance landing: a reel just ended and we slid one over —
-      // simulate a click on the new centre's play button so it starts
-      // playing automatically (TikTok-style continuous flow).
-      if (pendingAutoAdvance) {
-        pendingAutoAdvance = false;
+      // Auto-advance landing: a reel just ended and we slid one over.
+      // Click play on the card that holds the target reel (realIdx =
+      // ended.realIdx + 1). For centre-ended that card lands at the new
+      // centre; for right-ended it lands at the new right.
+      if (pendingAutoAdvanceTarget !== null) {
+        var target = pendingAutoAdvanceTarget;
+        pendingAutoAdvanceTarget = null;
         cards.forEach(function(c){
-          if (c.slot === centreSlot) {
+          if (c.realIdx === target) {
             var pb = c.el.querySelector(".sif-play-btn");
             if (pb) pb.click();
           }
