@@ -109,6 +109,13 @@
   // audio). Default OFF for infinite; builder opts in by emitting
   // `hoverPreview: true`.
   var hoverPreview = !!cfg.hoverPreview;
+  // Auto-advance: when the centre reel finishes, slide to the next reel and
+  // start playing it (TikTok-style continuous flow). Loops back to reel 0
+  // after the last reel. Default ON; builder emits `autoAdvance: false` to
+  // disable. `pendingAutoAdvance` is the per-step flag — set in the ended
+  // handler, consumed in finishStep to trigger play on the new centre.
+  var autoAdvance = cfg.autoAdvance !== false;
+  var pendingAutoAdvance = false;
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
   // accordion renderer; mobile rendering ignores V.
@@ -586,6 +593,13 @@
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
+        // Auto-advance: this centre reel just ended — slide to the next
+        // reel and start it. Skipped while popped (engine frozen), busy
+        // (mid-slide), or when the user has disabled it via cfg.
+        if (autoAdvance && cardObj.slot === centreSlot && !popped && !busy) {
+          pendingAutoAdvance = true;
+          navigate(mod(current + 1, realCount));
+        }
       });
 
       var playBtn=card.querySelector(".sif-play-btn");
@@ -1667,6 +1681,18 @@
         }
         c.previewPending = false;
       });
+      // Auto-advance landing: a reel just ended and we slid one over —
+      // simulate a click on the new centre's play button so it starts
+      // playing automatically (TikTok-style continuous flow).
+      if (pendingAutoAdvance) {
+        pendingAutoAdvance = false;
+        cards.forEach(function(c){
+          if (c.slot === centreSlot) {
+            var pb = c.el.querySelector(".sif-play-btn");
+            if (pb) pb.click();
+          }
+        });
+      }
     }
   }
 
