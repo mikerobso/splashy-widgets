@@ -914,13 +914,6 @@
       card.addEventListener("touchend",endHold);
       card.addEventListener("touchcancel",endHold);
 
-      // The play/pause toggle is DEFERRED by 350ms so a quick second tap
-      // can cancel it and fire a double-tap heart instead — otherwise the
-      // first tap would already have paused the video by the time the
-      // second tap arrives. 350ms is the standard double-tap window; users
-      // perceive single-tap pause as still responsive at this delay.
-      // Navigate / preview-transition paths fire IMMEDIATELY (no defer).
-      var tapTimer = null;
       card.addEventListener("click",function(e){
         if (e.target.closest(".sif-mute-btn")||
             e.target.closest(".sif-popout-btn")||e.target.closest(".sif-progress")) return;
@@ -928,7 +921,6 @@
         // click in its area should transition to real play, not be ignored —
         // so don't short-circuit when target is .sif-play-btn during preview.
         if (e.target.closest(".sif-play-btn") && previewState !== "previewing") return;
-        if (e.target.closest(".sif-top-bar a")) return;
         if (swallow){ swallow=false; return; }
         // On mobile (any mode) AND in accordion desktop modes, tapping a
         // non-centre card brings it to the centre. Desktop ROW mode keeps
@@ -944,53 +936,57 @@
           transitionPreviewToPlay();
           return;
         }
-        if (video.style.display !== "block") return;
-        // Second tap within 350ms → double-tap. Cancel pending toggle,
-        // fire heart. Video state is untouched (the deferred toggle from
-        // the first tap never runs).
-        if (tapTimer){
-          clearTimeout(tapTimer);
-          tapTimer = null;
-          fireHeart(e);
-          return;
-        }
-        // First tap: defer the play/pause toggle. If a second tap arrives,
-        // the branch above cancels this timeout cleanly.
-        tapTimer = setTimeout(function(){
-          tapTimer = null;
+        if (video.style.display==="block"){
           var pi=card.querySelector(".sif-pause-ind");
           if (video.paused){ video.play(); if (pi) pi.classList.remove("visible"); }
           else { video.pause(); if (pi) pi.classList.add("visible"); }
-        }, 350);
+        }
       });
 
       track.appendChild(card);
       var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview, schedulePostNavPreview:schedulePostNavPreview, previewPending:false, fadeOut:fadeOut };
       cards.push(cardObj);
 
-      // Restore "liked" state from this session.
+      // ── Double-tap reaction (Instagram-gradient heart) ──
+      // Two taps within 350ms on the card surface (not on an interactive
+      // control) → a big heart pops + drifts up + fades, and a small pin
+      // appears in the upper-right corner. The pin persists per-session
+      // (via sessionStorage keyed by realIdx) so the same reel keeps its
+      // "liked" state across navigations until the user reloads the page.
       var LIKE_KEY = 'splshy_liked:' + realIdx;
       try {
         if (sessionStorage.getItem(LIKE_KEY) === '1') card.classList.add("sif-liked");
       } catch(err){}
-      // Double-tap detection is merged into the main card-click handler
-      // (below). This helper fires the floating heart + sets the pin.
-      function fireHeart(e){
-        var rect = card.getBoundingClientRect();
-        var x = (e.clientX != null) ? e.clientX - rect.left : rect.width / 2;
-        var y = (e.clientY != null) ? e.clientY - rect.top  : rect.height / 2;
-        var h = document.createElement("div");
-        h.className = "sif-heart-anim";
-        h.style.left = x + "px";
-        h.style.top  = y + "px";
-        card.appendChild(h);
-        setTimeout(function(){ if (h.parentNode) h.parentNode.removeChild(h); }, 1100);
-        if (!card.classList.contains("sif-liked")){
-          card.classList.add("sif-liked");
-          try { sessionStorage.setItem(LIKE_KEY, '1'); } catch(err){}
-          trackEvent("video_like", reelParams(cardObj.reelIdx));
+      var lastTap = 0;
+      card.addEventListener("click", function(e){
+        // Ignore clicks on interactive chrome (buttons, scrub bar, IG link).
+        if (e.target.closest(".sif-mute-btn") || e.target.closest(".sif-popout-btn") ||
+            e.target.closest(".sif-progress") || e.target.closest(".sif-play-btn") ||
+            e.target.closest(".sif-top-bar a")) return;
+        var now = Date.now();
+        if (now - lastTap < 350) {
+          lastTap = 0;
+          // Position the floating heart where the user actually tapped.
+          var rect = card.getBoundingClientRect();
+          var x = (e.clientX != null) ? e.clientX - rect.left : rect.width / 2;
+          var y = (e.clientY != null) ? e.clientY - rect.top : rect.height / 2;
+          var h = document.createElement("div");
+          h.className = "sif-heart-anim";
+          h.style.left = x + "px";
+          h.style.top  = y + "px";
+          card.appendChild(h);
+          setTimeout(function(){ if (h.parentNode) h.parentNode.removeChild(h); }, 1100);
+          // Persistent pin + session save (idempotent — repeat double-taps
+          // keep firing the animation but only flip "liked" once).
+          if (!card.classList.contains("sif-liked")) {
+            card.classList.add("sif-liked");
+            try { sessionStorage.setItem(LIKE_KEY, '1'); } catch(err){}
+            trackEvent("video_like", reelParams(cardObj.reelIdx));
+          }
+        } else {
+          lastTap = now;
         }
-      }
+      });
 
     })(ri);
   }
