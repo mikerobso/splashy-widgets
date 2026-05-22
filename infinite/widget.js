@@ -593,12 +593,15 @@
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
-        // Auto-advance: this centre reel just ended — slide to the next
-        // reel and start it. Skipped while popped (engine frozen), busy
-        // (mid-slide), or when the user has disabled it via cfg.
-        if (autoAdvance && cardObj.slot === centreSlot && !popped && !busy) {
+        // Auto-advance: this reel just ended — slide to the reel AFTER it.
+        // Works whether the card was centre or a side card (row mode lets
+        // side cards play); we navigate based on the ended card's own
+        // realIdx so the advance is contextual to whatever the user was
+        // actually watching. Skipped while popped (engine frozen), busy
+        // (mid-slide — first-ended wins), or when disabled via cfg.
+        if (autoAdvance && !popped && !busy) {
           pendingAutoAdvance = true;
-          navigate(mod(current + 1, realCount));
+          navigate(mod(cardObj.realIdx + 1, realCount));
         }
       });
 
