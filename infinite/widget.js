@@ -24,14 +24,27 @@
   // snippet to other sites.
   var ALLOWED_HOSTS = [
     "www.visitraleigh.com",
-    "www.splshy.com",      // splshy.com demos / landing pages
-    "www.getsplashy.com"   // builder preview (future)
+    "www.splshy.com",          // splshy.com demos / landing pages
+    "www.getsplashy.com",      // builder preview (future)
+    "*.simpleviewcms.com"      // SimpleView CMS preview environments
+                               // (raleigh.simpleviewcms.com etc — DMO clients
+                               // on the SimpleView platform preview here).
   ];
   var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";
     var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);
-    if (!isDev && allowedOrigins.indexOf(host) === -1) {
+    // Entries starting with "*." are subdomain wildcards. "*.foo.com" matches
+    // "any.foo.com" but NOT "foo.com" itself, NOT "evilfoo.com".
+    var allowed = allowedOrigins.some(function(o){
+      if (o === host) return true;
+      if (o.charAt(0) === "*" && o.charAt(1) === ".") {
+        var suffix = o.slice(1);
+        return host.length > suffix.length && host.slice(-suffix.length) === suffix;
+      }
+      return false;
+    });
+    if (!isDev && !allowed) {
       try { console.warn("SPLSHY infinite: host '" + host + "' not in allowedOrigins ["+allowedOrigins.join(", ")+"], widget will not render."); } catch(e){}
       return;
     }

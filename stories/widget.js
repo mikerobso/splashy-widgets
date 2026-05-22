@@ -21,14 +21,23 @@
   // cfg.allowedOrigins overrides per-embed for edge cases.
   var ALLOWED_HOSTS = [
     "www.visitraleigh.com",
-    "www.splshy.com",      // splshy.com demos / landing pages
-    "www.getsplashy.com"   // builder preview (future)
+    "www.splshy.com",          // splshy.com demos / landing pages
+    "www.getsplashy.com",      // builder preview (future)
+    "*.simpleviewcms.com"      // SimpleView CMS preview environments.
   ];
   var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";
     var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);
-    if (!isDev && allowedOrigins.indexOf(host) === -1) {
+    var allowed = allowedOrigins.some(function(o){
+      if (o === host) return true;
+      if (o.charAt(0) === "*" && o.charAt(1) === ".") {
+        var suffix = o.slice(1);
+        return host.length > suffix.length && host.slice(-suffix.length) === suffix;
+      }
+      return false;
+    });
+    if (!isDev && !allowed) {
       try { console.warn("SPLSHY stories: host '" + host + "' not in allowedOrigins ["+allowedOrigins.join(", ")+"], widget will not render."); } catch(e){}
       return;
     }
