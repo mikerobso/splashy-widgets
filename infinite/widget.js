@@ -14,13 +14,16 @@
   function initWidget(cfg) {
 
   cfg               = cfg || {};
-  // Host whitelist: if `allowedOrigins` is a non-empty array, the widget
-  // only renders when window.location.hostname is in the list. Localhost
-  // and *.local are exempted so dev environments keep working. Empty list
-  // (default) means no enforcement. Soft control — bypassable by a forked
-  // widget.js but blocks casual copy-paste of the embed snippet to other
-  // sites.
-  var allowedOrigins = cfg.allowedOrigins || [];
+  // Host whitelist: widget only renders when window.location.hostname is
+  // in the allowed list. Default list (ALLOWED_HOSTS below) is hardcoded
+  // — when signing new clients, ADD their domain here and push. A specific
+  // embed can override the list via cfg.allowedOrigins (e.g. for a one-off
+  // subdomain that doesn't deserve a global push). Localhost / *.local are
+  // exempted so dev environments keep working. Soft control — bypassable
+  // by a forked widget.js but blocks casual copy-paste of the embed
+  // snippet to other sites.
+  var ALLOWED_HOSTS = ["www.visitraleigh.com"];
+  var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";
     var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);

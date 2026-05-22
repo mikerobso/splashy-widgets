@@ -16,9 +16,11 @@
   function initWidget(cfg) {
 
   cfg               = cfg || {};
-  // Host whitelist: see infinite widget for the longer rationale. Soft per-
-  // embed licensing — refuses to render on hosts not in cfg.allowedOrigins.
-  var allowedOrigins = cfg.allowedOrigins || [];
+  // Host whitelist: see infinite widget for the longer rationale. Hardcoded
+  // list maintained here; add new client domains and push to deploy.
+  // cfg.allowedOrigins overrides per-embed for edge cases.
+  var ALLOWED_HOSTS = ["www.visitraleigh.com"];
+  var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";
     var isDev = !host || host === "localhost" || host === "127.0.0.1" || /\.local$/i.test(host);
