@@ -266,18 +266,6 @@
       // anywhere on the card (including the area where the play button is).
       ".sif-play-btn.preview-active{opacity:0}",
       ".sif-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
-      // Double-tap heart reactions. Big floating heart on tap (pops + drifts
-      // up + fades over 1s) and a small persistent indicator in the upper-
-      // right that stays until page reload (per-session, by realIdx). Both
-      // use the Instagram gradient via a CSS mask of a heart SVG path.
-      ".sif-heart-anim{position:absolute;width:96px;height:96px;transform:translate(-50%,-50%);pointer-events:none;z-index:13;animation:sif-heart-pop 1s ease-out forwards;will-change:transform,opacity}",
-      ".sif-heart-anim::before,.sif-heart-pin::before{content:\"\";display:block;width:100%;height:100%;background:linear-gradient(135deg,#F9CE34 0%,#EE2A7B 50%,#6228D7 100%);-webkit-mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>\");-webkit-mask-size:contain;-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;mask-image:url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'/></svg>\");mask-size:contain;mask-repeat:no-repeat;mask-position:center}",
-      ".sif-heart-anim::before{filter:drop-shadow(0 4px 14px rgba(0,0,0,.45))}",
-      ".sif-heart-pin{position:absolute;top:24px;right:16px;width:24px;height:24px;z-index:13;pointer-events:none;opacity:0;transition:opacity .35s ease}",
-      ".sif-card.sif-liked .sif-heart-pin{opacity:1}",
-      ".sif-heart-pin::before{filter:drop-shadow(0 1px 3px rgba(0,0,0,.45))}",
-      "@keyframes sif-heart-pop{0%{transform:translate(-50%,-50%) scale(.2);opacity:0}15%{transform:translate(-50%,-50%) scale(1.4);opacity:1}40%{transform:translate(-50%,-50%) scale(1);opacity:1}100%{transform:translate(-50%,-160%) scale(.85);opacity:0}}",
-      "@media (prefers-reduced-motion: reduce){.sif-heart-anim{animation-duration:.01ms!important}}",
       ".sif-pause-ind.visible{opacity:1}",
       // Buffering indicator: styled to match .sif-mute-btn / .sif-popout-btn
       // (dark glassy circle, hairline border) with a spinning arc inside.
@@ -555,7 +543,6 @@
         '<button class="sif-play-btn" aria-label="Play video"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><path d="M2 2L16 10L2 18V2Z" fill="white"/></svg></div></button>'+
         '<div class="sif-pause-ind"><div class="sif-play-circle"><svg width="18" height="20" viewBox="0 0 18 20" fill="none"><rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/><rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/></svg></div></div>'+
         '<div class="sif-loading" role="status" aria-label="Loading video"></div>'+
-        '<div class="sif-heart-pin" aria-hidden="true"></div>'+
         '<button class="sif-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sif-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sif-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sif-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>'+
         '<button class="sif-popout-btn" aria-label="Pop out video">'+
           '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
@@ -946,47 +933,6 @@
       track.appendChild(card);
       var cardObj = { el:card, video:video, poster:poster, reelIdx:reelIdx, realIdx:realIdx, endPreview:endPreview, schedulePostNavPreview:schedulePostNavPreview, previewPending:false, fadeOut:fadeOut };
       cards.push(cardObj);
-
-      // ── Double-tap reaction (Instagram-gradient heart) ──
-      // Two taps within 350ms on the card surface (not on an interactive
-      // control) → a big heart pops + drifts up + fades, and a small pin
-      // appears in the upper-right corner. The pin persists per-session
-      // (via sessionStorage keyed by realIdx) so the same reel keeps its
-      // "liked" state across navigations until the user reloads the page.
-      var LIKE_KEY = 'splshy_liked:' + realIdx;
-      try {
-        if (sessionStorage.getItem(LIKE_KEY) === '1') card.classList.add("sif-liked");
-      } catch(err){}
-      var lastTap = 0;
-      card.addEventListener("click", function(e){
-        // Ignore clicks on interactive chrome (buttons, scrub bar, IG link).
-        if (e.target.closest(".sif-mute-btn") || e.target.closest(".sif-popout-btn") ||
-            e.target.closest(".sif-progress") || e.target.closest(".sif-play-btn") ||
-            e.target.closest(".sif-top-bar a")) return;
-        var now = Date.now();
-        if (now - lastTap < 350) {
-          lastTap = 0;
-          // Position the floating heart where the user actually tapped.
-          var rect = card.getBoundingClientRect();
-          var x = (e.clientX != null) ? e.clientX - rect.left : rect.width / 2;
-          var y = (e.clientY != null) ? e.clientY - rect.top : rect.height / 2;
-          var h = document.createElement("div");
-          h.className = "sif-heart-anim";
-          h.style.left = x + "px";
-          h.style.top  = y + "px";
-          card.appendChild(h);
-          setTimeout(function(){ if (h.parentNode) h.parentNode.removeChild(h); }, 1100);
-          // Persistent pin + session save (idempotent — repeat double-taps
-          // keep firing the animation but only flip "liked" once).
-          if (!card.classList.contains("sif-liked")) {
-            card.classList.add("sif-liked");
-            try { sessionStorage.setItem(LIKE_KEY, '1'); } catch(err){}
-            trackEvent("video_like", reelParams(cardObj.reelIdx));
-          }
-        } else {
-          lastTap = now;
-        }
-      });
 
     })(ri);
   }
