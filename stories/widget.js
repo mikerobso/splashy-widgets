@@ -19,7 +19,11 @@
   // Host whitelist: see infinite widget for the longer rationale. Hardcoded
   // list maintained here; add new client domains and push to deploy.
   // cfg.allowedOrigins overrides per-embed for edge cases.
-  var ALLOWED_HOSTS = ["www.visitraleigh.com"];
+  var ALLOWED_HOSTS = [
+    "www.visitraleigh.com",
+    "www.splshy.com",      // splshy.com demos / landing pages
+    "www.getsplashy.com"   // builder preview (future)
+  ];
   var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";

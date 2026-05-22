@@ -22,7 +22,11 @@
   // exempted so dev environments keep working. Soft control — bypassable
   // by a forked widget.js but blocks casual copy-paste of the embed
   // snippet to other sites.
-  var ALLOWED_HOSTS = ["www.visitraleigh.com"];
+  var ALLOWED_HOSTS = [
+    "www.visitraleigh.com",
+    "www.splshy.com",      // splshy.com demos / landing pages
+    "www.getsplashy.com"   // builder preview (future)
+  ];
   var allowedOrigins = cfg.allowedOrigins || ALLOWED_HOSTS;
   if (allowedOrigins.length) {
     var host = (window.location && window.location.hostname) || "";
