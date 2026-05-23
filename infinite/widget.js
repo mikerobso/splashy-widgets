@@ -419,13 +419,18 @@
   // container via the parent selector so they don't bleed into other
   // infinite widgets on the same page.
   if (forceMobile) {
+    // Conservative card sizing for forceMobile use — the carousel typically
+    // lives in a narrow side-layout column (~35-42% of page), so smaller
+    // cards keep the peek cards from getting clipped. 60vh capped at 480px
+    // tall (vs the 69vh / 620px we use for true mobile viewports where
+    // there's no column constraint).
     var fmStyle = document.createElement("style");
     fmStyle.textContent = [
       "#", containerId, " .sif-card{filter:brightness(.5);}",
       "#", containerId, " .sif-card.is-active{filter:brightness(1)!important;}",
       "#", containerId, " .sif-widget{",
-        "--sif-card-h:min(620px,69vh);",
-        "--sif-card-w:calc(min(620px,69vh)*9/16);",
+        "--sif-card-h:min(480px,60vh);",
+        "--sif-card-w:calc(min(480px,60vh)*9/16);",
         "--sif-gap:9px;",
         "--sif-step-frac:0.72;",
       "}",
