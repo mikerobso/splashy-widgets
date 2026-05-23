@@ -429,10 +429,10 @@
       "#", containerId, " .sif-card{filter:brightness(.5);}",
       "#", containerId, " .sif-card.is-active{filter:brightness(1)!important;}",
       "#", containerId, " .sif-widget{",
-        "--sif-card-h:min(480px,60vh);",
-        "--sif-card-w:calc(min(480px,60vh)*9/16);",
+        "--sif-card-h:min(560px,72vh);",
+        "--sif-card-w:calc(min(560px,72vh)*9/16);",
         "--sif-gap:9px;",
-        "--sif-step-frac:0.72;",
+        "--sif-step-frac:0.78;",
       "}",
       "#", containerId, " .sif-viewport{width:100%;}"
     ].join("");
