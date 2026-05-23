@@ -180,7 +180,7 @@
       ".srv-timer-ring{fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;transition:stroke-dashoffset .25s linear}",
       ".srv-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
       ".srv-bottom-bar{position:absolute;bottom:0;left:0;right:0;padding:40px 16px 26px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
-      ".srv-label{color:#fff;font-size:16px;font-weight:500;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);padding-left:4px;margin-right:20px}",
+      ".srv-label{color:#fff;font-size:16px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);padding-left:4px;margin-right:20px}",
       // !important on the reset properties defeats host-page CSS that might
       // target generic `button` from the embedding theme. The play-btn is a
       // full-card transparent overlay — any inherited background would cover
