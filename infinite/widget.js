@@ -122,6 +122,14 @@
   // audio). Default OFF for infinite; builder opts in by emitting
   // `hoverPreview: true`.
   var hoverPreview = !!cfg.hoverPreview;
+  // Force-mobile mode: render the widget with mobile sizing + layout even
+  // on desktop viewports. Used by the builder's side-text layouts (Text
+  // Left / Text Right), where the carousel sits in a narrow column and
+  // wants the single-focus + peek look that the mobile @media already
+  // gives us. The flag flips two things: isMobileLayout() returns true,
+  // and a `<style>` tag is injected that promotes the mobile @media
+  // declarations to unconditional rules.
+  var forceMobile = !!cfg.forceMobile;
   // Auto-advance: when the centre reel finishes, slide to the next reel and
   // start playing it (TikTok-style continuous flow). Loops back to reel 0
   // after the last reel. Default ON; builder emits `autoAdvance: false` to
@@ -399,6 +407,31 @@
       "}",
     ].join("");
     document.head.appendChild(style);
+  }
+
+  // When cfg.forceMobile is on, inject the mobile @media declarations as
+  // unconditional rules. This promotes mobile sizing (card-h, card-w,
+  // gap, step-frac, dimmed-non-active filter, full-width viewport) to
+  // apply even on desktop viewports, so the carousel renders mobile-
+  // style — single focused card + peek cards — in narrow side-layout
+  // columns. The flag is set per-embed instance, but the rules below are
+  // global; we scope each one to .sif-widget descendants of the embed's
+  // container via the parent selector so they don't bleed into other
+  // infinite widgets on the same page.
+  if (forceMobile) {
+    var fmStyle = document.createElement("style");
+    fmStyle.textContent = [
+      "#", containerId, " .sif-card{filter:brightness(.5);}",
+      "#", containerId, " .sif-card.is-active{filter:brightness(1)!important;}",
+      "#", containerId, " .sif-widget{",
+        "--sif-card-h:min(620px,69vh);",
+        "--sif-card-w:calc(min(620px,69vh)*9/16);",
+        "--sif-gap:9px;",
+        "--sif-step-frac:0.72;",
+      "}",
+      "#", containerId, " .sif-viewport{width:100%;}"
+    ].join("");
+    document.head.appendChild(fmStyle);
   }
 
   // ── Container ───────────────────────────────────────
@@ -1680,7 +1713,10 @@
   }
 
   // True on touch/mobile layouts (matches the mobile CSS media queries).
+  // Also true when cfg.forceMobile is set — used by the builder's
+  // side-text layouts so the carousel renders single-focus on desktop.
   function isMobileLayout(){
+    if (forceMobile) return true;
     return window.matchMedia(
       "(max-width:767px), (min-width:768px) and (pointer:coarse) and (hover:none)"
     ).matches;
