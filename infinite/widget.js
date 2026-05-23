@@ -369,6 +369,8 @@
       // hasn't run yet (e.g. between markup insertion and initEngine).
       ".sif-widget.sif-accordion .sif-arrow--left{left:calc(50% - var(--sif-arrow-offset,300px))}",
       ".sif-widget.sif-accordion .sif-arrow--right{right:calc(50% - var(--sif-arrow-offset,300px))}",
+      ".sif-widget.sif-force-mobile .sif-arrow--left{left:calc(50% - var(--sif-arrow-offset,200px))}",
+      ".sif-widget.sif-force-mobile .sif-arrow--right{right:calc(50% - var(--sif-arrow-offset,200px))}",
       "@media(min-width:600px){.sif-arrow{display:flex!important}}",
       // Dots: the BUTTON is a 24x24 transparent hit area (meets WCAG 2.2 AA
       // 2.5.8 Target Size Minimum); the actual visible dot is a centered
@@ -1182,6 +1184,11 @@
       c.el.style.transform = mobileCardTransform(c.slot - centreSlot);
       if (!animated) c.el.offsetHeight;          // force reflow on instant moves
     });
+
+    // forceMobile lives inside a wider column, so the default ±24px arrow
+    // CSS would put arrows at the column edges instead of next to the card.
+    // Recompute arrow offset based on the centre card's width.
+    if (forceMobile) applyAccordionArrowOffset();
   }
 
   // ── Accordion-3 desktop rendering (step 3b) ─────────────────────────
@@ -1341,15 +1348,23 @@
   // V=3; is-far for V=5, since it sits further out than the side cards). A
   // clamp prevents the arrow from escaping a narrow wrapper.
   function applyAccordionArrowOffset(){
-    if (!isAccordionDesktop()) return;
+    var accordion = isAccordionDesktop();
+    if (!accordion && !forceMobile) return;
     var cardW = getCardW();
-    var so    = Math.round(cardW * 0.68);
-    var ss    = 0.69;
-    var fs    = 0.56;
-    var fanEdge = so + (cardW * ss) / 2;             // is-prev / is-next outer edge
-    if (V === 5){
-      var farEdge = (so * 1.55) + (cardW * fs) / 2;  // is-far outer edge
-      if (farEdge > fanEdge) fanEdge = farEdge;
+    var fanEdge;
+    if (accordion){
+      var so    = Math.round(cardW * 0.68);
+      var ss    = 0.69;
+      var fs    = 0.56;
+      fanEdge = so + (cardW * ss) / 2;               // is-prev / is-next outer edge
+      if (V === 5){
+        var farEdge = (so * 1.55) + (cardW * fs) / 2;
+        if (farEdge > fanEdge) fanEdge = farEdge;
+      }
+    } else {
+      // forceMobile: centre card is full-size, peeks are scaled down and tuck
+      // behind it. Anchor the arrows just outside the centre card's edge.
+      fanEdge = cardW / 2;
     }
     var ARROW_W = 40, GAP = 15, EDGE_MARGIN = 4;
     var arrowOffset = fanEdge + GAP + ARROW_W;
