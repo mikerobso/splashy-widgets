@@ -165,7 +165,7 @@
       "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
       ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
-      ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
+      ".sst-label{font-size:15px;font-weight:500;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
 
       // Overlay — a flex row: [left arrow] [stage] [right arrow]
@@ -208,7 +208,7 @@
       ".sst-timer-ring{fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;transition:stroke-dashoffset .25s linear}",
       ".sst-timer-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}",
       ".sst-bottom{position:absolute;bottom:0;left:0;right:0;padding:40px 18px 24px;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,transparent 100%);z-index:13;pointer-events:none}",
-      ".sst-title{color:#fff;font-size:16.5px;font-weight:600;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
+      ".sst-title{color:#fff;font-size:16.5px;font-weight:500;line-height:1.35;letter-spacing:.01em;text-shadow:0 1px 4px rgba(0,0,0,.4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}",
       ".sst-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0}",
       ".sst-pause-ind.visible{opacity:1}",
       // Buffering indicator: matches the other circular controls.
