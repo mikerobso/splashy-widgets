@@ -82,6 +82,14 @@
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
+  function splTrackWatch(widgetId, reelId, seconds){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    var secs = Math.round(seconds);
+    if (!isFinite(secs) || secs <= 0 || secs > 21600) return;
+    _splTrackQueue.push({ type: "watch", widgetId: widgetId, reelId: reelId, seconds: secs, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
   function splReelId(videoUrlStr){
     if (!videoUrlStr) return "";
     var h = 5381;
@@ -90,7 +98,22 @@
   }
   if (analyticsOn) {
     document.addEventListener("visibilitychange", function(){
-      if (document.visibilityState === "hidden") splTrackFlush();
+      if (document.visibilityState !== "hidden") return;
+      // Flush any in-flight per-card watch-time clocks before the
+      // queue itself flushes, so the page-close visit still counts.
+      // `cards` is defined further down once the engine initialises;
+      // guard so this handler is safe to fire before that point.
+      if (typeof cards !== "undefined" && cards) {
+        cards.forEach(function(c){
+          if (c && c._splWatchStart != null && c.video){
+            var secs = (Date.now() - c._splWatchStart) / 1000;
+            c._splWatchStart = null;
+            var r = reels[c.reelIdx];
+            if (r) splTrackWatch(containerId, splReelId(r.videoUrl), secs);
+          }
+        });
+      }
+      splTrackFlush();
     });
   }
 
@@ -905,6 +928,16 @@
       // Splshy-native analytics: a separate "qualified play" fires once
       // the video reaches 3s of actual playback. Per-card flags + timer
       // so each card in the carousel tracks independently.
+      // Per-card watch-time clock — see single/widget.js for the
+      // rationale. cardObj._splWatchStart = wall-clock millis at the
+      // start of the current playback segment, or null when paused.
+      function splFlushCardWatch(){
+        if (cardObj._splWatchStart == null) return;
+        var secs = (Date.now() - cardObj._splWatchStart) / 1000;
+        cardObj._splWatchStart = null;
+        var r = reels[cardObj.reelIdx];
+        if (r) splTrackWatch(containerId, splReelId(r.videoUrl), secs);
+      }
       video.addEventListener("playing", function(){
         if (!cardObj._playFired){
           cardObj._playFired = true;
@@ -918,12 +951,16 @@
             if (r) splTrackPlay(containerId, splReelId(r.videoUrl));
           }, 3000);
         }
+        if (analyticsOn && cardObj._splWatchStart == null){
+          cardObj._splWatchStart = Date.now();
+        }
       });
       video.addEventListener("pause", function(){
         if (cardObj._splPlayTimer){
           clearTimeout(cardObj._splPlayTimer);
           cardObj._splPlayTimer = null;
         }
+        splFlushCardWatch();
       });
       video.addEventListener("ended", function(){
         trackEvent("video_complete", reelParams(cardObj.reelIdx));
@@ -932,6 +969,7 @@
           clearTimeout(cardObj._splPlayTimer);
           cardObj._splPlayTimer = null;
         }
+        splFlushCardWatch();
       });
       video.addEventListener("error", function(){
         trackEvent("video_error", reelParams(cardObj.reelIdx));

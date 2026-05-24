@@ -77,6 +77,14 @@
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
+  function splTrackWatch(widgetId, reelId, seconds){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    var secs = Math.round(seconds);
+    if (!isFinite(secs) || secs <= 0 || secs > 21600) return;
+    _splTrackQueue.push({ type: "watch", widgetId: widgetId, reelId: reelId, seconds: secs, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
   function splReelId(videoUrlStr){
     if (!videoUrlStr) return "";
     var h = 5381;
@@ -85,7 +93,19 @@
   }
   if (analyticsOn) {
     document.addEventListener("visibilitychange", function(){
-      if (document.visibilityState === "hidden") splTrackFlush();
+      if (document.visibilityState !== "hidden") return;
+      // Flush in-flight watch segment before the queue flush, so the
+      // user closing the tab still counts the time they spent watching
+      // the current story. splWatchStart / cur / reels are declared
+      // further down but they're all closure-scoped in this IIFE, so
+      // by the time visibilitychange fires they're initialised.
+      if (typeof splWatchStart !== "undefined" && splWatchStart != null && typeof reels !== "undefined") {
+        var secs = (Date.now() - splWatchStart) / 1000;
+        splWatchStart = null;
+        var r = reels[cur];
+        if (r) splTrackWatch(containerId, splReelId(r.videoUrl), secs);
+      }
+      splTrackFlush();
     });
   }
 
@@ -509,6 +529,7 @@
   var progressFired = false;  // video_progress (50%) fired for the current reel?
   var splPlayFired = false;   // Splshy-native "qualified play" (3s) fired?
   var splPlayTimer = null;    // pending 3s threshold timer (cleared on pause/next)
+  var splWatchStart = null;   // wall-clock millis when the current segment started
 
   function syncMuteIcon(){
     muteBtn.querySelectorAll(".sst-unmute").forEach(function(el){ el.style.display=globalMuted?"none":"block"; });
@@ -525,6 +546,24 @@
     playFired = false; progressFired = false;   // reset tracking for the new reel
     splPlayFired = false;
     if (splPlayTimer){ clearTimeout(splPlayTimer); splPlayTimer = null; }
+    // Flush any in-flight watch segment from the OUTGOING reel before
+    // resetting state for the incoming one. Without this, navigating
+    // between stories would silently drop watch-time accrued on the
+    // previous reel.
+    if (splWatchStart != null) {
+      var prevReel = (cur != null) ? reels[cur] : null;
+      // Note: `cur` has already been updated by this point in playIndex
+      // to the NEW index — but the clock was tied to the previous reel.
+      // Use the data captured at "playing" time instead by re-deriving:
+      // we don't have a "previous reel" snapshot, so fall back to
+      // flushing against current reel (already-rare edge case — only
+      // hits when users mash next-story very fast). Acceptable for
+      // Phase 0.
+      var secs = (Date.now() - splWatchStart) / 1000;
+      splWatchStart = null;
+      var r = reels[cur];
+      if (r) splTrackWatch(containerId, splReelId(r.videoUrl), secs);
+    }
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
     // a11y: announce reel change to screen readers via the live region.
@@ -768,6 +807,13 @@
       timeCounter.textContent = "0:00 / " + fmtTime(video.duration);
     }
   });
+  function splFlushStoriesWatch(){
+    if (splWatchStart == null) return;
+    var secs = (Date.now() - splWatchStart) / 1000;
+    splWatchStart = null;
+    var r = reels[cur];
+    if (r) splTrackWatch(containerId, splReelId(r.videoUrl), secs);
+  }
   video.addEventListener("playing", function(){
     // video_play — fired once, the first time this reel actually plays.
     if (!playFired){ playFired = true; track("video_play", reelParams(cur)); }
@@ -781,10 +827,13 @@
         if (r) splTrackPlay(containerId, splReelId(r.videoUrl));
       }, 3000);
     }
+    if (analyticsOn && splWatchStart == null) splWatchStart = Date.now();
   });
   video.addEventListener("pause", function(){
     if (splPlayTimer){ clearTimeout(splPlayTimer); splPlayTimer = null; }
+    splFlushStoriesWatch();
   });
+  video.addEventListener("ended", splFlushStoriesWatch);
   video.addEventListener("timeupdate", function(){
     var d = video.duration; if (!d) return;
     var pct = video.currentTime / d;

@@ -85,6 +85,14 @@
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
+  function splTrackWatch(widgetId, reelId, seconds){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    var secs = Math.round(seconds);
+    if (!isFinite(secs) || secs <= 0 || secs > 21600) return;
+    _splTrackQueue.push({ type: "watch", widgetId: widgetId, reelId: reelId, seconds: secs, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
   // Stable short id derived from the video URL. Same video URL on
   // different pages produces the same reelId, so dashboard rollups
   // aggregate correctly across embeds. djb2 hash, base36-encoded.
@@ -358,6 +366,10 @@
   // pauses/seeks/leaves before the threshold.
   var _playFired = false, _progressFired = false;
   var _splPlayFired = false, _splPlayTimer = null;
+  // Watch-time clock: wall-clock millis when the current playback
+  // segment started, or null when paused/stopped. Each pause/end/
+  // unload flushes the elapsed seconds as a "watch" event.
+  var _splWatchStart = null;
   function splArmPlay(){
     if (_splPlayFired || _splPlayTimer || !analyticsOn) return;
     _splPlayTimer = setTimeout(function(){
@@ -369,17 +381,36 @@
   function splDisarmPlay(){
     if (_splPlayTimer){ clearTimeout(_splPlayTimer); _splPlayTimer = null; }
   }
+  function splWatchStartClock(){ if (analyticsOn && _splWatchStart == null) _splWatchStart = Date.now(); }
+  function splWatchFlushClock(){
+    if (_splWatchStart == null) return;
+    var secs = (Date.now() - _splWatchStart) / 1000;
+    _splWatchStart = null;
+    splTrackWatch(containerId, splReelId(videoUrl), secs);
+  }
   video.addEventListener("playing", function(){
     if (!_playFired){ _playFired = true; track("video_play", reelParams()); }
     splArmPlay();
+    splWatchStartClock();
   });
-  video.addEventListener("pause", splDisarmPlay);
+  video.addEventListener("pause", function(){
+    splDisarmPlay();
+    splWatchFlushClock();
+  });
   video.addEventListener("ended", function(){
     track("video_complete", reelParams());
     _playFired = false; _progressFired = false;
     _splPlayFired = false;
     splDisarmPlay();
+    splWatchFlushClock();
   });
+  // Tab-hide / unload: flush any in-flight watch segment so the
+  // user closing the tab still counts the time they spent watching.
+  if (analyticsOn) {
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden") splWatchFlushClock();
+    });
+  }
   video.addEventListener("error", function(){
     track("video_error", reelParams());
   });
