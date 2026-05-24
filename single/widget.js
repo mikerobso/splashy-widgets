@@ -63,7 +63,7 @@
   // opts out per-embed; default on.
   var clientId        = cfg.clientId        || "";
   var analyticsOn     = (cfg.analytics !== false) && !!clientId;
-  var analyticsUrl    = cfg.analyticsEndpoint || "https://www.getsplashy.com/api/analytics?action=events";
+  var analyticsUrl    = cfg.analyticsEndpoint || "https://www.getsplashy.com/api/analytics/events";
   var _splTrackQueue  = [];
   var _splTrackTimer  = null;
   function splTrackFlush(){
