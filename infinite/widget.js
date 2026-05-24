@@ -660,7 +660,11 @@
       video.className="sif-video";
       video.src=reel.videoUrl;
       video.setAttribute("playsinline","");
-      video.setAttribute("preload","metadata");
+      // Smart preload — bumped per card position by applyPreload() below.
+      // Start as "none" so card creation doesn't trigger 8 simultaneous
+      // metadata fetches; applyPreload runs immediately after card setup
+      // and sets the right value based on viewport + slot.
+      video.setAttribute("preload","none");
       // a11y: label the video so screen-reader rotor / video-element nav
       // identifies it by reel title rather than as an unnamed media element.
       video.setAttribute("aria-label", "Video: " + (reel.label || "Untitled"));
@@ -1263,15 +1267,63 @@
 
   // Centred means  T + centreSlot*step = centreOffset()
   //            ->  T = centreOffset() - centreSlot*step
+  // ── Smart video preload ─────────────────────────────────────
+  // The HTML `preload` attribute is set per-card based on the viewport
+  // and the card's position relative to the centre. Mobile users get
+  // a lighter strategy (their connections are typically slower + on
+  // metered data). The visible cards get more aggressive preload so
+  // tap-to-play feels instant; off-screen cards stay at "none" so
+  // they don't compete with the centre's CDN connection.
+  //
+  // Matrix:
+  //                  centre    peek         off-screen
+  //   desktop:       auto      metadata     none
+  //   mobile:        metadata  none         none
+  //   data-saver:    none      none         none   (overrides everything)
+  //
+  // Called after every layout change (init + every slide), so as cards
+  // cycle through the centre slot their preload value updates with them.
+  var _preloadEnv = (function(){
+    var isMobile = (typeof window.matchMedia === "function")
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false;
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    var saveData = !!(conn && conn.saveData);
+    var slow     = !!(conn && conn.effectiveType && /^(slow-)?2g$/.test(conn.effectiveType));
+    return { isMobile: isMobile, saveData: saveData, slow: slow };
+  })();
+  function pickPreloadForCard(c){
+    if (_preloadEnv.saveData || _preloadEnv.slow) return "none";
+    var dist = Math.abs(c.slot - centreSlot);
+    if (dist === 0) {
+      return _preloadEnv.isMobile ? "metadata" : "auto";
+    }
+    var isVisible = (dist === 1) || (V === 5 && dist === 2);
+    if (isVisible) {
+      return _preloadEnv.isMobile ? "none" : "metadata";
+    }
+    return "none";
+  }
+  function applyPreload(){
+    if (!cards || !cards.length) return;
+    cards.forEach(function(c){
+      if (!c || !c.video) return;
+      var desired = pickPreloadForCard(c);
+      var current = c.video.getAttribute("preload");
+      if (current !== desired) c.video.setAttribute("preload", desired);
+    });
+  }
+
   function setTrack(animated){
-    if (isMobileLayout()){ applyMobileLayout(animated); return; }
-    if (isAccordionDesktop()){ applyAccordionLayout(animated); return; }
+    if (isMobileLayout()){ applyMobileLayout(animated); applyPreload(); return; }
+    if (isAccordionDesktop()){ applyAccordionLayout(animated); applyPreload(); return; }
     track.style.transition = animated
       ? ("transform " + (slideMs()/1000) + "s " + slideEasing())
       : "none";
     var T = centreOffset() - centreSlot * getStep();
     track.style.transform = "translateX(" + T + "px)";
     if (!animated) track.offsetHeight;        // force reflow
+    applyPreload();
   }
 
   // ── Mobile movement model (ported from the reels carousel) ──────────

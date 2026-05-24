@@ -234,6 +234,21 @@
 
   function mod(x,m){ return ((x%m)+m)%m; }
   function fmtTime(s){ var m=Math.floor(s/60),sec=Math.floor(s%60); return m+":"+(sec<10?"0":"")+sec; }
+  // Pick the right preload value based on viewport + connection. Stories
+  // re-uses a single <video> element across reels, so this runs once at
+  // overlay construction time. Mobile + data-saver users get the lighter
+  // "metadata" treatment so we don't burn cellular bandwidth aggressively
+  // buffering each reel's full content; desktop on good connections gets
+  // "auto" for instant playback.
+  function _sstPickPreload(){
+    var isMobile = (typeof window.matchMedia === "function")
+      ? window.matchMedia("(max-width: 767px)").matches
+      : false;
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn && conn.saveData) return "metadata";
+    if (conn && conn.effectiveType && /^(slow-)?2g$/.test(conn.effectiveType)) return "metadata";
+    return isMobile ? "metadata" : "auto";
+  }
   // True on phones / small touch screens — drives the simpler pop animation.
   function isMobileLayout(){
     return window.matchMedia("(max-width:767px), (min-width:768px) and (pointer:coarse) and (hover:none)").matches;
@@ -502,7 +517,7 @@
     '<div class="sst-stagebox">' +
       '<button class="sst-close" aria-label="Close stories">&times;</button>' +
       '<div class="sst-stage">' +
-        '<video class="sst-video" playsinline webkit-playsinline muted preload="auto"></video>' +
+        '<video class="sst-video" playsinline webkit-playsinline muted preload="' + _sstPickPreload() + '"></video>' +
         '<div class="sst-top">' +
           badgeHTML +
           '<div class="sst-timer"><svg viewBox="0 0 52 52"><circle class="sst-timer-bg" cx="26" cy="26" r="23"/><circle class="sst-timer-ring" cx="26" cy="26" r="23" stroke-dasharray="'+RC+'" stroke-dashoffset="0"/></svg><div class="sst-timer-text">--</div></div>' +
