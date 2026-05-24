@@ -97,10 +97,16 @@
     var u = loc.origin + loc.pathname;
     if (u && u.length <= 200) pageUrl = u;
   } catch (e) {}
+  // Saved-widget id (when the embed was generated from a saved widget
+  // config in the builder). Lets the analytics dashboard roll up
+  // plays per saved widget across all its embed instances. Anonymous
+  // embeds (no saved widget loaded at Generate time) leave this blank.
+  var svid = (typeof cfg.savedWidgetId === "string") ? cfg.savedWidgetId : "";
   function splTrackPlay(widgetId, reelId){
     if (!analyticsOn || !widgetId || !reelId) return;
     var ev = { type: "play", widgetId: widgetId, reelId: reelId, pageSession: pageSession, ts: Date.now() };
     if (pageUrl) ev.pageUrl = pageUrl;
+    if (svid)    ev.svid    = svid;
     _splTrackQueue.push(ev);
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
