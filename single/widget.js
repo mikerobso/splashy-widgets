@@ -79,9 +79,17 @@
     // Fallback for older browsers: best-effort fetch, no await.
     try { fetch(analyticsUrl, { method: "POST", body: payload, keepalive: true }); } catch (e) {}
   }
+  // Per-page-load random session ID, shared across every Splshy widget
+  // on this page via window.SPLSHY_PAGE_SESSION. Used by the server to
+  // count unique sessions for the engagement-rate metric. Lives only
+  // in browser RAM — no cookie, no localStorage, dies on tab close.
+  if (analyticsOn && !window.SPLSHY_PAGE_SESSION) {
+    window.SPLSHY_PAGE_SESSION = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+  var pageSession = analyticsOn ? window.SPLSHY_PAGE_SESSION : "";
   function splTrackPlay(widgetId, reelId){
     if (!analyticsOn || !widgetId || !reelId) return;
-    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, ts: Date.now() });
+    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, pageSession: pageSession, ts: Date.now() });
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
@@ -92,6 +100,32 @@
     _splTrackQueue.push({ type: "watch", widgetId: widgetId, reelId: reelId, seconds: secs, ts: Date.now() });
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  function splTrackImpression(widgetId){
+    if (!analyticsOn || !widgetId) return;
+    _splTrackQueue.push({ type: "impression", widgetId: widgetId, pageSession: pageSession, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  // Fire ONE impression event the first time the widget enters the
+  // visitor's viewport (any pixel visible). No-op if the visitor never
+  // scrolls to the widget — which is correct: a widget you never saw
+  // shouldn't count as an impression.
+  function splObserveImpression(el){
+    if (!analyticsOn || !el || typeof IntersectionObserver !== "function") return;
+    var fired = false;
+    var io = new IntersectionObserver(function(entries){
+      if (fired) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          fired = true;
+          splTrackImpression(containerId);
+          io.disconnect();
+          break;
+        }
+      }
+    }, { threshold: 0 });
+    io.observe(el);
   }
   // Stable short id derived from the video URL. Same video URL on
   // different pages produces the same reelId, so dashboard rollups
@@ -327,6 +361,7 @@
     console.warn("Splshy: no element found with id '" + containerId + "'");
     return;
   }
+  splObserveImpression(container);
 
   // ── Build HTML ──────────────────────────────────────
   container.innerHTML =

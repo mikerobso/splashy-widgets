@@ -76,9 +76,15 @@
     } catch (e) {}
     try { fetch(analyticsUrl, { method: "POST", body: payload, keepalive: true }); } catch (e) {}
   }
+  // See single/widget.js for the full design of the page-session +
+  // impression-observer flow. Same code, kept self-contained.
+  if (analyticsOn && !window.SPLSHY_PAGE_SESSION) {
+    window.SPLSHY_PAGE_SESSION = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  }
+  var pageSession = analyticsOn ? window.SPLSHY_PAGE_SESSION : "";
   function splTrackPlay(widgetId, reelId){
     if (!analyticsOn || !widgetId || !reelId) return;
-    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, ts: Date.now() });
+    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, pageSession: pageSession, ts: Date.now() });
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
@@ -89,6 +95,28 @@
     _splTrackQueue.push({ type: "watch", widgetId: widgetId, reelId: reelId, seconds: secs, ts: Date.now() });
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  function splTrackImpression(widgetId){
+    if (!analyticsOn || !widgetId) return;
+    _splTrackQueue.push({ type: "impression", widgetId: widgetId, pageSession: pageSession, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  function splObserveImpression(el){
+    if (!analyticsOn || !el || typeof IntersectionObserver !== "function") return;
+    var fired = false;
+    var io = new IntersectionObserver(function(entries){
+      if (fired) return;
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].isIntersecting) {
+          fired = true;
+          splTrackImpression(containerId);
+          io.disconnect();
+          break;
+        }
+      }
+    }, { threshold: 0 });
+    io.observe(el);
   }
   function splReelId(videoUrlStr){
     if (!videoUrlStr) return "";
@@ -506,6 +534,7 @@
   // ── Container ───────────────────────────────────────
   var container = document.getElementById(containerId);
   if (!container) { console.warn("Splshy Infinite: no element '" + containerId + "'"); return; }
+  splObserveImpression(container);
 
   container.innerHTML =
     '<div class="sif-widget">' +
