@@ -57,6 +57,48 @@
   var videoUrl      = cfg.videoUrl      || "";
   var posterUrl     = cfg.posterUrl     || "";
   var label         = cfg.label         || "";
+  // Splshy-native analytics (Phase 0). Fires "play" events to
+  // getsplashy.com once a video reaches 3s of playback. Requires
+  // cfg.clientId; harmless no-op without it. cfg.analytics === false
+  // opts out per-embed; default on.
+  var clientId        = cfg.clientId        || "";
+  var analyticsOn     = (cfg.analytics !== false) && !!clientId;
+  var analyticsUrl    = cfg.analyticsEndpoint || "https://www.getsplashy.com/api/analytics?action=events";
+  var _splTrackQueue  = [];
+  var _splTrackTimer  = null;
+  function splTrackFlush(){
+    if (!_splTrackQueue.length) return;
+    var batch = _splTrackQueue.splice(0, _splTrackQueue.length);
+    var payload = JSON.stringify({ clientId: clientId, events: batch });
+    try {
+      // sendBeacon with text/plain skips CORS preflight AND survives
+      // page unload. We never read the response anyway.
+      var blob = new Blob([payload], { type: "text/plain" });
+      if (navigator.sendBeacon && navigator.sendBeacon(analyticsUrl, blob)) return;
+    } catch (e) {}
+    // Fallback for older browsers: best-effort fetch, no await.
+    try { fetch(analyticsUrl, { method: "POST", body: payload, keepalive: true }); } catch (e) {}
+  }
+  function splTrackPlay(widgetId, reelId){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  // Stable short id derived from the video URL. Same video URL on
+  // different pages produces the same reelId, so dashboard rollups
+  // aggregate correctly across embeds. djb2 hash, base36-encoded.
+  function splReelId(videoUrlStr){
+    if (!videoUrlStr) return "";
+    var h = 5381;
+    for (var i = 0; i < videoUrlStr.length; i++) h = ((h << 5) + h + videoUrlStr.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  if (analyticsOn) {
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden") splTrackFlush();
+    });
+  }
   // Hover preview: 1s after the cursor lands on the card, the video plays
   // muted from the 0.5s mark and keeps playing for as long as the cursor
   // stays on the card. mouseleave snaps back to the poster. Clicking the
@@ -310,13 +352,33 @@
   var loadingEl = widget.querySelector(".srv-loading");
   // GA4: video_play (first playing), video_progress (50%), video_complete,
   // video_error.
+  // Splshy-native analytics: a separate "qualified play" fires once the
+  // video has reached 3 seconds of actual playback (industry-standard
+  // threshold that filters impression-bounces). Cancelled if the user
+  // pauses/seeks/leaves before the threshold.
   var _playFired = false, _progressFired = false;
+  var _splPlayFired = false, _splPlayTimer = null;
+  function splArmPlay(){
+    if (_splPlayFired || _splPlayTimer || !analyticsOn) return;
+    _splPlayTimer = setTimeout(function(){
+      _splPlayFired = true;
+      _splPlayTimer = null;
+      splTrackPlay(containerId, splReelId(videoUrl));
+    }, 3000);
+  }
+  function splDisarmPlay(){
+    if (_splPlayTimer){ clearTimeout(_splPlayTimer); _splPlayTimer = null; }
+  }
   video.addEventListener("playing", function(){
     if (!_playFired){ _playFired = true; track("video_play", reelParams()); }
+    splArmPlay();
   });
+  video.addEventListener("pause", splDisarmPlay);
   video.addEventListener("ended", function(){
     track("video_complete", reelParams());
     _playFired = false; _progressFired = false;
+    _splPlayFired = false;
+    splDisarmPlay();
   });
   video.addEventListener("error", function(){
     track("video_error", reelParams());

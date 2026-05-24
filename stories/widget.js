@@ -51,6 +51,44 @@
   var logoRing      = cfg.logoRing      || "#D30011";     // player-chrome logo ring
   var GAP_MS        = 1000;                                // gap between videos
 
+  // Splshy-native analytics (Phase 0). See single/widget.js for the
+  // full design notes — same helper inlined here so each widget stays
+  // self-contained. Fires "play" events to getsplashy.com once a video
+  // reaches 3s of playback. Requires cfg.clientId; harmless no-op
+  // without it. cfg.analytics === false opts out per-embed.
+  var clientId        = cfg.clientId          || "";
+  var analyticsOn     = (cfg.analytics !== false) && !!clientId;
+  var analyticsUrl    = cfg.analyticsEndpoint || "https://www.getsplashy.com/api/analytics?action=events";
+  var _splTrackQueue  = [];
+  var _splTrackTimer  = null;
+  function splTrackFlush(){
+    if (!_splTrackQueue.length) return;
+    var batch = _splTrackQueue.splice(0, _splTrackQueue.length);
+    var payload = JSON.stringify({ clientId: clientId, events: batch });
+    try {
+      var blob = new Blob([payload], { type: "text/plain" });
+      if (navigator.sendBeacon && navigator.sendBeacon(analyticsUrl, blob)) return;
+    } catch (e) {}
+    try { fetch(analyticsUrl, { method: "POST", body: payload, keepalive: true }); } catch (e) {}
+  }
+  function splTrackPlay(widgetId, reelId){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  function splReelId(videoUrlStr){
+    if (!videoUrlStr) return "";
+    var h = 5381;
+    for (var i = 0; i < videoUrlStr.length; i++) h = ((h << 5) + h + videoUrlStr.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  if (analyticsOn) {
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden") splTrackFlush();
+    });
+  }
+
   if (!reels.length) { console.warn("Splshy Stories: no reels configured."); return; }
   var n = reels.length;
 
@@ -469,6 +507,8 @@
   var gapTimer = null;
   var playFired = false;      // video_play fired for the current reel?
   var progressFired = false;  // video_progress (50%) fired for the current reel?
+  var splPlayFired = false;   // Splshy-native "qualified play" (3s) fired?
+  var splPlayTimer = null;    // pending 3s threshold timer (cleared on pause/next)
 
   function syncMuteIcon(){
     muteBtn.querySelectorAll(".sst-unmute").forEach(function(el){ el.style.display=globalMuted?"none":"block"; });
@@ -483,6 +523,8 @@
     cur = mod(i, n);
     markViewed(cur);                             // greys this circle's ring
     playFired = false; progressFired = false;   // reset tracking for the new reel
+    splPlayFired = false;
+    if (splPlayTimer){ clearTimeout(splPlayTimer); splPlayTimer = null; }
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
     // a11y: announce reel change to screen readers via the live region.
@@ -729,6 +771,19 @@
   video.addEventListener("playing", function(){
     // video_play — fired once, the first time this reel actually plays.
     if (!playFired){ playFired = true; track("video_play", reelParams(cur)); }
+    // Splshy-native qualified play: arm a 3s timer; if it survives
+    // without a pause/next, fire the event.
+    if (analyticsOn && !splPlayFired && !splPlayTimer){
+      splPlayTimer = setTimeout(function(){
+        splPlayFired = true;
+        splPlayTimer = null;
+        var r = reels[cur];
+        if (r) splTrackPlay(containerId, splReelId(r.videoUrl));
+      }, 3000);
+    }
+  });
+  video.addEventListener("pause", function(){
+    if (splPlayTimer){ clearTimeout(splPlayTimer); splPlayTimer = null; }
   });
   video.addEventListener("timeupdate", function(){
     var d = video.duration; if (!d) return;

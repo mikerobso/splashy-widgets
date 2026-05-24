@@ -56,6 +56,44 @@
   var logoRing      = cfg.logoRing          || "#D30011";
   var containerId   = cfg.containerId       || "splshy-infinite";
 
+  // Splshy-native analytics (Phase 0). See single/widget.js for the
+  // full design notes — same helper inlined here so each widget stays
+  // self-contained. Fires "play" events to getsplashy.com once a video
+  // reaches 3s of playback. Requires cfg.clientId; harmless no-op
+  // without it. cfg.analytics === false opts out per-embed.
+  var clientId        = cfg.clientId          || "";
+  var analyticsOn     = (cfg.analytics !== false) && !!clientId;
+  var analyticsUrl    = cfg.analyticsEndpoint || "https://www.getsplashy.com/api/analytics?action=events";
+  var _splTrackQueue  = [];
+  var _splTrackTimer  = null;
+  function splTrackFlush(){
+    if (!_splTrackQueue.length) return;
+    var batch = _splTrackQueue.splice(0, _splTrackQueue.length);
+    var payload = JSON.stringify({ clientId: clientId, events: batch });
+    try {
+      var blob = new Blob([payload], { type: "text/plain" });
+      if (navigator.sendBeacon && navigator.sendBeacon(analyticsUrl, blob)) return;
+    } catch (e) {}
+    try { fetch(analyticsUrl, { method: "POST", body: payload, keepalive: true }); } catch (e) {}
+  }
+  function splTrackPlay(widgetId, reelId){
+    if (!analyticsOn || !widgetId || !reelId) return;
+    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, ts: Date.now() });
+    if (_splTrackTimer) clearTimeout(_splTrackTimer);
+    _splTrackTimer = setTimeout(splTrackFlush, 5000);
+  }
+  function splReelId(videoUrlStr){
+    if (!videoUrlStr) return "";
+    var h = 5381;
+    for (var i = 0; i < videoUrlStr.length; i++) h = ((h << 5) + h + videoUrlStr.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  if (analyticsOn) {
+    document.addEventListener("visibilitychange", function(){
+      if (document.visibilityState === "hidden") splTrackFlush();
+    });
+  }
+
   // Desktop rendering mode (step 3 of the accordion plan).
   //   "row"         — current infinite-carousel look (the only live mode today)
   //   "accordion-3" — wired in step 3b, V=3 band
@@ -864,14 +902,36 @@
       // GA4 / analytics: video_play (first playing), video_progress (50%),
       // video_complete (ended), video_error. playFired / progressFired flags
       // are reset in resetCard so a recycled card can fire fresh events.
+      // Splshy-native analytics: a separate "qualified play" fires once
+      // the video reaches 3s of actual playback. Per-card flags + timer
+      // so each card in the carousel tracks independently.
       video.addEventListener("playing", function(){
         if (!cardObj._playFired){
           cardObj._playFired = true;
           trackEvent("video_play", reelParams(cardObj.reelIdx));
         }
+        if (analyticsOn && !cardObj._splPlayFired && !cardObj._splPlayTimer){
+          cardObj._splPlayTimer = setTimeout(function(){
+            cardObj._splPlayFired = true;
+            cardObj._splPlayTimer = null;
+            var r = reels[cardObj.reelIdx];
+            if (r) splTrackPlay(containerId, splReelId(r.videoUrl));
+          }, 3000);
+        }
+      });
+      video.addEventListener("pause", function(){
+        if (cardObj._splPlayTimer){
+          clearTimeout(cardObj._splPlayTimer);
+          cardObj._splPlayTimer = null;
+        }
       });
       video.addEventListener("ended", function(){
         trackEvent("video_complete", reelParams(cardObj.reelIdx));
+        cardObj._splPlayFired = false;
+        if (cardObj._splPlayTimer){
+          clearTimeout(cardObj._splPlayTimer);
+          cardObj._splPlayTimer = null;
+        }
       });
       video.addEventListener("error", function(){
         trackEvent("video_error", reelParams(cardObj.reelIdx));
