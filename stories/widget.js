@@ -77,9 +77,19 @@
     window.SPLSHY_PAGE_SESSION = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
   var pageSession = analyticsOn ? window.SPLSHY_PAGE_SESSION : "";
+  // Capture host page URL ONCE at widget init — see single/widget.js
+  // for the rationale (origin + pathname only, no query, no hash).
+  var pageUrl = "";
+  try {
+    var loc = window.location;
+    var u = loc.origin + loc.pathname;
+    if (u && u.length <= 200) pageUrl = u;
+  } catch (e) {}
   function splTrackPlay(widgetId, reelId){
     if (!analyticsOn || !widgetId || !reelId) return;
-    _splTrackQueue.push({ type: "play", widgetId: widgetId, reelId: reelId, pageSession: pageSession, ts: Date.now() });
+    var ev = { type: "play", widgetId: widgetId, reelId: reelId, pageSession: pageSession, ts: Date.now() };
+    if (pageUrl) ev.pageUrl = pageUrl;
+    _splTrackQueue.push(ev);
     if (_splTrackTimer) clearTimeout(_splTrackTimer);
     _splTrackTimer = setTimeout(splTrackFlush, 5000);
   }
