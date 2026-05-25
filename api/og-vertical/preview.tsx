@@ -1,17 +1,18 @@
-// Horizontal share card preview — design-iteration endpoint. Takes
+// Vertical 9:16 share card preview — design-iteration endpoint. Takes
 // query params (title, via, poster) so we can iterate visually
-// without touching code. Production endpoint at /api/og/[id].tsx
-// pulls the same data from a Redis share record instead.
+// without touching code. Production endpoint at
+// /api/og-vertical/[id].tsx pulls the same data from a Redis share
+// record instead.
 
 import { ImageResponse } from '@vercel/og';
-import { HorizontalCard } from '../../lib/og-cards';
+import { VerticalCard } from '../../lib/og-cards';
 import { loadInterAll } from '../../lib/og-fonts';
 
 export const config = { runtime: 'edge' };
 
 const FALLBACK_TITLE  = 'Best brunch in downtown Raleigh';
 const FALLBACK_VIA    = 'Visit Raleigh';
-const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=900&q=80';
+const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?w=1080&q=85';
 
 export default async function handler(request: Request) {
   const url    = new URL(request.url);
@@ -21,10 +22,10 @@ export default async function handler(request: Request) {
   const fonts  = await loadInterAll();
 
   return new ImageResponse(
-    <HorizontalCard title={title} via={via} poster={poster} />,
+    <VerticalCard title={title} via={via} poster={poster} />,
     {
-      width: 1200,
-      height: 630,
+      width: 1080,
+      height: 1920,
       fonts: fonts.length > 0 ? fonts : undefined,
     }
   );
