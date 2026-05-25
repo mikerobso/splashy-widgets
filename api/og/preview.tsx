@@ -61,9 +61,11 @@ export default async function handler(request: Request) {
           height: '100%',
           display: 'flex',
           position: 'relative',
-          // Restrained radial gradient — subtle depth, no noise.
-          backgroundImage: 'radial-gradient(ellipse at 30% 25%, #143a5f 0%, #06111f 75%)',
-          backgroundColor: '#06111f',
+          // SPLSHY orange as the hero. Subtle radial highlight gives
+          // depth so it doesn't read as a flat color block.
+          backgroundImage:
+            'radial-gradient(ellipse at 30% 25%, #f37a4c 0%, #e85d2e 45%, #c64719 100%)',
+          backgroundColor: '#e85d2e',
           fontFamily: 'Inter',
         }}
       >
@@ -86,9 +88,10 @@ export default async function handler(request: Request) {
               height: 518,
               borderRadius: 20,
               overflow: 'hidden',
-              // Two-layer shadow: long ambient + tight contact = real depth
+              // Two-layer shadow: warm dark tone blends with orange better
+              // than a neutral black shadow would.
               boxShadow:
-                '0 48px 80px rgba(0,0,0,0.55), 0 8px 20px rgba(0,0,0,0.4)',
+                '0 48px 80px rgba(60,15,5,0.45), 0 8px 20px rgba(60,15,5,0.35)',
               backgroundColor: '#000',
               flexShrink: 0,
             }}
@@ -123,7 +126,8 @@ export default async function handler(request: Request) {
                 boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
               }}
             >
-              {/* CSS triangle via borders */}
+              {/* CSS triangle via borders — deep navy reads cleanly on
+                  the white disc and avoids any orange-on-orange clash. */}
               <div
                 style={{
                   display: 'flex',
@@ -132,7 +136,7 @@ export default async function handler(request: Request) {
                   marginLeft: 6,
                   borderTop: '12px solid transparent',
                   borderBottom: '12px solid transparent',
-                  borderLeft: '20px solid #06111f',
+                  borderLeft: '20px solid #1a2438',
                 }}
               />
             </div>
@@ -149,7 +153,9 @@ export default async function handler(request: Request) {
               color: 'white',
             }}
           >
-            {/* Eyebrow: tiny uppercase brand in soft teal */}
+            {/* Eyebrow: tiny uppercase brand in deep navy. The navy-on-
+                orange tension is the design choice that signals "this
+                is intentional, not a default color block." */}
             <div
               style={{
                 display: 'flex',
@@ -157,7 +163,7 @@ export default async function handler(request: Request) {
                 fontSize: 18,
                 fontWeight: 700,
                 letterSpacing: '0.28em',
-                color: '#7dd3e0',
+                color: '#1a2438',
                 textTransform: 'uppercase',
                 marginBottom: 28,
               }}
@@ -180,7 +186,8 @@ export default async function handler(request: Request) {
           </div>
         </div>
 
-        {/* SPLSHY watermark, bottom-right corner */}
+        {/* SPLSHY watermark, bottom-right corner. Navy at low opacity
+            stays in the same color family as the eyebrow + play glyph. */}
         <div
           style={{
             position: 'absolute',
@@ -191,7 +198,7 @@ export default async function handler(request: Request) {
             fontSize: 15,
             fontWeight: 700,
             letterSpacing: '0.34em',
-            color: 'rgba(255,255,255,0.38)',
+            color: 'rgba(26,36,56,0.55)',
           }}
         >
           SPLSHY
