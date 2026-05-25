@@ -55,15 +55,6 @@
   var logoUrl       = cfg.logoUrl           || "";
   var logoRing      = cfg.logoRing          || "#D30011";
   var containerId   = cfg.containerId       || "splshy-infinite";
-  // Share-card support. cfg.share gates the share button + deep-link
-  // hash reader; default off so the feature only shows up on embeds
-  // that explicitly opt in. cfg.via is the brand string that appears
-  // on the rich-link preview card ("Visit Raleigh"); falls back to
-  // empty if not supplied, in which case the eyebrow on the share
-  // card simply reads "SPLSHY".
-  var shareEnabled  = cfg.share === true;
-  var brandVia      = (typeof cfg.via === "string" && cfg.via.trim()) ? cfg.via.trim() : "SPLSHY";
-  var shareCreateUrl = cfg.shareEndpoint || "https://splshy.com/api/share/create";
 
   // Splshy-native analytics (Phase 0). See single/widget.js for the
   // full design notes — same helper inlined here so each widget stays
@@ -165,80 +156,6 @@
       }
       splTrackFlush();
     });
-  }
-
-  // ── Share-card helpers ───────────────────────────────────
-  // Triggered by the share button on the active card. Pipeline:
-  //   1. POST videoUrl + pageUrl + title + via + poster to splshy.com
-  //      /api/share/create, get back { id, url }.
-  //   2. Try navigator.share({ url, title }) on devices that have it.
-  //   3. Fall back to clipboard with a centred "Link copied" toast.
-  // Single toast lives in the widget container; multiple shares reuse it.
-  function showShareToast(text){
-    var host = document.getElementById(containerId);
-    if (!host) return;
-    var t = host.querySelector(".sif-share-toast");
-    if (!t){
-      t = document.createElement("div");
-      t.className = "sif-share-toast";
-      host.appendChild(t);
-    }
-    t.textContent = text;
-    t.classList.add("visible");
-    if (t._sifHideT) clearTimeout(t._sifHideT);
-    t._sifHideT = setTimeout(function(){ t.classList.remove("visible"); }, 2200);
-  }
-
-  function handleShareClick(reel, btn){
-    if (!reel || !reel.videoUrl) return;
-    if (btn.classList.contains("is-loading")) return;
-    if (!reel.posterUrl){
-      showShareToast("Share unavailable");
-      return;
-    }
-    btn.classList.add("is-loading");
-    var body = {
-      videoUrl: reel.videoUrl,
-      pageUrl:  (window.location && window.location.href) || pageUrl,
-      title:    reel.label || "Watch on SPLSHY",
-      via:      brandVia,
-      poster:   reel.posterUrl
-    };
-    if (clientId) body.clientId = clientId;
-
-    fetch(shareCreateUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    })
-      .then(function(r){ return r.json().then(function(j){ return { ok: r.ok, j: j }; }); })
-      .then(function(res){
-        if (!res.ok || !res.j || !res.j.url) throw new Error("share create failed");
-        return performShare(res.j.url, reel.label || "");
-      })
-      .catch(function(){ showShareToast("Share failed"); })
-      .then(function(){ btn.classList.remove("is-loading"); });
-  }
-
-  function performShare(url, title){
-    if (navigator.share){
-      return navigator.share({ url: url, title: title || "" })
-        .then(function(){ /* OS confirms */ })
-        .catch(function(err){
-          if (err && err.name === "AbortError") return;   // user dismissed
-          return copyToClipboard(url);
-        });
-    }
-    return copyToClipboard(url);
-  }
-
-  function copyToClipboard(url){
-    if (navigator.clipboard && navigator.clipboard.writeText){
-      return navigator.clipboard.writeText(url)
-        .then(function(){ showShareToast("Link copied"); })
-        .catch(function(){ try { window.prompt("Copy this link:", url); } catch (e){} });
-    }
-    try { window.prompt("Copy this link:", url); } catch (e){}
   }
 
   // Desktop rendering mode (step 3 of the accordion plan).
@@ -496,22 +413,6 @@
       ".sif-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
       ".sif-popout-btn svg{width:15px;height:15px}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-popout-btn.visible{display:flex;opacity:1}}",
-      // Share button. Mirrors the mute/popout styling. Position is
-      // stacked above mute on mobile (bottom:100px, where popout would
-      // be on desktop) and above popout on desktop (bottom:142px) so
-      // all three buttons line up on the right edge without overlap.
-      ".sif-share-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s}",
-      ".sif-share-btn.visible{display:flex;opacity:1}",
-      ".sif-share-btn:hover{background:rgba(0,0,0,.7)!important}",
-      ".sif-share-btn svg{width:15px;height:15px;display:block}",
-      ".sif-share-btn.is-loading svg{opacity:0}",
-      ".sif-share-btn.is-loading::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,.3);border-top-color:rgba(255,255,255,.95);animation:sif-share-spin .7s linear infinite}",
-      "@keyframes sif-share-spin{to{transform:rotate(360deg)}}",
-      "@media(min-width:768px) and (any-pointer:fine){.sif-share-btn{bottom:142px}}",
-      // Toast for "Link copied" feedback. Lives in container, not in
-      // each card, so a single toast handles all share actions.
-      ".sif-share-toast{position:absolute;left:50%;bottom:80px;transform:translate(-50%,8px);background:rgba(26,36,56,.94);color:#fff;font-size:14px;font-weight:600;letter-spacing:.01em;padding:11px 18px;border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.32);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;white-space:nowrap}",
-      ".sif-share-toast.visible{opacity:1;transform:translate(-50%,0)}",
       // Desktop hover-fade for the mute + pop-out buttons. Default (card
       // NOT hovered) holds opacity at 1 for 2s, then fades over .35s; on
       // hover the transition-delay is zeroed so the buttons pop back in
@@ -809,11 +710,6 @@
           '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
         '</button>'+
-        (shareEnabled
-          ? '<button class="sif-share-btn" aria-label="Share this video">'+
-              '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>'+
-            '</button>'
-          : '')+
         '<div class="sif-speed">2x</div>'+
         '<div class="sif-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'+
         '<div class="sif-time-counter">0:00 / 0:00</div>'
@@ -859,7 +755,6 @@
         card.querySelector(".sif-play-btn").classList.remove("preview-active");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
         card.querySelector(".sif-popout-btn").classList.remove("visible");
-        var sbe=card.querySelector(".sif-share-btn"); if (sbe) sbe.classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
@@ -909,7 +804,6 @@
       var playBtn=card.querySelector(".sif-play-btn");
       var muteBtn=card.querySelector(".sif-mute-btn");
       var popoutBtn=card.querySelector(".sif-popout-btn");
-      var shareBtn=card.querySelector(".sif-share-btn");   // null when shareEnabled=false
 
       // ── Hover preview ──────────────────────────────────
       // 1.25s after mouseenter, the video plays muted from 0.5s for 3s,
@@ -989,7 +883,6 @@
         playBtn.classList.add("hidden");
         muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");
-        if (shareBtn) shareBtn.classList.add("visible");
         syncMuteIcon(muteBtn, globalMuted);
         video.play().catch(function(){});
       }
@@ -1040,7 +933,6 @@
         fadeIn();
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");   // desktop-only via CSS media query
-        if (shareBtn) shareBtn.classList.add("visible");
         previewState = "playing";
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
@@ -1052,12 +944,6 @@
         e.stopPropagation();
         togglePopout(cardObj);
       });
-      if (shareBtn){
-        shareBtn.addEventListener("click", function(e){
-          e.stopPropagation();
-          handleShareClick(reel, shareBtn);
-        });
-      }
 
       // Buffering indicator: show on `waiting` (browser stalled), hide on
       // `playing`/`canplay` (data arrived). 400ms grace period before the
@@ -1760,7 +1646,6 @@
     c.el.querySelector(".sif-play-btn").classList.remove("hidden");
     c.el.querySelector(".sif-mute-btn").classList.remove("visible");
     var pob=c.el.querySelector(".sif-popout-btn"); if (pob) pob.classList.remove("visible");
-    var sbe=c.el.querySelector(".sif-share-btn"); if (sbe) sbe.classList.remove("visible");
     var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
     var rg=c.el.querySelector(".sif-timer-ring"); if (rg) rg.style.strokeDashoffset=0;
     var tx=c.el.querySelector(".sif-timer-text"); if (tx&&c.video.duration) tx.textContent=fmtTime(c.video.duration);
@@ -2215,48 +2100,6 @@
     lastW = window.innerWidth;
     relayout();
   });
-
-  // ── Share-card deep link ─────────────────────────────────
-  // When a /r/<shareId> bouncer lands a user on this page, the URL ends
-  // in #splshy-<reelId> (djb2 of videoUrl, computed the same way as the
-  // analytics reelId). Scan reels for a match; if found, scroll the
-  // widget into view, advance the carousel to that reel, and auto-play.
-  // Only opted-in widgets (cfg.share === true) participate — silent on
-  // legacy embeds so a stray hash never triggers a layout jump.
-  if (shareEnabled){
-    (function applyHashDeepLink(){
-      var hash = (window.location.hash || "").replace(/^#/, "").toLowerCase();
-      var m = hash.match(/^splshy-([a-z0-9]+)$/);
-      if (!m) return;
-      var target = m[1];
-      var targetIdx = -1;
-      for (var i = 0; i < reels.length; i++){
-        if (reels[i].videoUrl && splReelId(reels[i].videoUrl) === target){
-          targetIdx = i;
-          break;
-        }
-      }
-      if (targetIdx < 0) return;
-      // Defer past initial layout so navigate() sees stable card state.
-      setTimeout(function(){
-        try { container.scrollIntoView({ behavior: "smooth", block: "center" }); }
-        catch (err) { try { container.scrollIntoView(); } catch (e){} }
-        setTimeout(function(){
-          if (typeof current !== "undefined" && targetIdx !== current){
-            navigate(targetIdx);
-          }
-          // Auto-play after the slide settles. Delay covers slideMs +
-          // a touch of padding so the centred card has finished moving.
-          setTimeout(function(){
-            var active = container.querySelector(".sif-card.is-active");
-            if (!active) return;
-            var pb = active.querySelector(".sif-play-btn");
-            if (pb) pb.click();
-          }, 700);
-        }, 300);
-      }, 120);
-    })();
-  }
 
   } // end initWidget
 
