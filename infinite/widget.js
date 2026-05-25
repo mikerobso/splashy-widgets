@@ -543,13 +543,13 @@
       // `.visible` rules above so this wins; scoped to (hover:hover) so
       // touch devices keep the always-visible behaviour from above.
       "@media(hover:hover){",
-        ".sif-card .sif-mute-btn.visible,.sif-card .sif-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
-        ".sif-card:hover .sif-mute-btn.visible,.sif-card:hover .sif-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
+        ".sif-card .sif-mute-btn.visible,.sif-card .sif-popout-btn.visible,.sif-card .sif-cc-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
+        ".sif-card:hover .sif-mute-btn.visible,.sif-card:hover .sif-popout-btn.visible,.sif-card:hover .sif-cc-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
       "}",
-      // Keyboard-focused mute/pop-out reappear immediately even if the
-      // hover-fade has dropped them to opacity:0 — otherwise a Tab user
-      // lands on an invisible button with no visible focus state.
-      ".sif-mute-btn:focus-visible,.sif-popout-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
+      // Keyboard-focused mute/pop-out/CC reappear immediately even if
+      // the hover-fade has dropped them to opacity:0 — otherwise a Tab
+      // user lands on an invisible button with no visible focus state.
+      ".sif-mute-btn:focus-visible,.sif-popout-btn:focus-visible,.sif-cc-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
       // Visually-hidden live region: SR-only "Reel N of M" announcements
       // on carousel navigation (set in updateUI).
       ".sif-live{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",
