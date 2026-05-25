@@ -158,6 +158,99 @@
     });
   }
 
+  // ── Caption helpers ─────────────────────────────
+  // Parse a single WebVTT timestamp ("HH:MM:SS.mmm") to seconds.
+  function splCapParseTime(ts) {
+    if (!ts) return 0;
+    var p = ts.split(':');
+    if (p.length !== 3) return 0;
+    var sec = parseFloat(p[2]);
+    return (parseInt(p[0], 10) || 0) * 3600 + (parseInt(p[1], 10) || 0) * 60 + (isFinite(sec) ? sec : 0);
+  }
+
+  // Parse a WebVTT string into an array of { start, end, text } cues.
+  // Best-effort: tolerant of optional cue identifiers, varied
+  // line endings, blank-line separation. Returns [] on bad input.
+  function splCapParseVtt(vtt) {
+    var out = [];
+    if (!vtt || typeof vtt !== "string") return out;
+    var lines = vtt.split(/\r\n|\n|\r/);
+    var i = 0;
+    if (i < lines.length && /^\s*WEBVTT/.test(lines[i])) i++;
+    while (i < lines.length) {
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i >= lines.length) break;
+      // Optional cue identifier line (no -->). Skip when followed by
+      // a real timing line.
+      if (lines[i].indexOf("-->") === -1 && i + 1 < lines.length && lines[i + 1].indexOf("-->") !== -1) {
+        i++;
+      }
+      if (i >= lines.length) break;
+      var m = lines[i].match(/^\s*(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+      if (!m) { i++; continue; }
+      var start = splCapParseTime(m[1]);
+      var end   = splCapParseTime(m[2]);
+      i++;
+      var textLines = [];
+      while (i < lines.length && lines[i].trim() !== "") {
+        textLines.push(lines[i]);
+        i++;
+      }
+      if (end > start && textLines.length) {
+        out.push({ start: start, end: end, text: textLines.join("\n") });
+      }
+    }
+    return out;
+  }
+
+  // Browser language auto-pick. Walks navigator.languages (preference-
+  // ordered) and returns the first base code that's both available
+  // for the current reel AND non-English. English is excluded because
+  // VisitRaleigh's videos already carry burned-in English captions —
+  // auto-enabling an English overlay would just cover one English
+  // band with a duplicate English band.
+  function splCapDetectLang(availableLangs) {
+    if (!availableLangs || !availableLangs.length) return null;
+    var langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < langs.length; i++) {
+      var base = (langs[i] || "").toLowerCase().split("-")[0];
+      if (base && base !== "en" && availableLangs.indexOf(base) !== -1) return base;
+    }
+    return null;
+  }
+
+  // Persisted language preference for this browser session. "off"
+  // means visitor explicitly chose no overlay; null means "not set,
+  // fall back to browser auto-detect."
+  function splCapGetSavedLang() {
+    try { return sessionStorage.getItem("splshy.captionLang") || null; }
+    catch (e) { return null; }
+  }
+  function splCapSaveLang(lang) {
+    try { sessionStorage.setItem("splshy.captionLang", lang || ""); }
+    catch (e) {}
+  }
+
+  // Find the active cue for a given playback time. Linear scan is
+  // fine — caption tracks rarely have more than ~100 cues.
+  function splCapActiveCue(cues, currentTime) {
+    if (!cues || !cues.length) return null;
+    for (var i = 0; i < cues.length; i++) {
+      if (currentTime >= cues[i].start && currentTime < cues[i].end) return cues[i];
+    }
+    return null;
+  }
+
+  // Display names for the CC menu. Keep keys lowercase; ISO 639-1 +
+  // a Mandarin variant. Add languages here when we expand support.
+  var SPL_CAP_LANG_NAMES = {
+    en: "English",
+    es: "Español",
+    fr: "Français",
+    de: "Deutsch",
+    zh: "中文"
+  };
+
   // Desktop rendering mode (step 3 of the accordion plan).
   //   "row"         — current infinite-carousel look (the only live mode today)
   //   "accordion-3" — wired in step 3b, V=3 band
@@ -413,6 +506,32 @@
       ".sif-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
       ".sif-popout-btn svg{width:15px;height:15px}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-popout-btn.visible{display:flex;opacity:1}}",
+      // CC button. Same right-edge column as mute/popout. Stacked
+      // above popout on desktop, sits where popout would on mobile
+      // (popout is desktop-only via CSS). Only present in the DOM
+      // when the reel has caption data.
+      ".sif-cc-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s;color:#fff;font-weight:700;font-size:11px;font-family:system-ui,-apple-system,sans-serif;letter-spacing:.04em}",
+      ".sif-cc-btn.visible{display:flex;opacity:1}",
+      ".sif-cc-btn:hover{background:rgba(0,0,0,.7)!important}",
+      ".sif-cc-btn.is-active{background:rgba(232,93,46,.85)!important;border-color:rgba(255,255,255,.6)!important}",
+      "@media(min-width:768px) and (any-pointer:fine){.sif-cc-btn{bottom:142px}}",
+      // Language menu — pops out to the LEFT of the CC button when
+      // tapped. Vertical stack of options including an "Off" choice.
+      ".sif-lang-menu{position:absolute;bottom:100px;right:54px;display:none;flex-direction:column;background:rgba(8,36,64,.95);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".sif-lang-menu.visible{display:flex}",
+      ".sif-lang-opt{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;border-radius:5px;text-align:left}",
+      ".sif-lang-opt:hover{background:rgba(255,255,255,.08)}",
+      ".sif-lang-opt.is-selected{background:rgba(232,93,46,.85);color:#fff}",
+      ".sif-lang-opt.is-selected:hover{background:rgba(232,93,46,.95)}",
+      "@media(min-width:768px) and (any-pointer:fine){.sif-lang-menu{bottom:142px}}",
+      // Caption overlay — positioned to fully cover VisitRaleigh's
+      // burned-in English caption band. The band sits roughly bottom
+      // 22%–35% of the video. Background is near-opaque (not the
+      // semi-transparent style typical players use) so the burned-in
+      // English doesn't bleed through.
+      ".sif-cap-overlay{position:absolute;left:5%;right:5%;bottom:20%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(8,36,64,.94);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;min-height:38px;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sif-cap-overlay.visible{display:flex}",
+      "@media(max-width:767px){.sif-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. Default (card
       // NOT hovered) holds opacity at 1 for 2s, then fades over .35s; on
       // hover the transition-delay is zeroed so the buttons pop back in
@@ -710,6 +829,14 @@
           '<svg class="sif-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>'+
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
         '</button>'+
+        // CC button + language menu + caption overlay only appear
+        // when this reel has caption data. Menu options are built
+        // from the reel's available languages at card-setup time.
+        (reel.captions
+          ? '<button class="sif-cc-btn" aria-label="Captions" aria-pressed="false">CC</button>' +
+            '<div class="sif-lang-menu" role="menu"></div>' +
+            '<div class="sif-cap-overlay" aria-live="polite"></div>'
+          : '')+
         '<div class="sif-speed">2x</div>'+
         '<div class="sif-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sif-progress-track"></div><div class="sif-progress-fill"></div><div class="sif-progress-thumb"></div></div>'+
         '<div class="sif-time-counter">0:00 / 0:00</div>'
@@ -755,6 +882,8 @@
         card.querySelector(".sif-play-btn").classList.remove("preview-active");
         card.querySelector(".sif-mute-btn").classList.remove("visible");
         card.querySelector(".sif-popout-btn").classList.remove("visible");
+        var ccb=card.querySelector(".sif-cc-btn"); if (ccb) ccb.classList.remove("visible");
+        var cml=card.querySelector(".sif-lang-menu"); if (cml) cml.classList.remove("visible");
         var pi=card.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
         var pb=card.querySelector(".sif-progress"); if (pb) pb.classList.remove("show");
         fadeOut();
@@ -804,6 +933,125 @@
       var playBtn=card.querySelector(".sif-play-btn");
       var muteBtn=card.querySelector(".sif-mute-btn");
       var popoutBtn=card.querySelector(".sif-popout-btn");
+      var ccBtn      = card.querySelector(".sif-cc-btn");      // null if no captions
+      var ccMenu     = card.querySelector(".sif-lang-menu");
+      var capOverlay = card.querySelector(".sif-cap-overlay");
+
+      // ── Captions: per-card state ───────────────────
+      // Build the per-language parsed-cue map once at card setup so
+      // timeupdate doesn't reparse on every tick. `capCues[lang]` is
+      // an array of { start, end, text }.
+      var capCues = {};
+      var capAvailableLangs = [];
+      if (reel.captions && typeof reel.captions === "object") {
+        Object.keys(reel.captions).forEach(function(lang) {
+          var vttStr = reel.captions[lang];
+          if (typeof vttStr === "string" && vttStr) {
+            var cues = splCapParseVtt(vttStr);
+            if (cues.length) {
+              capCues[lang] = cues;
+              capAvailableLangs.push(lang);
+            }
+          }
+        });
+      }
+
+      // Selected language for this card: session-saved preference
+      // wins; if absent, browser-language auto-detect picks one;
+      // otherwise no overlay until user opens the menu.
+      var capSelected = (function() {
+        var saved = splCapGetSavedLang();
+        if (saved === "off") return null;
+        if (saved && capAvailableLangs.indexOf(saved) !== -1) return saved;
+        return splCapDetectLang(capAvailableLangs);
+      })();
+
+      function capRender(force) {
+        if (!capOverlay) return;
+        if (!capSelected || !capCues[capSelected]) {
+          if (capOverlay.classList.contains("visible")) {
+            capOverlay.classList.remove("visible");
+            capOverlay.textContent = "";
+          }
+          return;
+        }
+        var cue = splCapActiveCue(capCues[capSelected], video.currentTime || 0);
+        if (cue) {
+          if (capOverlay.textContent !== cue.text || force) capOverlay.textContent = cue.text;
+          capOverlay.classList.add("visible");
+        } else {
+          if (capOverlay.classList.contains("visible")) {
+            capOverlay.classList.remove("visible");
+            capOverlay.textContent = "";
+          }
+        }
+      }
+
+      function capBuildMenu() {
+        if (!ccMenu) return;
+        var opts = [{ code: "", label: "Off" }];
+        capAvailableLangs.forEach(function(lang) {
+          opts.push({ code: lang, label: SPL_CAP_LANG_NAMES[lang] || lang.toUpperCase() });
+        });
+        ccMenu.innerHTML = opts.map(function(o) {
+          var selected = (o.code === (capSelected || ""));
+          return '<button class="sif-lang-opt' + (selected ? ' is-selected' : '') +
+            '" data-lang="' + o.code + '" role="menuitemradio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
+            o.label + '</button>';
+        }).join("");
+      }
+
+      function capSyncBtnState() {
+        if (!ccBtn) return;
+        if (capSelected) {
+          ccBtn.classList.add("is-active");
+          ccBtn.setAttribute("aria-pressed", "true");
+        } else {
+          ccBtn.classList.remove("is-active");
+          ccBtn.setAttribute("aria-pressed", "false");
+        }
+      }
+
+      function capSelect(lang) {
+        capSelected = lang || null;
+        splCapSaveLang(capSelected || "off");
+        capBuildMenu();
+        capSyncBtnState();
+        capRender(true);
+      }
+
+      if (ccBtn && capAvailableLangs.length) {
+        capBuildMenu();
+        capSyncBtnState();
+        ccBtn.addEventListener("click", function(e) {
+          e.stopPropagation();
+          ccMenu.classList.toggle("visible");
+        });
+        ccMenu.addEventListener("click", function(e) {
+          e.stopPropagation();
+          var btn = e.target.closest && e.target.closest(".sif-lang-opt");
+          if (!btn) return;
+          capSelect(btn.getAttribute("data-lang") || null);
+          ccMenu.classList.remove("visible");
+        });
+        // Click anywhere else on the card closes the menu.
+        card.addEventListener("click", function() {
+          if (ccMenu.classList.contains("visible")) ccMenu.classList.remove("visible");
+        });
+      }
+
+      if (capOverlay) {
+        video.addEventListener("timeupdate", function() { capRender(false); });
+        video.addEventListener("seeked",     function() { capRender(true); });
+        video.addEventListener("ended",      function() {
+          // Hide overlay when video ends — overlap with the carousel's
+          // auto-advance state.
+          if (capOverlay.classList.contains("visible")) {
+            capOverlay.classList.remove("visible");
+            capOverlay.textContent = "";
+          }
+        });
+      }
 
       // ── Hover preview ──────────────────────────────────
       // 1.25s after mouseenter, the video plays muted from 0.5s for 3s,
@@ -883,6 +1131,7 @@
         playBtn.classList.add("hidden");
         muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");
+        if (ccBtn) ccBtn.classList.add("visible");
         syncMuteIcon(muteBtn, globalMuted);
         video.play().catch(function(){});
       }
@@ -933,6 +1182,7 @@
         fadeIn();
         playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
         popoutBtn.classList.add("visible");   // desktop-only via CSS media query
+        if (ccBtn) ccBtn.classList.add("visible");
         previewState = "playing";
         syncMuteIcon(muteBtn,globalMuted); video.play();
       });
@@ -1646,6 +1896,10 @@
     c.el.querySelector(".sif-play-btn").classList.remove("hidden");
     c.el.querySelector(".sif-mute-btn").classList.remove("visible");
     var pob=c.el.querySelector(".sif-popout-btn"); if (pob) pob.classList.remove("visible");
+    var ccb=c.el.querySelector(".sif-cc-btn"); if (ccb) ccb.classList.remove("visible");
+    var cml=c.el.querySelector(".sif-lang-menu"); if (cml) cml.classList.remove("visible");
+    var cap=c.el.querySelector(".sif-cap-overlay");
+    if (cap) { cap.classList.remove("visible"); cap.textContent = ""; }
     var pi=c.el.querySelector(".sif-pause-ind"); if (pi) pi.classList.remove("visible");
     var rg=c.el.querySelector(".sif-timer-ring"); if (rg) rg.style.strokeDashoffset=0;
     var tx=c.el.querySelector(".sif-timer-text"); if (tx&&c.video.duration) tx.textContent=fmtTime(c.video.duration);
