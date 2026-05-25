@@ -773,7 +773,7 @@
       poster.appendChild(ph);
       if (reel.posterUrl){
         var img = document.createElement("img");
-        img.src=reel.posterUrl; img.alt=reel.label||"";
+        img.src=reel.posterUrl; img.alt=reel.posterAltText||reel.label||"";
         poster.appendChild(img);
       }
       card.appendChild(poster);
