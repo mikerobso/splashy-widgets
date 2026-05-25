@@ -513,7 +513,7 @@
       ".sif-cc-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s;color:#fff;font-weight:700;font-size:11px;font-family:system-ui,-apple-system,sans-serif;letter-spacing:.04em}",
       ".sif-cc-btn.visible{display:flex;opacity:1}",
       ".sif-cc-btn:hover{background:rgba(0,0,0,.7)!important}",
-      ".sif-cc-btn.is-active{background:rgba(232,93,46,.85)!important;border-color:rgba(255,255,255,.6)!important}",
+      ".sif-cc-btn.is-active{background:#fff!important;border-color:rgba(0,0,0,.35)!important;color:#000}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-cc-btn{bottom:142px}}",
       // Language menu — pops out to the LEFT of the CC button when
       // tapped. Vertical stack of options including an "Off" choice.
@@ -532,7 +532,7 @@
       // which fully covers the burned-in band on every VisitRaleigh
       // video the team showed me. Background is near-opaque navy so
       // the English underneath can't bleed through.
-      ".sif-cap-overlay{position:absolute;left:5%;right:5%;top:65%;bottom:20%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;font-weight:600;line-height:1.32;color:#fff;background:rgba(8,36,64,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sif-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sif-cap-overlay.visible{display:flex}",
       "@media(max-width:767px){.sif-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. Default (card
