@@ -67,15 +67,15 @@
     text-align: center;
   }
   /* Wordmark — Press Start 2P scaled large with a two-layer pixel
-     drop shadow (orange close, deep-wave far) for chunky depth. */
+     drop shadow. Brand orange foreground, teal echo, deep-wave depth. */
   h1.wordmark {
     font-size: clamp(34px, 11vw, 96px);
     margin: 0 0 30px;
     letter-spacing: 0.06em;
     line-height: 1;
-    color: var(--ink);
+    color: var(--orange);
     text-shadow:
-      3px 3px 0 var(--orange),
+      3px 3px 0 var(--teal),
       6px 6px 0 var(--deepwave);
   }
   p.tagline {
@@ -144,8 +144,6 @@
 </main>
 
 <footer>
-  <p>SPLSHY hosts the vertical video widgets currently running on <a href="https://www.visitraleigh.com" rel="noopener">visitraleigh.com</a>.</p>
-  <p>Questions, hellos, or "make me one"? <a href="mailto:mike.robson.ncsu@gmail.com">mike.robson.ncsu@gmail.com</a></p>
   <p class="attr">© 2026 Michael Robson</p>
 </footer>
 
@@ -172,6 +170,21 @@
   // arc up, and fall back into the water under gravity. Pixel-snapped
   // for the retro feel.
   var splashes = [];
+
+  // Pixel-art dolphin facing right, 12 cols x 5 rows. Each char is
+  // one chunky pixel: ' '=transparent, 'B'=body teal, 'b'=belly
+  // highlight, 'd'=dark accent (tail tip, eye, snout point).
+  var DOLPHIN = [
+    "    BB      ",
+    "  ddBBBBB   ",
+    " ddBBBBBBBd ",
+    "   BBBdBBBB ",
+    "    bbbbB   "
+  ];
+  var DOLPHIN_W = DOLPHIN[0].length;
+  var DOLPHIN_H = DOLPHIN.length;
+  var dolphins = [];
+
   var t = 0;
   var rafId = null;
 
@@ -202,14 +215,46 @@
     for (var i = 0; i < waves.length; i++) {
       var wave = waves[i];
       var yBase = h * wave.yFrac;
-      ctx.fillStyle = wave.color;
+      var isFront = (i === waves.length - 1);
       for (var x = 0; x < w; x += PIXEL_SIZE) {
-        var raw = yBase + Math.sin(x * wave.frequency + t * wave.speed) * wave.amplitude;
+        var sinVal = Math.sin(x * wave.frequency + t * wave.speed);
+        var raw = yBase + sinVal * wave.amplitude;
         var yTop = snap(raw);
+        ctx.fillStyle = wave.color;
         for (var y = yTop; y < h; y += PIXEL_SIZE) {
           ctx.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
         }
+        // Whitecaps: on the front wave only, the top 1-2 pixel rows
+        // at a crest peak are rendered in near-white instead of the
+        // crest blue. sinVal < -0.55 means we're near the top of the
+        // wave (sine minimum = highest crest). The "deeper" the crest
+        // (more negative sinVal), the more rows go white.
+        if (isFront && sinVal < -0.55) {
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(x, yTop, PIXEL_SIZE, PIXEL_SIZE);
+          if (sinVal < -0.85) {
+            ctx.fillRect(x, yTop + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
+          }
+        }
       }
+    }
+
+    // Dolphins jumping (drawn behind front splash particles but on top
+    // of waves so the body reads against the navy sky above the water).
+    for (var di = dolphins.length - 1; di >= 0; di--) {
+      var dlph = dolphins[di];
+      dlph.x += dlph.vx;
+      dlph.y += dlph.vy;
+      dlph.vy += 0.16;   // gravity
+      dlph.age++;
+      // Despawn once dolphin has fallen well below the front-wave line.
+      var fw = waves[waves.length - 1];
+      var waterY = h * fw.yFrac;
+      if (dlph.vy > 0 && dlph.y > waterY + 24) {
+        dolphins.splice(di, 1);
+        continue;
+      }
+      drawDolphin(dlph);
     }
 
     // Splash particles (drawn in front).
@@ -226,6 +271,50 @@
       }
       ctx.fillRect(snap(sp.x), snap(sp.y), PIXEL_SIZE, PIXEL_SIZE);
     }
+  }
+
+  // Draw a dolphin sprite at its current world position. Sprite is
+  // mirrored horizontally when facing left and flipped vertically when
+  // descending so the body orientation roughly matches the arc.
+  function drawDolphin(d) {
+    var flipY = d.vy > 0;            // descending half of the arc
+    var mirrorX = !d.facingRight;
+    for (var r = 0; r < DOLPHIN_H; r++) {
+      var row = DOLPHIN[flipY ? (DOLPHIN_H - 1 - r) : r];
+      for (var c = 0; c < DOLPHIN_W; c++) {
+        var ch = row[mirrorX ? (DOLPHIN_W - 1 - c) : c];
+        if (ch === ' ') continue;
+        var color = ch === 'B' ? '#5fb8cc'
+                  : ch === 'b' ? '#a0d8e2'
+                  :              '#0a4d5c';   // 'd'
+        ctx.fillStyle = color;
+        var px = snap(d.x + (c - DOLPHIN_W / 2) * PIXEL_SIZE);
+        var py = snap(d.y + (r - DOLPHIN_H / 2) * PIXEL_SIZE);
+        ctx.fillRect(px, py, PIXEL_SIZE, PIXEL_SIZE);
+      }
+    }
+  }
+
+  // Spawn a dolphin off-screen on one side, arcing across some chunk
+  // of the viewport. The launch velocity puts the apex roughly 80-120
+  // pixels above the front wave line; gravity matches the per-frame
+  // 0.16 in the update loop above.
+  function spawnDolphin() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var fw = waves[waves.length - 1];
+    var startY = h * fw.yFrac + fw.amplitude * 0.6;
+    var ltr = Math.random() < 0.5;
+    var horiz = 2.6 + Math.random() * 1.4;
+    var vert  = -4.6 - Math.random() * 1.4;
+    dolphins.push({
+      x: ltr ? -DOLPHIN_W * PIXEL_SIZE : w + DOLPHIN_W * PIXEL_SIZE,
+      y: startY,
+      vx: ltr ? horiz : -horiz,
+      vy: vert,
+      facingRight: ltr,
+      age: 0
+    });
   }
 
   function spawnSplash() {
@@ -249,9 +338,11 @@
 
   function animate() {
     drawFrame();
-    // Roughly every 1.5s at 60fps. Skipped under prefers-reduced-motion
-    // since splashes mean motion.
+    // Splashes: ~every 1.5s at 60fps.
     if (t % 90 === 0) spawnSplash();
+    // Dolphins: ~every 5s at 60fps. Start the first one ~2s in so the
+    // page doesn't open with a dolphin already mid-flight.
+    if (t > 120 && (t - 120) % 300 === 0) spawnDolphin();
     t += 1;
     rafId = requestAnimationFrame(animate);
   }
