@@ -61,10 +61,11 @@ export default async function handler(request: Request) {
           height: '100%',
           display: 'flex',
           position: 'relative',
-          // SPLSHY orange as the hero. Subtle radial highlight gives
-          // depth so it doesn't read as a flat color block.
+          // SPLSHY orange with dramatic radial gradient — bright peach
+          // highlight in the upper-left falling to deep burnt orange
+          // in the lower-right. Reads as cinematic, not a flat block.
           backgroundImage:
-            'radial-gradient(ellipse at 30% 25%, #f37a4c 0%, #e85d2e 45%, #c64719 100%)',
+            'radial-gradient(circle at 18% 12%, #ffb088 0%, #ff8c5a 20%, #e85d2e 50%, #a02f08 100%)',
           backgroundColor: '#e85d2e',
           fontFamily: 'Inter',
         }}
@@ -107,38 +108,37 @@ export default async function handler(request: Request) {
                 objectFit: 'cover',
               }}
             />
-            {/* Play-button glyph — soft white disc with a triangle.
-                Signals "this is a video" at a glance in chat threads. */}
+            {/* Play-button glyph — soft white disc with an SVG triangle.
+                Signals "this is a video" at a glance in chat threads.
+                Use SVG because Satori doesn't render CSS border-tricks
+                reliably. Triangle is geometrically nudged ~2px right of
+                center so it reads as optically centered (right-pointing
+                triangles look off-center when truly centered). */}
             <div
               style={{
                 position: 'absolute',
                 top: '50%',
                 left: '50%',
-                marginTop: -36,
-                marginLeft: -36,
-                width: 72,
-                height: 72,
-                borderRadius: 36,
+                marginTop: -40,
+                marginLeft: -40,
+                width: 80,
+                height: 80,
+                borderRadius: 40,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: 'rgba(255,255,255,0.92)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.45)',
+                backgroundColor: 'rgba(255,255,255,0.96)',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.45)',
               }}
             >
-              {/* CSS triangle via borders — deep navy reads cleanly on
-                  the white disc and avoids any orange-on-orange clash. */}
-              <div
-                style={{
-                  display: 'flex',
-                  width: 0,
-                  height: 0,
-                  marginLeft: 6,
-                  borderTop: '12px solid transparent',
-                  borderBottom: '12px solid transparent',
-                  borderLeft: '20px solid #1a2438',
-                }}
-              />
+              <svg
+                width="28"
+                height="32"
+                viewBox="0 0 28 32"
+                style={{ display: 'block', marginLeft: 4 }}
+              >
+                <polygon points="2,2 26,16 2,30" fill="#1a2438" />
+              </svg>
             </div>
           </div>
 
