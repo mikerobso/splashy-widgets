@@ -156,6 +156,8 @@
   var PIXEL_SIZE = 4;
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  function snap(v) { return Math.floor(v / PIXEL_SIZE) * PIXEL_SIZE; }
+
   // Wave layers, drawn back-to-front. yFrac is the resting Y as a
   // fraction of canvas height; amplitude/frequency/speed control the
   // motion. Front waves get slightly higher amplitude and faster
@@ -166,14 +168,67 @@
     { yFrac: 0.81, amplitude: 18, frequency: 0.022, speed: 0.032, color: '#5fb8cc' }
   ];
 
-  // Orange splash particles erupt from random wave crests every ~1.5s,
-  // arc up, and fall back into the water under gravity. Pixel-snapped
-  // for the retro feel.
-  var splashes = [];
+  // Stars: positions seeded at page load (and on resize), each twinkles
+  // through a three-state cycle (bright / dim / off) on its own period.
+  var stars = [];
+  function generateStars() {
+    stars = [];
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var maxY = h * 0.50;          // sky-only zone, above the waves
+    var count = Math.max(24, Math.floor(w / 32));
+    for (var i = 0; i < count; i++) {
+      stars.push({
+        x: snap(Math.random() * w),
+        y: snap(Math.random() * maxY),
+        phase: Math.random() * Math.PI * 2,
+        period: 60 + Math.random() * 240   // ~1-5 second twinkle
+      });
+    }
+  }
 
-  // Pixel-art dolphin facing right, 12 cols x 5 rows. Each char is
-  // one chunky pixel: ' '=transparent, 'B'=body teal, 'b'=belly
-  // highlight, 'd'=dark accent (tail tip, eye, snout point).
+  // Moon: traverses the sky on a sine arc, looping every ~90 seconds.
+  // Rises from below the horizon at the left edge, peaks mid-screen,
+  // sets at the right, then restarts.
+  var MOON = [
+    " YYYYY ",
+    "YYYYYYY",
+    "YYYYDYY",
+    "YYYYYYY",
+    "YYYYYYY",
+    "YYDYYYY",
+    " YYYYY "
+  ];
+  var MOON_COLORS = { Y: '#f0e6c8', D: '#5a7a96' };
+  var MOON_CYCLE = 60 * 90;   // frames per full traverse
+
+  // Sailboats: two visually distinct rigs. A = triangle/lateen sail
+  // (cream), B = square rig (orange sail). Each sailboat drifts
+  // slowly across screen, hull bobbing with the front wave at its x.
+  var SAILBOAT_A = [
+    "  d     ",
+    "  dB    ",
+    "  dBB   ",
+    "  dBBB  ",
+    "  dBBBB ",
+    "ddddddd ",
+    " hhhhh  "
+  ];
+  var SAILBOAT_B = [
+    "  ddd   ",
+    "  BBB   ",
+    "  BdB   ",
+    "  BdB   ",
+    "  BdB   ",
+    "ddddddd ",
+    " hhhhh  "
+  ];
+  var SAILBOAT_A_COLORS = { d: '#0a4d5c', B: '#f0e6c8', h: '#1a2438' };
+  var SAILBOAT_B_COLORS = { d: '#0a4d5c', B: '#e85d2e', h: '#1a2438' };
+  var sailboats = [];
+
+  // Dolphins: 12x5 chunky pixel sprite, leaps in an arc out of the
+  // front wave roughly every 5 seconds.
   var DOLPHIN = [
     "    BB      ",
     "  ddBBBBB   ",
@@ -181,12 +236,14 @@
     "   BBBdBBBB ",
     "    bbbbB   "
   ];
+  var DOLPHIN_COLORS = { B: '#5fb8cc', b: '#a0d8e2', d: '#0a4d5c' };
   var DOLPHIN_W = DOLPHIN[0].length;
-  var DOLPHIN_H = DOLPHIN.length;
   var dolphins = [];
 
+  // Orange splash particles erupt from random wave crests every ~1.5s.
+  var splashes = [];
+
   var t = 0;
-  var rafId = null;
 
   function resize() {
     var dpr = window.devicePixelRatio || 1;
@@ -199,106 +256,88 @@
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
     ctx.imageSmoothingEnabled = false;
+    generateStars();
   }
 
-  function snap(v) { return Math.floor(v / PIXEL_SIZE) * PIXEL_SIZE; }
+  // Generic chunky-pixel sprite renderer: cx/cy is the SPRITE CENTER,
+  // mirror flips X, flipY flips Y. Unknown chars / spaces are skipped.
+  function drawSprite(sprite, colors, cx, cy, mirror, flipY) {
+    var rows = sprite.length;
+    var cols = sprite[0].length;
+    for (var r = 0; r < rows; r++) {
+      var row = sprite[flipY ? (rows - 1 - r) : r];
+      for (var c = 0; c < cols; c++) {
+        var ch = row[mirror ? (cols - 1 - c) : c];
+        if (ch === ' ') continue;
+        var color = colors[ch];
+        if (!color) continue;
+        ctx.fillStyle = color;
+        ctx.fillRect(
+          snap(cx + (c - cols / 2) * PIXEL_SIZE),
+          snap(cy + (r - rows / 2) * PIXEL_SIZE),
+          PIXEL_SIZE, PIXEL_SIZE
+        );
+      }
+    }
+  }
 
-  function drawFrame() {
+  function drawStars() {
+    for (var i = 0; i < stars.length; i++) {
+      var star = stars[i];
+      var lit = Math.sin(t * 2 * Math.PI / star.period + star.phase);
+      if (lit > 0.55) {
+        ctx.fillStyle = '#f8fafc';
+        ctx.fillRect(star.x, star.y, PIXEL_SIZE, PIXEL_SIZE);
+      } else if (lit > 0) {
+        ctx.fillStyle = '#88a3bf';
+        ctx.fillRect(star.x, star.y, PIXEL_SIZE, PIXEL_SIZE);
+      }
+      // else: off this frame
+    }
+  }
+
+  function drawMoon() {
     var w = window.innerWidth;
     var h = window.innerHeight;
-    // Navy sky fill.
-    ctx.fillStyle = '#082440';
-    ctx.fillRect(0, 0, w, h);
+    var progress = (t % MOON_CYCLE) / MOON_CYCLE;
+    // Sine arc: peaks at progress=0.5, near horizon at edges. Horizon
+    // sits just above the back wave's resting line.
+    var horizonY  = h * (waves[0].yFrac - 0.04);
+    var peakAbove = h * 0.34;
+    var x = -40 + progress * (w + 80);
+    var y = horizonY - peakAbove * Math.sin(progress * Math.PI);
+    drawSprite(MOON, MOON_COLORS, x, y, false, false);
+  }
 
-    // Waves, back to front. Each column fills downward from its
-    // sine-derived top edge.
-    for (var i = 0; i < waves.length; i++) {
-      var wave = waves[i];
-      var yBase = h * wave.yFrac;
-      var isFront = (i === waves.length - 1);
-      for (var x = 0; x < w; x += PIXEL_SIZE) {
-        var sinVal = Math.sin(x * wave.frequency + t * wave.speed);
-        var raw = yBase + sinVal * wave.amplitude;
-        var yTop = snap(raw);
-        ctx.fillStyle = wave.color;
-        for (var y = yTop; y < h; y += PIXEL_SIZE) {
-          ctx.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
-        }
-        // Whitecaps: on the front wave only, the top 1-2 pixel rows
-        // at a crest peak are rendered in near-white instead of the
-        // crest blue. sinVal < -0.55 means we're near the top of the
-        // wave (sine minimum = highest crest). The "deeper" the crest
-        // (more negative sinVal), the more rows go white.
-        if (isFront && sinVal < -0.55) {
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(x, yTop, PIXEL_SIZE, PIXEL_SIZE);
-          if (sinVal < -0.85) {
-            ctx.fillRect(x, yTop + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
-          }
-        }
-      }
-    }
+  function spawnSailboat() {
+    var w = window.innerWidth;
+    var ltr = Math.random() < 0.5;
+    var type = Math.floor(Math.random() * 2);
+    sailboats.push({
+      x: ltr ? -36 : w + 36,
+      vx: ltr ? (0.32 + Math.random() * 0.20) : -(0.32 + Math.random() * 0.20),
+      type: type
+    });
+  }
 
-    // Dolphins jumping (drawn behind front splash particles but on top
-    // of waves so the body reads against the navy sky above the water).
-    for (var di = dolphins.length - 1; di >= 0; di--) {
-      var dlph = dolphins[di];
-      dlph.x += dlph.vx;
-      dlph.y += dlph.vy;
-      dlph.vy += 0.16;   // gravity
-      dlph.age++;
-      // Despawn once dolphin has fallen well below the front-wave line.
-      var fw = waves[waves.length - 1];
-      var waterY = h * fw.yFrac;
-      if (dlph.vy > 0 && dlph.y > waterY + 24) {
-        dolphins.splice(di, 1);
-        continue;
-      }
-      drawDolphin(dlph);
-    }
-
-    // Splash particles (drawn in front).
-    ctx.fillStyle = '#e85d2e';
-    for (var s = splashes.length - 1; s >= 0; s--) {
-      var sp = splashes[s];
-      sp.x += sp.vx;
-      sp.y += sp.vy;
-      sp.vy += 0.13;
-      sp.age++;
-      if (sp.age > sp.lifespan) {
-        splashes.splice(s, 1);
-        continue;
-      }
-      ctx.fillRect(snap(sp.x), snap(sp.y), PIXEL_SIZE, PIXEL_SIZE);
+  function drawSailboats() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var fw = waves[waves.length - 1];
+    for (var i = sailboats.length - 1; i >= 0; i--) {
+      var sb = sailboats[i];
+      if (!reduced) sb.x += sb.vx;
+      var sinVal = Math.sin(sb.x * fw.frequency + t * fw.speed);
+      var waterY = h * fw.yFrac + sinVal * fw.amplitude;
+      var sprite = sb.type === 0 ? SAILBOAT_A : SAILBOAT_B;
+      var colors = sb.type === 0 ? SAILBOAT_A_COLORS : SAILBOAT_B_COLORS;
+      // Position sprite so its hull bottom rests at the wave surface.
+      var cy = waterY - (sprite.length / 2 - 1.5) * PIXEL_SIZE;
+      drawSprite(sprite, colors, sb.x, cy, sb.vx < 0, false);
+      if (sb.x < -60 || sb.x > w + 60) sailboats.splice(i, 1);
     }
   }
 
-  // Draw a dolphin sprite at its current world position. Sprite is
-  // mirrored horizontally when facing left and flipped vertically when
-  // descending so the body orientation roughly matches the arc.
-  function drawDolphin(d) {
-    var flipY = d.vy > 0;            // descending half of the arc
-    var mirrorX = !d.facingRight;
-    for (var r = 0; r < DOLPHIN_H; r++) {
-      var row = DOLPHIN[flipY ? (DOLPHIN_H - 1 - r) : r];
-      for (var c = 0; c < DOLPHIN_W; c++) {
-        var ch = row[mirrorX ? (DOLPHIN_W - 1 - c) : c];
-        if (ch === ' ') continue;
-        var color = ch === 'B' ? '#5fb8cc'
-                  : ch === 'b' ? '#a0d8e2'
-                  :              '#0a4d5c';   // 'd'
-        ctx.fillStyle = color;
-        var px = snap(d.x + (c - DOLPHIN_W / 2) * PIXEL_SIZE);
-        var py = snap(d.y + (r - DOLPHIN_H / 2) * PIXEL_SIZE);
-        ctx.fillRect(px, py, PIXEL_SIZE, PIXEL_SIZE);
-      }
-    }
-  }
-
-  // Spawn a dolphin off-screen on one side, arcing across some chunk
-  // of the viewport. The launch velocity puts the apex roughly 80-120
-  // pixels above the front wave line; gravity matches the per-frame
-  // 0.16 in the update loop above.
   function spawnDolphin() {
     var w = window.innerWidth;
     var h = window.innerHeight;
@@ -317,12 +356,30 @@
     });
   }
 
+  function drawDolphins() {
+    var h = window.innerHeight;
+    var fw = waves[waves.length - 1];
+    for (var i = dolphins.length - 1; i >= 0; i--) {
+      var d = dolphins[i];
+      d.x += d.vx;
+      d.y += d.vy;
+      d.vy += 0.16;
+      d.age++;
+      var waterY = h * fw.yFrac;
+      if (d.vy > 0 && d.y > waterY + 24) {
+        dolphins.splice(i, 1);
+        continue;
+      }
+      drawSprite(DOLPHIN, DOLPHIN_COLORS, d.x, d.y, !d.facingRight, d.vy > 0);
+    }
+  }
+
   function spawnSplash() {
     var w = window.innerWidth;
     var h = window.innerHeight;
-    var wave = waves[waves.length - 1];   // front-most wave
+    var fw = waves[waves.length - 1];
     var x = Math.random() * w;
-    var yTop = h * wave.yFrac + Math.sin(x * wave.frequency + t * wave.speed) * wave.amplitude;
+    var yTop = h * fw.yFrac + Math.sin(x * fw.frequency + t * fw.speed) * fw.amplitude;
     var count = 3 + Math.floor(Math.random() * 3);
     for (var i = 0; i < count; i++) {
       splashes.push({
@@ -336,18 +393,89 @@
     }
   }
 
-  function animate() {
-    drawFrame();
-    // Splashes: ~every 1.5s at 60fps.
-    if (t % 90 === 0) spawnSplash();
-    // Dolphins: ~every 5s at 60fps. Start the first one ~2s in so the
-    // page doesn't open with a dolphin already mid-flight.
-    if (t > 120 && (t - 120) % 300 === 0) spawnDolphin();
-    t += 1;
-    rafId = requestAnimationFrame(animate);
+  function drawSplashes() {
+    ctx.fillStyle = '#e85d2e';
+    for (var s = splashes.length - 1; s >= 0; s--) {
+      var sp = splashes[s];
+      sp.x += sp.vx;
+      sp.y += sp.vy;
+      sp.vy += 0.13;
+      sp.age++;
+      if (sp.age > sp.lifespan) {
+        splashes.splice(s, 1);
+        continue;
+      }
+      ctx.fillRect(snap(sp.x), snap(sp.y), PIXEL_SIZE, PIXEL_SIZE);
+    }
   }
 
-  // Initial sizing + paint.
+  function drawFrame() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+
+    // 1. Sky fill.
+    ctx.fillStyle = '#082440';
+    ctx.fillRect(0, 0, w, h);
+
+    // 2. Stars + 3. Moon. Both are sky elements; draw before waves so
+    // the waves naturally occlude anything that has dipped below the
+    // water line.
+    drawStars();
+    drawMoon();
+
+    // 4. Waves with crest-keyed random whitecaps. Each crest in each
+    // wave layer rolls an independent "has whitecap?" check seeded by
+    // (crestK, waveIdx), so whitecaps appear randomly across all three
+    // layers — not deterministically on every crest of one layer.
+    for (var i = 0; i < waves.length; i++) {
+      var wave = waves[i];
+      var yBase = h * wave.yFrac;
+      for (var x = 0; x < w; x += PIXEL_SIZE) {
+        var phase  = x * wave.frequency + t * wave.speed;
+        var sinVal = Math.sin(phase);
+        var yTop   = snap(yBase + sinVal * wave.amplitude);
+        ctx.fillStyle = wave.color;
+        for (var y = yTop; y < h; y += PIXEL_SIZE) {
+          ctx.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
+        }
+        if (sinVal < -0.55) {
+          // crestK identifies which crest cycle we're in; stays stable
+          // as the wave moves, so a whitecap "rides" its crest instead
+          // of flickering at fixed screen positions.
+          var crestK = Math.round((phase + Math.PI / 2) / (2 * Math.PI));
+          var seed   = Math.sin(crestK * 12.9898 + i * 78.233) * 43758.5453;
+          var noise  = seed - Math.floor(seed);
+          if (noise < 0.30) {
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(x, yTop, PIXEL_SIZE, PIXEL_SIZE);
+            if (sinVal < -0.85) {
+              ctx.fillRect(x, yTop + PIXEL_SIZE, PIXEL_SIZE, PIXEL_SIZE);
+            }
+          }
+        }
+      }
+    }
+
+    // 5. Sailboats on the water, 6. Dolphins through air, 7. Splash
+    // particles in the foreground.
+    drawSailboats();
+    drawDolphins();
+    drawSplashes();
+  }
+
+  function animate() {
+    drawFrame();
+    if (t % 90 === 0) spawnSplash();                                   // ~1.5s
+    if (t > 120 && (t - 120) % 300 === 0) spawnDolphin();              // ~5s
+    // Sailboats: stagger first spawn at 3s, then ~every 18s. Cap at 2
+    // on screen so the page doesn't fill up with boats.
+    if (t > 180 && (t - 180) % (60 * 18) === 0 && sailboats.length < 2) {
+      spawnSailboat();
+    }
+    t += 1;
+    requestAnimationFrame(animate);
+  }
+
   resize();
   window.addEventListener('resize', function () {
     resize();
@@ -355,6 +483,9 @@
   });
 
   if (reduced) {
+    // Single static frame, plus seed one sailboat at center so the
+    // composition still reads as "boats on the water."
+    sailboats.push({ x: window.innerWidth * 0.55, vx: 0.4, type: 0 });
     drawFrame();
   } else {
     animate();
