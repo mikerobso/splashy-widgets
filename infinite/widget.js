@@ -524,12 +524,15 @@
       ".sif-lang-opt.is-selected{background:rgba(232,93,46,.85);color:#fff}",
       ".sif-lang-opt.is-selected:hover{background:rgba(232,93,46,.95)}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-lang-menu{bottom:142px}}",
-      // Caption overlay — positioned to fully cover VisitRaleigh's
-      // burned-in English caption band. The band sits roughly bottom
-      // 22%–35% of the video. Background is near-opaque (not the
-      // semi-transparent style typical players use) so the burned-in
-      // English doesn't bleed through.
-      ".sif-cap-overlay{position:absolute;left:5%;right:5%;bottom:20%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(8,36,64,.94);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;min-height:38px;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      // Caption overlay — sits as a fixed-proportion band over the
+      // burned-in English caption area. Using paired top + bottom
+      // (both %) forces the band's height to scale with the card
+      // instead of being anchor-to-bottom + variable-height-text.
+      // Band spans ~65%–80% of card height (i.e. bottom 20%–35%),
+      // which fully covers the burned-in band on every VisitRaleigh
+      // video the team showed me. Background is near-opaque navy so
+      // the English underneath can't bleed through.
+      ".sif-cap-overlay{position:absolute;left:5%;right:5%;top:65%;bottom:20%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px;font-weight:600;line-height:1.32;color:#fff;background:rgba(8,36,64,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sif-cap-overlay.visible{display:flex}",
       "@media(max-width:767px){.sif-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. Default (card
