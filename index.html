@@ -176,7 +176,7 @@
     var w = window.innerWidth;
     var h = window.innerHeight;
     var maxY = h * 0.50;          // sky-only zone, above the waves
-    var count = Math.max(12, Math.floor(w / 64));
+    var count = Math.max(6, Math.floor(w / 128));
     for (var i = 0; i < count; i++) {
       stars.push({
         x: snap(Math.random() * w),
@@ -309,7 +309,7 @@
     var peakAbove = h * 0.34;
     var x = -40 + progress * (w + 80);
     var y = horizonY - peakAbove * Math.sin(progress * Math.PI);
-    drawSprite(MOON, MOON_COLORS, x, y, false, false);
+    drawSprite(MOON, MOON_COLORS, x, y, true, false);  // mirrored: lit on right, cusps point left
   }
 
   // Sailboats always sail right-to-left, each on a distinct wave
