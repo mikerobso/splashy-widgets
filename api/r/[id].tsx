@@ -42,8 +42,10 @@ function notFoundHtml(): string {
 
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  // /r/<id> — extract the id segment.
-  const id = url.pathname.replace(/^\/r\//, '').replace(/\/$/, '');
+  // Last path segment. Works whether the function is hit at /r/<id>
+  // (via vercel.json rewrite) or at /api/r/<id> directly.
+  const segments = url.pathname.split('/').filter(Boolean);
+  const id = segments[segments.length - 1] || '';
   if (!id || !/^[A-Za-z0-9_-]{4,16}$/.test(id)) {
     return new Response(notFoundHtml(), {
       status:  404,

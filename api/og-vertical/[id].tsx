@@ -16,7 +16,8 @@ const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1551782450-a2132b4ba2
 
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const id  = url.pathname.replace(/^\/api\/og-vertical\//, '').replace(/\/$/, '');
+  const segments = url.pathname.split('/').filter(Boolean);
+  const id = segments[segments.length - 1] || '';
 
   let title  = FALLBACK_TITLE;
   let via    = FALLBACK_VIA;
