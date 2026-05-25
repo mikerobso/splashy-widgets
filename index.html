@@ -205,19 +205,11 @@
   var MOON_COLORS = { Y: '#f0e6c8' };
   var MOON_CYCLE = 60 * 90;   // frames per full traverse
 
-  // Sailboats: two visually distinct rigs. A = triangle/lateen sail
-  // (cream), B = square rig (orange sail). Each sailboat drifts
-  // slowly across screen, hull bobbing with the front wave at its x.
-  var SAILBOAT_A = [
-    "  d     ",
-    "  dB    ",
-    "  dBB   ",
-    "  dBBB  ",
-    "  dBBBB ",
-    "ddddddd ",
-    " hhhhh  "
-  ];
-  var SAILBOAT_B = [
+  // Sailboats: both share the same square-rig form. The boat assigned
+  // to the front wave (lowest layer) gets the brand-orange sail; the
+  // middle-wave boat gets a cream sail. Type is tied to wave layer so
+  // the layer-color pairing stays consistent on every spawn.
+  var SAILBOAT = [
     "  ddd   ",
     "  BBB   ",
     "  BdB   ",
@@ -226,8 +218,8 @@
     "ddddddd ",
     " hhhhh  "
   ];
-  var SAILBOAT_A_COLORS = { d: '#0a4d5c', B: '#f0e6c8', h: '#1a2438' };
-  var SAILBOAT_B_COLORS = { d: '#0a4d5c', B: '#e85d2e', h: '#1a2438' };
+  var SAILBOAT_CREAM  = { d: '#0a4d5c', B: '#f0e6c8', h: '#1a2438' };
+  var SAILBOAT_ORANGE = { d: '#0a4d5c', B: '#e85d2e', h: '#1a2438' };
   var sailboats = [];
 
   // Dolphins: 12x5 chunky pixel sprite, leaps in an arc out of the
@@ -324,11 +316,9 @@
     var pool = [1, 2].filter(function (i) { return occupied.indexOf(i) === -1; });
     if (!pool.length) return;
     var waveIdx = pool[Math.floor(Math.random() * pool.length)];
-    var type = Math.floor(Math.random() * 2);
     sailboats.push({
       x: w + 36,
       vx: -(0.32 + Math.random() * 0.20),
-      type: type,
       waveIdx: waveIdx
     });
   }
@@ -351,16 +341,16 @@
   function drawSailboatsOnLayer(waveIdx) {
     var h = window.innerHeight;
     var wave = waves[waveIdx];
+    // Front-wave boat = orange sail; middle-wave boat = cream sail.
+    var colors = waveIdx === 2 ? SAILBOAT_ORANGE : SAILBOAT_CREAM;
     for (var i = 0; i < sailboats.length; i++) {
       var sb = sailboats[i];
       if (sb.waveIdx !== waveIdx) continue;
       var sinVal = Math.sin(sb.x * wave.frequency + t * wave.speed);
       var waterY = h * wave.yFrac + sinVal * wave.amplitude;
-      var sprite = sb.type === 0 ? SAILBOAT_A : SAILBOAT_B;
-      var colors = sb.type === 0 ? SAILBOAT_A_COLORS : SAILBOAT_B_COLORS;
       // Hull bottom rests at the wave surface.
-      var cy = waterY - (sprite.length / 2 - 1.5) * PIXEL_SIZE;
-      drawSprite(sprite, colors, sb.x, cy, true, false);   // always mirrored (right-to-left)
+      var cy = waterY - (SAILBOAT.length / 2 - 1.5) * PIXEL_SIZE;
+      drawSprite(SAILBOAT, colors, sb.x, cy, true, false);   // always mirrored (right-to-left)
     }
   }
 
@@ -516,8 +506,8 @@
   if (reduced) {
     // Single static frame, plus seed two sailboats on different wave
     // layers so the composition still reads as "boats on the water."
-    sailboats.push({ x: window.innerWidth * 0.40, vx: -0.4, type: 0, waveIdx: 1 });
-    sailboats.push({ x: window.innerWidth * 0.65, vx: -0.4, type: 1, waveIdx: 2 });
+    sailboats.push({ x: window.innerWidth * 0.40, vx: -0.4, waveIdx: 1 });
+    sailboats.push({ x: window.innerWidth * 0.65, vx: -0.4, waveIdx: 2 });
     drawFrame();
   } else {
     animate();
