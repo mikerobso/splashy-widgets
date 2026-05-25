@@ -205,16 +205,18 @@
   var MOON_COLORS = { Y: '#f0e6c8' };
   var MOON_CYCLE = 60 * 90;   // frames per full traverse
 
-  // Sailboats: both share the same square-rig form. The boat assigned
-  // to the front wave (lowest layer) gets the brand-orange sail; the
-  // middle-wave boat gets a cream sail. Type is tied to wave layer so
-  // the layer-color pairing stays consistent on every spawn.
+  // Sailboats: both share the same triangle catboat form. The boat
+  // assigned to the front wave (lowest layer) gets the brand-orange
+  // sail; the middle-wave boat gets a cream sail. Sail color is tied
+  // to wave layer so the pairing stays consistent on every spawn.
+  // Sprite is always mirrored when rendered (boats go right-to-left)
+  // so the sail visually points left, toward the direction of travel.
   var SAILBOAT = [
-    "  ddd   ",
-    "  BBB   ",
-    "  BdB   ",
-    "  BdB   ",
-    "  BdB   ",
+    "  d     ",
+    "  dB    ",
+    "  dBB   ",
+    "  dBBB  ",
+    "  dBBBB ",
     "ddddddd ",
     " hhhhh  "
   ];
