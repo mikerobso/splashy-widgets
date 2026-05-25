@@ -176,7 +176,7 @@
     var w = window.innerWidth;
     var h = window.innerHeight;
     var maxY = h * 0.50;          // sky-only zone, above the waves
-    var count = Math.max(24, Math.floor(w / 32));
+    var count = Math.max(12, Math.floor(w / 64));
     for (var i = 0; i < count; i++) {
       stars.push({
         x: snap(Math.random() * w),
@@ -187,19 +187,22 @@
     }
   }
 
-  // Moon: traverses the sky on a sine arc, looping every ~90 seconds.
-  // Rises from below the horizon at the left edge, peaks mid-screen,
-  // sets at the right, then restarts.
+  // Moon: 9x9 crescent (about 30% bigger than the original disc),
+  // lit on the left, cusps pointing right. Traverses the sky on a
+  // sine arc every ~90 seconds — rises from the horizon at the left
+  // edge, peaks mid-screen, sets off the right, then restarts.
   var MOON = [
-    " YYYYY ",
-    "YYYYYYY",
-    "YYYYDYY",
-    "YYYYYYY",
-    "YYYYYYY",
-    "YYDYYYY",
-    " YYYYY "
+    "    Y    ",
+    "  YY     ",
+    " YY      ",
+    " YY      ",
+    "YYY      ",
+    " YY      ",
+    " YY      ",
+    "  YY     ",
+    "    Y    "
   ];
-  var MOON_COLORS = { Y: '#f0e6c8', D: '#5a7a96' };
+  var MOON_COLORS = { Y: '#f0e6c8' };
   var MOON_CYCLE = 60 * 90;   // frames per full traverse
 
   // Sailboats: two visually distinct rigs. A = triangle/lateen sail
@@ -309,32 +312,55 @@
     drawSprite(MOON, MOON_COLORS, x, y, false, false);
   }
 
+  // Sailboats always sail right-to-left, each on a distinct wave
+  // layer (middle or front — never the back wave, which would be
+  // obscured by everything in front). The two-on-screen-at-once cap
+  // plus the "pick an unoccupied layer" rule means the two visible
+  // boats are always on different layers, bobbing to different sine
+  // rhythms.
   function spawnSailboat() {
     var w = window.innerWidth;
-    var ltr = Math.random() < 0.5;
+    var occupied = sailboats.map(function (s) { return s.waveIdx; });
+    var pool = [1, 2].filter(function (i) { return occupied.indexOf(i) === -1; });
+    if (!pool.length) return;
+    var waveIdx = pool[Math.floor(Math.random() * pool.length)];
     var type = Math.floor(Math.random() * 2);
     sailboats.push({
-      x: ltr ? -36 : w + 36,
-      vx: ltr ? (0.32 + Math.random() * 0.20) : -(0.32 + Math.random() * 0.20),
-      type: type
+      x: w + 36,
+      vx: -(0.32 + Math.random() * 0.20),
+      type: type,
+      waveIdx: waveIdx
     });
   }
 
-  function drawSailboats() {
+  // Step sailboat positions (called once per frame, separately from
+  // rendering, since rendering happens layer-by-layer inside drawFrame).
+  function stepSailboats() {
+    if (reduced) return;
     var w = window.innerWidth;
-    var h = window.innerHeight;
-    var fw = waves[waves.length - 1];
     for (var i = sailboats.length - 1; i >= 0; i--) {
       var sb = sailboats[i];
-      if (!reduced) sb.x += sb.vx;
-      var sinVal = Math.sin(sb.x * fw.frequency + t * fw.speed);
-      var waterY = h * fw.yFrac + sinVal * fw.amplitude;
+      sb.x += sb.vx;
+      if (sb.x < -60 || sb.x > w + 60) sailboats.splice(i, 1);
+    }
+  }
+
+  // Render only the sailboats riding wave `waveIdx`. Called right
+  // after that wave's pixels are drawn so the next wave layer in
+  // front naturally occludes anything sticking down into it.
+  function drawSailboatsOnLayer(waveIdx) {
+    var h = window.innerHeight;
+    var wave = waves[waveIdx];
+    for (var i = 0; i < sailboats.length; i++) {
+      var sb = sailboats[i];
+      if (sb.waveIdx !== waveIdx) continue;
+      var sinVal = Math.sin(sb.x * wave.frequency + t * wave.speed);
+      var waterY = h * wave.yFrac + sinVal * wave.amplitude;
       var sprite = sb.type === 0 ? SAILBOAT_A : SAILBOAT_B;
       var colors = sb.type === 0 ? SAILBOAT_A_COLORS : SAILBOAT_B_COLORS;
-      // Position sprite so its hull bottom rests at the wave surface.
+      // Hull bottom rests at the wave surface.
       var cy = waterY - (sprite.length / 2 - 1.5) * PIXEL_SIZE;
-      drawSprite(sprite, colors, sb.x, cy, sb.vx < 0, false);
-      if (sb.x < -60 || sb.x > w + 60) sailboats.splice(i, 1);
+      drawSprite(sprite, colors, sb.x, cy, true, false);   // always mirrored (right-to-left)
     }
   }
 
@@ -426,7 +452,9 @@
     // 4. Waves with crest-keyed random whitecaps. Each crest in each
     // wave layer rolls an independent "has whitecap?" check seeded by
     // (crestK, waveIdx), so whitecaps appear randomly across all three
-    // layers — not deterministically on every crest of one layer.
+    // layers. ~60% hit rate per crest. Sailboats are drawn immediately
+    // after their assigned wave layer so a boat on the middle wave is
+    // correctly occluded by the front wave.
     for (var i = 0; i < waves.length; i++) {
       var wave = waves[i];
       var yBase = h * wave.yFrac;
@@ -445,7 +473,7 @@
           var crestK = Math.round((phase + Math.PI / 2) / (2 * Math.PI));
           var seed   = Math.sin(crestK * 12.9898 + i * 78.233) * 43758.5453;
           var noise  = seed - Math.floor(seed);
-          if (noise < 0.30) {
+          if (noise < 0.60) {
             ctx.fillStyle = '#f8fafc';
             ctx.fillRect(x, yTop, PIXEL_SIZE, PIXEL_SIZE);
             if (sinVal < -0.85) {
@@ -454,22 +482,25 @@
           }
         }
       }
+      // Boats riding this wave layer get drawn here, before the next
+      // (more foreground) wave layer paints over them.
+      drawSailboatsOnLayer(i);
     }
 
-    // 5. Sailboats on the water, 6. Dolphins through air, 7. Splash
-    // particles in the foreground.
-    drawSailboats();
+    // 5. Dolphins through air, 6. Splash particles in the foreground.
     drawDolphins();
     drawSplashes();
   }
 
   function animate() {
+    stepSailboats();
     drawFrame();
     if (t % 90 === 0) spawnSplash();                                   // ~1.5s
     if (t > 120 && (t - 120) % 300 === 0) spawnDolphin();              // ~5s
-    // Sailboats: stagger first spawn at 3s, then ~every 18s. Cap at 2
-    // on screen so the page doesn't fill up with boats.
-    if (t > 180 && (t - 180) % (60 * 18) === 0 && sailboats.length < 2) {
+    // Sailboats: stagger first spawn at 3s, second at ~9s so both
+    // layers are populated relatively early, then top off every ~18s
+    // as boats sail off-screen. Spawn logic caps at one per layer.
+    if (t === 180 || t === 540 || (t > 540 && (t - 540) % (60 * 18) === 0)) {
       spawnSailboat();
     }
     t += 1;
@@ -483,9 +514,10 @@
   });
 
   if (reduced) {
-    // Single static frame, plus seed one sailboat at center so the
-    // composition still reads as "boats on the water."
-    sailboats.push({ x: window.innerWidth * 0.55, vx: 0.4, type: 0 });
+    // Single static frame, plus seed two sailboats on different wave
+    // layers so the composition still reads as "boats on the water."
+    sailboats.push({ x: window.innerWidth * 0.40, vx: -0.4, type: 0, waveIdx: 1 });
+    sailboats.push({ x: window.innerWidth * 0.65, vx: -0.4, type: 1, waveIdx: 2 });
     drawFrame();
   } else {
     animate();
