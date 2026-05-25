@@ -1,10 +1,275 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>Splshy Widget Service</title>
-  </head>
-  <body>
-    <h1>Splshy</h1>
-    <p>Widget hosting service. Nothing to see here.</p>
-  </body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SPLSHY — Make a splash</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="SPLSHY hosts the vertical video widgets currently running on visitraleigh.com.">
+<meta name="theme-color" content="#082440">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="SPLSHY — Make a splash">
+<meta property="og:description" content="SPLSHY hosts the vertical video widgets currently running on visitraleigh.com.">
+<meta property="og:url" content="https://splshy.com">
+<meta property="og:site_name" content="SPLSHY">
+<meta name="twitter:card" content="summary">
+
+<!-- Pixel-drop favicon, inline SVG, no extra request. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='7' y='2' width='2' height='2' fill='%231191ad'/%3E%3Crect x='6' y='4' width='4' height='2' fill='%231191ad'/%3E%3Crect x='5' y='6' width='6' height='2' fill='%231191ad'/%3E%3Crect x='4' y='8' width='8' height='5' fill='%231191ad'/%3E%3Crect x='5' y='13' width='6' height='1' fill='%231191ad'/%3E%3Crect x='6' y='10' width='2' height='2' fill='%23e85d2e'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+
+<style>
+  :root {
+    --navy:     #082440;
+    --deepwave: #0a4d5c;
+    --teal:     #1191ad;
+    --crest:    #5fb8cc;
+    --orange:   #e85d2e;
+    --ink:      #f8fafc;
+    --muted:    #88a3bf;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--navy);
+    color: var(--ink);
+    font-family: 'Press Start 2P', ui-monospace, monospace;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+  /* Wave canvas sits behind everything. position:fixed so it stays
+     locked to the viewport even if the page scrolls past on tiny
+     screens. aria-hidden — decorative. */
+  canvas#waves {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+  main {
+    position: relative;
+    z-index: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 20px 200px;
+    text-align: center;
+  }
+  /* Wordmark — Press Start 2P scaled large with a two-layer pixel
+     drop shadow (orange close, deep-wave far) for chunky depth. */
+  h1.wordmark {
+    font-size: clamp(34px, 11vw, 96px);
+    margin: 0 0 30px;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    color: var(--ink);
+    text-shadow:
+      3px 3px 0 var(--orange),
+      6px 6px 0 var(--deepwave);
+  }
+  p.tagline {
+    font-size: clamp(10px, 1.7vw, 15px);
+    margin: 0;
+    color: var(--crest);
+    letter-spacing: 0.06em;
+    line-height: 1.7;
+  }
+  p.tagline .splash {
+    color: var(--orange);
+  }
+  /* Footer overlays the bottom of the waves with a translucent
+     navy backdrop so the copy stays readable against the animation. */
+  footer {
+    position: relative;
+    z-index: 1;
+    padding: 24px 20px 28px;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(8,36,64,0) 0%, rgba(8,36,64,0.85) 30%, rgba(8,36,64,0.92) 100%);
+  }
+  footer p {
+    font-size: clamp(8px, 1vw, 10px);
+    line-height: 1.9;
+    margin: 0 0 10px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+  }
+  footer p.attr {
+    margin: 6px 0 0;
+    color: var(--muted);
+  }
+  footer a {
+    color: var(--crest);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(95, 184, 204, 0.4);
+    padding-bottom: 1px;
+    transition: color .15s, border-color .15s;
+  }
+  footer a:hover,
+  footer a:focus-visible {
+    color: var(--orange);
+    border-bottom-color: var(--orange);
+    outline: none;
+  }
+  /* Press Start 2P stays legible down to ~9-10px but breaks below
+     that. On very narrow phones, fall back to a system mono for the
+     footer body copy so visitors can actually read it. */
+  @media (max-width: 380px) {
+    footer p {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.6;
+      letter-spacing: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="waves" aria-hidden="true"></canvas>
+
+<main>
+  <h1 class="wordmark">SPLSHY</h1>
+  <p class="tagline">Make a splash with <span class="splash">SPLSHY</span> widgets</p>
+</main>
+
+<footer>
+  <p>SPLSHY hosts the vertical video widgets currently running on <a href="https://www.visitraleigh.com" rel="noopener">visitraleigh.com</a>.</p>
+  <p>Questions, hellos, or "make me one"? <a href="mailto:mike.robson.ncsu@gmail.com">mike.robson.ncsu@gmail.com</a></p>
+  <p class="attr">© 2026 Michael Robson</p>
+</footer>
+
+<script>
+(function () {
+  var canvas = document.getElementById('waves');
+  var ctx    = canvas.getContext('2d');
+  // Each "pixel" is this many real pixels on a 1x display — keeps
+  // the chunky retro look on modern high-DPI screens.
+  var PIXEL_SIZE = 4;
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Wave layers, drawn back-to-front. yFrac is the resting Y as a
+  // fraction of canvas height; amplitude/frequency/speed control the
+  // motion. Front waves get slightly higher amplitude and faster
+  // speed so the parallax reads naturally.
+  var waves = [
+    { yFrac: 0.60, amplitude: 16, frequency: 0.013, speed: 0.020, color: '#0a4d5c' },
+    { yFrac: 0.70, amplitude: 22, frequency: 0.017, speed: 0.026, color: '#1191ad' },
+    { yFrac: 0.81, amplitude: 18, frequency: 0.022, speed: 0.032, color: '#5fb8cc' }
+  ];
+
+  // Orange splash particles erupt from random wave crests every ~1.5s,
+  // arc up, and fall back into the water under gravity. Pixel-snapped
+  // for the retro feel.
+  var splashes = [];
+  var t = 0;
+  var rafId = null;
+
+  function resize() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    canvas.style.width  = w + 'px';
+    canvas.style.height = h + 'px';
+    canvas.width  = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(dpr, dpr);
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  function snap(v) { return Math.floor(v / PIXEL_SIZE) * PIXEL_SIZE; }
+
+  function drawFrame() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    // Navy sky fill.
+    ctx.fillStyle = '#082440';
+    ctx.fillRect(0, 0, w, h);
+
+    // Waves, back to front. Each column fills downward from its
+    // sine-derived top edge.
+    for (var i = 0; i < waves.length; i++) {
+      var wave = waves[i];
+      var yBase = h * wave.yFrac;
+      ctx.fillStyle = wave.color;
+      for (var x = 0; x < w; x += PIXEL_SIZE) {
+        var raw = yBase + Math.sin(x * wave.frequency + t * wave.speed) * wave.amplitude;
+        var yTop = snap(raw);
+        for (var y = yTop; y < h; y += PIXEL_SIZE) {
+          ctx.fillRect(x, y, PIXEL_SIZE, PIXEL_SIZE);
+        }
+      }
+    }
+
+    // Splash particles (drawn in front).
+    ctx.fillStyle = '#e85d2e';
+    for (var s = splashes.length - 1; s >= 0; s--) {
+      var sp = splashes[s];
+      sp.x += sp.vx;
+      sp.y += sp.vy;
+      sp.vy += 0.13;
+      sp.age++;
+      if (sp.age > sp.lifespan) {
+        splashes.splice(s, 1);
+        continue;
+      }
+      ctx.fillRect(snap(sp.x), snap(sp.y), PIXEL_SIZE, PIXEL_SIZE);
+    }
+  }
+
+  function spawnSplash() {
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    var wave = waves[waves.length - 1];   // front-most wave
+    var x = Math.random() * w;
+    var yTop = h * wave.yFrac + Math.sin(x * wave.frequency + t * wave.speed) * wave.amplitude;
+    var count = 3 + Math.floor(Math.random() * 3);
+    for (var i = 0; i < count; i++) {
+      splashes.push({
+        x: x + (Math.random() - 0.5) * 14,
+        y: yTop,
+        vx: (Math.random() - 0.5) * 0.7,
+        vy: -1.3 - Math.random() * 1.4,
+        age: 0,
+        lifespan: 22 + Math.floor(Math.random() * 18)
+      });
+    }
+  }
+
+  function animate() {
+    drawFrame();
+    // Roughly every 1.5s at 60fps. Skipped under prefers-reduced-motion
+    // since splashes mean motion.
+    if (t % 90 === 0) spawnSplash();
+    t += 1;
+    rafId = requestAnimationFrame(animate);
+  }
+
+  // Initial sizing + paint.
+  resize();
+  window.addEventListener('resize', function () {
+    resize();
+    if (reduced) drawFrame();
+  });
+
+  if (reduced) {
+    drawFrame();
+  } else {
+    animate();
+  }
+})();
+</script>
+
+</body>
 </html>
