@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "name": "splshy-widgets",
+  "version": "1.0.0",
+  "dependencies": {
+    "@vercel/og": "^0.6.4",
+    "react": "^18.3.1"
+  }
+}
