@@ -279,8 +279,11 @@
       // Page indicator dots (mobile only).
       ".sgr-dots{display:none;justify-content:center;gap:8px;margin-top:10px}",
       "@media(max-width:767px){.sgr-dots{display:flex}}",
-      ".sgr-dot{width:7px;height:7px;border-radius:50%;background:rgba(0,0,0,.25);transition:background .18s,transform .18s}",
-      ".sgr-dot.is-active{background:rgba(0,0,0,.7);transform:scale(1.2)}",
+      // Dot itself is small but its hit area is padded so it's a comfy
+      // tap target on mobile. background-clip:content-box keeps the
+      // visible disc the same size despite the padding.
+      ".sgr-dot{width:7px;height:7px;padding:9px;box-sizing:content-box;border:0;border-radius:50%;background:rgba(0,0,0,.25);background-clip:content-box;cursor:pointer;-webkit-appearance:none;appearance:none;margin:0;transition:background .18s,transform .18s;-webkit-tap-highlight-color:transparent}",
+      ".sgr-dot.is-active{background:rgba(0,0,0,.7);background-clip:content-box;transform:scale(1.2)}",
 
       // ── Popout (single-widget style: card scales 1.3x in place) ────
       // Backdrop overlay — fixed full-viewport, fades in when a card
@@ -389,8 +392,10 @@
   container.innerHTML =
     '<div class="sgr-widget' + (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') + '">' +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
-      '<div class="sgr-dots" aria-hidden="true">' +
-        '<div class="sgr-dot is-active"></div><div class="sgr-dot"></div><div class="sgr-dot"></div>' +
+      '<div class="sgr-dots" role="tablist" aria-label="Grid pages">' +
+        '<button type="button" class="sgr-dot is-active" role="tab" aria-label="Page 1" aria-selected="true"></button>' +
+        '<button type="button" class="sgr-dot" role="tab" aria-label="Page 2" aria-selected="false"></button>' +
+        '<button type="button" class="sgr-dot" role="tab" aria-label="Page 3" aria-selected="false"></button>' +
       '</div>' +
     '</div>';
 
@@ -726,7 +731,9 @@
       var page = Math.round(grid.scrollLeft / w);
       if (dots && dots.length) {
         for (var i = 0; i < dots.length; i++) {
-          dots[i].classList.toggle("is-active", i === page);
+          var on = (i === page);
+          dots[i].classList.toggle("is-active", on);
+          dots[i].setAttribute("aria-selected", on ? "true" : "false");
         }
       }
       if (page !== lastVisiblePage) {
@@ -736,6 +743,19 @@
         if (mobileLaneActive) playMobileLane();
       }
     });
+    // Tap a dot to jump to that page.
+    if (dots && dots.length) {
+      for (var di = 0; di < dots.length; di++) {
+        (function (page) {
+          dots[page].addEventListener("click", function (e) {
+            e.preventDefault();
+            if (!grid) return;
+            var w = grid.clientWidth || 1;
+            grid.scrollTo({ left: page * w, behavior: "smooth" });
+          });
+        })(di);
+      }
+    }
   }
 
   // ── Popout (single-widget pattern: card scales 1.3x in place) ────
