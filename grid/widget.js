@@ -322,12 +322,14 @@
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
       // Even smaller on mobile — the popped card is narrow.
       "@media(max-width:767px){.sgr-cap-overlay{font-size:9.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
-      // Title — bottom-left while popped. Single-line truncated with
-      // ellipsis so a long title can't crash into the caption band.
-      // !important on font/line-height so host-page typography rules
-      // (often setting h-tag styles or .title font-size) can't bloat it.
-      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:8px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:6.5px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none!important}",
-      "@media(max-width:767px){.sgr-pop-title{font-size:6px!important;bottom:6px}}",
+      // Title — bottom-left while popped. Allowed to wrap to TWO
+      // lines with ellipsis-after-line-2 so longer titles still get
+      // shown without crashing into the caption band or the scrub
+      // bar. !important on font + line-height so host-page typography
+      // can't bloat it.
+      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:14px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
+      ".sgr-card.sgr-popped--open .sgr-pop-title{display:-webkit-box}",
+      "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:12px}}",
       // Progress bar at very bottom of popped card.
       ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
       ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
