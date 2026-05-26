@@ -290,9 +290,11 @@
       ".sgr-card.sgr-popped--open .sgr-pop-prog{display:flex}",
       // Hide play-icon while popped (the card is now the active player).
       ".sgr-card.sgr-popped--open .sgr-play-icon{display:none}",
-      // Close button — top-right corner.
-      ".sgr-close-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;line-height:1;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0}",
-      ".sgr-close-btn:hover{background:rgba(0,0,0,.85)}",
+      // Close button — top-right corner. Strong reset so host-page
+      // CSS can't push the icon off-center.
+      ".sgr-close-btn{position:absolute;top:8px;right:8px;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;border-radius:50%!important;background:rgba(0,0,0,.6)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;font-size:0;line-height:0;box-shadow:none!important}",
+      ".sgr-close-btn:hover{background:rgba(0,0,0,.85)!important}",
+      ".sgr-close-btn svg{width:13px;height:13px;display:block}",
       // Mute button — bottom-right column on popped card.
       ".sgr-pop-mute-btn{position:absolute;bottom:54px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0}",
       ".sgr-pop-mute-btn:hover{background:rgba(0,0,0,.8)}",
@@ -415,7 +417,12 @@
     // (the card itself scales 1.3x in place; controls travel with it).
     var hasCaptions = (capLangsByReel[idx] || []).length > 0;
     el.insertAdjacentHTML("beforeend",
-      '<button class="sgr-close-btn" aria-label="Close popout">&times;</button>' +
+      '<button class="sgr-close-btn" aria-label="Close popout">' +
+        '<svg viewBox="0 0 14 14" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" aria-hidden="true">' +
+          '<line x1="3" y1="3" x2="11" y2="11"/>' +
+          '<line x1="11" y1="3" x2="3" y2="11"/>' +
+        '</svg>' +
+      '</button>' +
       '<button class="sgr-pop-mute-btn" aria-label="Mute audio" aria-pressed="false">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
           '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>' +
