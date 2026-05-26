@@ -318,10 +318,13 @@
       // Caption overlay (only visible while popped AND a language is
       // selected — class .visible is toggled by capRender). Strong
       // !important so host-page CSS can't inflate the font.
-      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:11px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:4px 8px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:9px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:3px 7px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
-      // Even smaller on mobile — the popped card is narrow.
       "@media(max-width:767px){.sgr-cap-overlay{font-size:9.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
+      // Press-and-hold 2x speed indicator — same style as the other
+      // widgets. Shown while .visible, hidden otherwise.
+      ".sgr-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55)!important;color:#fff!important;font-size:11px!important;font-weight:700!important;line-height:1!important;padding:5px 10px!important;border-radius:99px!important;border:1.5px solid rgba(255,255,255,.3)!important;z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;font-family:system-ui,-apple-system,sans-serif!important}",
+      ".sgr-speed.visible{opacity:1}",
       // Title — bottom-left while popped. Allowed to wrap to TWO
       // lines with ellipsis-after-line-2 so longer titles still get
       // shown without crashing into the caption band or the scrub
@@ -446,6 +449,7 @@
           '<div class="sgr-cap-overlay" aria-live="polite"></div>'
         : '') +
       '<div class="sgr-pop-title"></div>' +
+      '<div class="sgr-speed">2&times;</div>' +
       '<div class="sgr-pop-prog" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
         '<div class="sgr-pop-prog-track"></div>' +
         '<div class="sgr-pop-prog-fill"></div>' +
@@ -795,6 +799,10 @@
     if (capOver) { capOver.classList.remove("visible"); capOver.textContent = ""; }
     var langMenu = c.el.querySelector(".sgr-lang-menu");
     if (langMenu) langMenu.classList.remove("visible");
+    // Defensive: clear any in-flight press-and-hold state.
+    var spd = c.el.querySelector(".sgr-speed");
+    if (spd) spd.classList.remove("visible");
+    try { c.video.playbackRate = 1; } catch (e) {}
 
     // Pause the popped card now; reset state via stopCardPlay.
     try { c.video.pause(); } catch (e) {}
@@ -833,10 +841,9 @@
 
     // Card click → pop out (unless already popped).
     c.el.addEventListener("click", function (e) {
-      // Clicks on popped controls (close / mute / CC / lang menu /
-      // progress) shouldn't bubble up and re-trigger openPopout.
+      // Swallow the trailing click after a press-and-hold release.
+      if (c._swallowClick && c._swallowClick()) { e.stopPropagation(); return; }
       if (poppedCard === c) return;
-      // Don't pop if click came from inside the lang menu (handled below).
       if (e.target.closest && e.target.closest(".sgr-lang-menu")) return;
       openPopout(c);
     });
@@ -880,16 +887,79 @@
       });
     }
 
-    // Progress bar — scrub-to-seek.
+    // Progress bar — scrub-to-seek. If duration isn't loaded yet
+    // (preload='none' cards reach the popout before metadata arrives),
+    // capture the pct and apply once 'loadedmetadata' fires.
     var prog = c.el.querySelector(".sgr-pop-prog");
     if (prog) prog.addEventListener("click", function (e) {
       e.stopPropagation();
-      if (!c.video.duration) return;
       var r = prog.getBoundingClientRect();
       var pct = (e.clientX - r.left) / r.width;
       if (pct < 0) pct = 0; if (pct > 1) pct = 1;
-      c.video.currentTime = pct * c.video.duration;
+      if (isFinite(c.video.duration) && c.video.duration > 0) {
+        c.video.currentTime = pct * c.video.duration;
+      } else {
+        var once = function () {
+          c.video.currentTime = pct * c.video.duration;
+          c.video.removeEventListener("loadedmetadata", once);
+        };
+        c.video.addEventListener("loadedmetadata", once);
+      }
     });
+
+    // ── Press-and-hold for 2× speed ─────────────────
+    // Same pattern as the other widgets: 350ms hold on the popped
+    // card flips playbackRate to 2 and shows a "2×" indicator over
+    // the video. Release returns to 1×. Clicks on controls (CC,
+    // mute, close, progress, lang menu) are excluded so they keep
+    // their normal behavior.
+    var holdTimer = null, holding = false, swallowNextClick = false;
+    var speedInd = c.el.querySelector(".sgr-speed");
+    function onTargetIsControl(target) {
+      if (!target || !target.closest) return false;
+      return !!(target.closest(".sgr-close-btn") ||
+                target.closest(".sgr-pop-mute-btn") ||
+                target.closest(".sgr-pop-cc-btn") ||
+                target.closest(".sgr-lang-menu") ||
+                target.closest(".sgr-pop-prog"));
+    }
+    function startHold() {
+      if (holding) return;
+      if (holdTimer) clearTimeout(holdTimer);
+      holdTimer = setTimeout(function () {
+        holding = true;
+        try { c.video.playbackRate = 2; } catch (e) {}
+        if (speedInd) speedInd.classList.add("visible");
+      }, 350);
+    }
+    function endHold() {
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+      if (!holding) return;
+      holding = false;
+      swallowNextClick = true;
+      try { c.video.playbackRate = 1; } catch (e) {}
+      if (speedInd) speedInd.classList.remove("visible");
+      setTimeout(function () { swallowNextClick = false; }, 60);
+    }
+    c.el.addEventListener("mousedown", function (e) {
+      if (poppedCard !== c) return;
+      if (onTargetIsControl(e.target)) return;
+      startHold();
+    });
+    c.el.addEventListener("mouseup",    endHold);
+    c.el.addEventListener("mouseleave", endHold);
+    c.el.addEventListener("touchstart", function (e) {
+      if (poppedCard !== c) return;
+      if (onTargetIsControl(e.target)) return;
+      startHold();
+    }, { passive: true });
+    c.el.addEventListener("touchend",    endHold);
+    c.el.addEventListener("touchcancel", endHold);
+
+    // Stash swallowNextClick getter on the card so the click handler
+    // (registered earlier above) can ignore the click that fires
+    // immediately after press-and-hold release.
+    c._swallowClick = function () { return swallowNextClick; };
 
     // timeupdate → update progress + render captions, but only while
     // the card is the popped one.
