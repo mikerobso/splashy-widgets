@@ -341,13 +341,13 @@
       // shown without crashing into the caption band or the scrub
       // bar. !important on font + line-height so host-page typography
       // can't bloat it.
-      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:30px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
+      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:25px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
       ".sgr-card.sgr-popped--open .sgr-pop-title{display:-webkit-box}",
-      "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:26px}}",
-      // Time counter (e.g. "0:08 / 0:22") above the scrub bar, right-aligned.
-      ".sgr-pop-time{position:absolute;right:8px;bottom:17px;font-family:system-ui,-apple-system,sans-serif!important;font-size:8px!important;font-weight:600!important;line-height:1!important;letter-spacing:.02em!important;color:rgba(255,255,255,.95)!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important;z-index:14;pointer-events:none;font-variant-numeric:tabular-nums;margin:0!important;padding:0!important;text-transform:none!important;background:transparent!important;border:0!important}",
+      "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:22px}}",
+      // Time counter (e.g. "0:08 / 0:22") just above the scrub bar, right-aligned.
+      ".sgr-pop-time{position:absolute;right:8px;bottom:14px;font-family:system-ui,-apple-system,sans-serif!important;font-size:8px!important;font-weight:600!important;line-height:1!important;letter-spacing:.02em!important;color:rgba(255,255,255,.95)!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important;z-index:14;pointer-events:none;font-variant-numeric:tabular-nums;margin:0!important;padding:0!important;text-transform:none!important;background:transparent!important;border:0!important}",
       ".sgr-card.sgr-popped--open .sgr-pop-time{display:block}",
-      "@media(max-width:767px){.sgr-pop-time{font-size:7.5px!important;bottom:15px}}",
+      "@media(max-width:767px){.sgr-pop-time{font-size:7.5px!important;bottom:12px}}",
       // Progress bar at very bottom of popped card.
       ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
       ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
