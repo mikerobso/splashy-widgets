@@ -235,7 +235,8 @@
     var styleEl = document.createElement("style");
     styleEl.id = STYLE_ID;
     styleEl.textContent = [
-      ".sgr-widget{width:100%;position:relative;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-font-smoothing:antialiased}",
+      ".sgr-widget{width:100%;position:relative;padding:18px 16px;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-font-smoothing:antialiased}",
+      "@media(max-width:767px){.sgr-widget{padding:14px 10px}}",
       // Desktop: 6-column / 2-row grid.
       ".sgr-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}",
       ".sgr-card{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent}",
@@ -266,43 +267,57 @@
       ".sgr-dot{width:7px;height:7px;border-radius:50%;background:rgba(0,0,0,.25);transition:background .18s,transform .18s}",
       ".sgr-dot.is-active{background:rgba(0,0,0,.7);transform:scale(1.2)}",
 
-      // ── Viewer overlay (popout) ────────────────────
-      ".sgr-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:99999;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;box-sizing:border-box}",
-      ".sgr-overlay.visible{display:flex}",
-      ".sgr-viewer{position:relative;height:min(92vh,800px);aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 40px 90px rgba(0,0,0,.55)}",
-      // Mobile: shrink viewer + relax the backdrop so the popout
-      // feels less invasive. Leaves visible page chrome on top/bottom.
-      "@media(max-width:767px){.sgr-viewer{height:min(72vh,600px)}.sgr-overlay{padding:36px 16px;background:rgba(0,0,0,.7)}}",
-      ".sgr-viewer-video{width:100%;height:100%;object-fit:cover;display:block;background:#000}",
-      ".sgr-viewer-poster{position:absolute;inset:0;background-size:cover;background-position:center;pointer-events:none;opacity:0;transition:opacity .2s}",
-      ".sgr-viewer-poster.visible{opacity:1}",
-      ".sgr-viewer-title{position:absolute;left:14px;right:60px;bottom:42px;font-size:17px;font-weight:700;line-height:1.25;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none;z-index:13}",
-      ".sgr-viewer-close{position:absolute;top:12px;right:12px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:20px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:20;padding:0}",
-      ".sgr-viewer-close:hover{background:rgba(0,0,0,.85)}",
-      ".sgr-viewer-mute{position:absolute;bottom:58px;right:14px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:14;padding:0}",
-      ".sgr-viewer-mute:hover{background:rgba(0,0,0,.8)}",
-      ".sgr-viewer-mute svg{width:16px;height:16px}",
-      ".sgr-viewer-cc{position:absolute;bottom:100px;right:14px;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-weight:700;font-size:11px;letter-spacing:.04em;cursor:pointer;display:none;align-items:center;justify-content:center;z-index:14;padding:0}",
-      ".sgr-viewer-cc.visible{display:flex}",
-      ".sgr-viewer-cc.is-active{background:#fff;color:#000;border-color:rgba(0,0,0,.35)}",
-      ".sgr-viewer-cc:hover{background:rgba(0,0,0,.8)}",
-      ".sgr-viewer-cc.is-active:hover{background:#f0f0f0}",
-      ".sgr-lang-menu{position:absolute;bottom:100px;right:56px;display:none;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
-      ".sgr-lang-menu.visible{display:flex}",
-      ".sgr-lang-opt{display:flex;align-items:center;padding:8px 12px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;cursor:pointer;border-radius:5px;text-align:left}",
+      // ── Popout (single-widget style: card scales 1.3x in place) ────
+      // Backdrop overlay — fixed full-viewport, fades in when a card
+      // is popped. No content lives inside it; the popped card itself
+      // is reparented to document.body so the transform is unaffected
+      // by any clipping/overflow on the page.
+      ".sgr-popout-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:99998;opacity:0;pointer-events:none;transition:opacity .34s ease}",
+      ".sgr-popout-backdrop.open{opacity:1;pointer-events:auto}",
+      // Popped card state: fixed-positioned, transitioning in transform.
+      ".sgr-card.sgr-popped{position:fixed;z-index:100000;transition:transform .34s cubic-bezier(.2,.8,.25,1),box-shadow .34s ease;cursor:default}",
+      ".sgr-card.sgr-popped.sgr-popped--open{box-shadow:0 40px 90px rgba(0,0,0,.55)}",
+      // Holder placeholder occupies the card's slot in the grid while
+      // it's lifted, so neighboring cards don't reflow under it.
+      ".sgr-card-holder{display:block}",
+      // Per-card controls: invisible on the inline grid; revealed only
+      // when the card has .sgr-popped--open (i.e. it's popped + animated).
+      ".sgr-close-btn,.sgr-pop-mute-btn,.sgr-pop-cc-btn,.sgr-lang-menu,.sgr-cap-overlay,.sgr-pop-title,.sgr-pop-prog{display:none}",
+      ".sgr-card.sgr-popped--open .sgr-close-btn{display:flex}",
+      ".sgr-card.sgr-popped--open .sgr-pop-mute-btn{display:flex}",
+      ".sgr-card.sgr-popped--open .sgr-pop-cc-btn.has-langs{display:flex}",
+      ".sgr-card.sgr-popped--open .sgr-pop-title{display:block}",
+      ".sgr-card.sgr-popped--open .sgr-pop-prog{display:flex}",
+      // Hide play-icon while popped (the card is now the active player).
+      ".sgr-card.sgr-popped--open .sgr-play-icon{display:none}",
+      // Close button — top-right corner.
+      ".sgr-close-btn{position:absolute;top:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.25);color:#fff;font-size:18px;line-height:1;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0}",
+      ".sgr-close-btn:hover{background:rgba(0,0,0,.85)}",
+      // Mute button — bottom-right column on popped card.
+      ".sgr-pop-mute-btn{position:absolute;bottom:54px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0}",
+      ".sgr-pop-mute-btn:hover{background:rgba(0,0,0,.8)}",
+      ".sgr-pop-mute-btn svg{width:14px;height:14px}",
+      // CC button — above mute.
+      ".sgr-pop-cc-btn{position:absolute;bottom:90px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-weight:700;font-size:10px;letter-spacing:.04em;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0}",
+      ".sgr-pop-cc-btn:hover{background:rgba(0,0,0,.8)}",
+      ".sgr-pop-cc-btn.is-active{background:#fff;color:#000;border-color:rgba(0,0,0,.35)}",
+      ".sgr-pop-cc-btn.is-active:hover{background:#f0f0f0}",
+      // Language menu — pops left of the CC button when open.
+      ".sgr-lang-menu{position:absolute;bottom:90px;right:48px;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:7px;padding:3px;z-index:15;min-width:110px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".sgr-card.sgr-popped--open .sgr-lang-menu.visible{display:flex}",
+      ".sgr-lang-opt{display:flex;align-items:center;padding:6px 10px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:500;cursor:pointer;border-radius:4px;text-align:left}",
       ".sgr-lang-opt:hover{background:rgba(255,255,255,.08)}",
       ".sgr-lang-opt.is-selected{background:#fff;color:#000}",
-      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
-      ".sgr-cap-overlay.visible{display:flex}",
-      "@media(max-width:767px){.sgr-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
-      // Pause indicator + viewer play overlay
-      ".sgr-viewer-pauseind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:12;pointer-events:none;opacity:0;transition:opacity .2s}",
-      ".sgr-viewer-pauseind.visible{opacity:1}",
-      ".sgr-viewer-pause-circle{width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center}",
-      // Progress bar at very bottom of viewer
-      ".sgr-viewer-prog{position:absolute;bottom:0;left:0;right:0;height:20px;z-index:20;cursor:pointer;display:flex;align-items:flex-end}",
-      ".sgr-viewer-prog-track{position:absolute;bottom:0;left:0;right:0;height:5px;background:rgba(255,255,255,.25);pointer-events:none}",
-      ".sgr-viewer-prog-fill{position:absolute;bottom:0;left:0;height:5px;background:#fff;pointer-events:none;width:0%}"
+      // Caption overlay (only visible while popped AND a language is
+      // selected — class .visible is toggled by capRender).
+      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:6px 10px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
+      // Title — bottom-left while popped.
+      ".sgr-pop-title{position:absolute;left:10px;right:48px;bottom:32px;font-size:13px;font-weight:700;line-height:1.25;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none;z-index:13}",
+      // Progress bar at very bottom of popped card.
+      ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
+      ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
+      ".sgr-pop-prog-fill{position:absolute;bottom:0;left:0;height:3px;background:#fff;pointer-events:none;width:0%}"
     ].join("\n");
     document.head.appendChild(styleEl);
   }
@@ -378,7 +393,7 @@
     video.src = reel.videoUrl;
     el.appendChild(video);
 
-    // Play-icon overlay (visible when not playing)
+    // Play-icon overlay (visible when not playing, hidden when popped)
     var icon = document.createElement("div");
     icon.className = "sgr-play-icon";
     icon.innerHTML =
@@ -389,6 +404,33 @@
       '</div>';
     el.appendChild(icon);
 
+    // Popout-only controls. All hidden by default via CSS; only
+    // visible while the card has .sgr-popped--open. Keeping them on
+    // each card lets the popout work like the single-widget pattern
+    // (the card itself scales 1.3x in place; controls travel with it).
+    var hasCaptions = (capLangsByReel[idx] || []).length > 0;
+    el.insertAdjacentHTML("beforeend",
+      '<button class="sgr-close-btn" aria-label="Close popout">&times;</button>' +
+      '<button class="sgr-pop-mute-btn" aria-label="Mute audio" aria-pressed="false">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+          '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>' +
+          '<path class="sgr-pm-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>' +
+          '<line class="sgr-pm-x1" x1="23" y1="9" x2="17" y2="15" style="display:none"/>' +
+          '<line class="sgr-pm-x2" x1="17" y1="9" x2="23" y2="15" style="display:none"/>' +
+        '</svg>' +
+      '</button>' +
+      (hasCaptions
+        ? '<button class="sgr-pop-cc-btn has-langs" aria-label="Captions">CC</button>' +
+          '<div class="sgr-lang-menu" role="menu"></div>' +
+          '<div class="sgr-cap-overlay" aria-live="polite"></div>'
+        : '') +
+      '<div class="sgr-pop-title"></div>' +
+      '<div class="sgr-pop-prog" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
+        '<div class="sgr-pop-prog-track"></div>' +
+        '<div class="sgr-pop-prog-fill"></div>' +
+      '</div>'
+    );
+
     cards.push({
       idx:        idx,
       el:         el,
@@ -397,7 +439,10 @@
       icon:       icon,
       playedFor3s: false,
       watchStart: null,
-      watchTimer: null
+      watchTimer: null,
+      // Popout state — per-card so each card remembers what selected
+      // language was set, etc. Filled lazily in openPopout.
+      popped:     false
     });
   });
 
@@ -501,13 +546,77 @@
     c.video.addEventListener("ended", function () { onLaneCardEnded(c); });
   });
 
+  // ── Mobile autoplay lane (single rotating slot) ────
+  // On mobile, ONE lane plays at a time. It alternates between the
+  // top-right (slot 1) and bottom-left (slot 2) of the CURRENTLY
+  // VISIBLE 2×2 page. When the user swipes to a new page the lane
+  // resets to that page's top-right.
+  var mobileLaneActive = false;
+  var mobileLaneSlot   = 1;     // 1 = top-right, 2 = bottom-left within the page's 4 cards
+  function mobileVisiblePage() {
+    if (!grid) return 0;
+    var w = grid.clientWidth || 1;
+    return Math.round(grid.scrollLeft / w);
+  }
+  function mobileLaneCard() {
+    var page = mobileVisiblePage();
+    var idx  = page * 4 + mobileLaneSlot;
+    var card = cards[idx];
+    if (card && card.video) return card;
+    // Slot empty? Try the OTHER slot on the same page.
+    var alt = page * 4 + (mobileLaneSlot === 1 ? 2 : 1);
+    return cards[alt] && cards[alt].video ? cards[alt] : null;
+  }
+  function startMobileLane() {
+    if (mobileLaneActive || !isMobileLayout()) return;
+    if (poppedCard) return;        // don't play behind a popout
+    mobileLaneActive = true;
+    playMobileLane();
+  }
+  function stopMobileLane() {
+    mobileLaneActive = false;
+    cards.forEach(function (c) {
+      if (c && c.video && !c.hovered) stopCardPlay(c);
+    });
+  }
+  function playMobileLane() {
+    if (!mobileLaneActive) return;
+    var card = mobileLaneCard();
+    if (!card) return;
+    // Stop any other card that's mid-play (lane only plays one at a time).
+    cards.forEach(function (other) {
+      if (other && other.video && other !== card) stopCardPlay(other);
+    });
+    startCardPlay(card);
+  }
+  function onMobileLaneCardEnded(card) {
+    if (!mobileLaneActive) return;
+    stopCardPlay(card);
+    // Alternate slot: 1 ↔ 2 within the current page.
+    mobileLaneSlot = (mobileLaneSlot === 1 ? 2 : 1);
+    playMobileLane();
+  }
+  // Attach 'ended' to every card for mobile-lane advance — desktop
+  // lanes already attached above, this is purely additive on mobile.
+  cards.forEach(function (c) {
+    if (!c.video) return;
+    c.video.addEventListener("ended", function () {
+      if (isMobileLayout()) onMobileLaneCardEnded(c);
+    });
+  });
+
   if (typeof IntersectionObserver === "function") {
     var rootIo = new IntersectionObserver(function (entries) {
       var nowVisible = entries[0] && entries[0].isIntersecting;
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
-      if (inViewport) startAllLanes();
-      else            stopAllLanes();
+      if (inViewport) {
+        if (isMobileLayout()) startMobileLane();
+        else                  startAllLanes();
+      } else {
+        stopAllLanes();
+        stopMobileLane();
+      }
     }, { threshold: 0.1 });
     rootIo.observe(container);
   }
@@ -540,240 +649,329 @@
     return r.top < vh && r.bottom > 0;
   }
 
-  // ── Mobile page indicator sync ─────────────────────
-  if (dots && dots.length) {
+  // ── Mobile page indicator sync + lane reset on swipe ──
+  var lastVisiblePage = 0;
+  if (grid) {
     grid.addEventListener("scroll", function () {
       if (!isMobileLayout()) return;
       var w = grid.clientWidth || 1;
       var page = Math.round(grid.scrollLeft / w);
-      for (var i = 0; i < dots.length; i++) {
-        dots[i].classList.toggle("is-active", i === page);
+      if (dots && dots.length) {
+        for (var i = 0; i < dots.length; i++) {
+          dots[i].classList.toggle("is-active", i === page);
+        }
+      }
+      if (page !== lastVisiblePage) {
+        lastVisiblePage = page;
+        // New page → reset lane to top-right of this page.
+        mobileLaneSlot = 1;
+        if (mobileLaneActive) playMobileLane();
       }
     });
   }
 
-  // ── Viewer overlay ─────────────────────────────────
-  // One overlay shared across all 12 cards; click a card to populate
-  // it with that reel's video + open. Lives at document.body so it can
-  // escape any clipping/overflow contexts on the host page.
-  var overlay = document.createElement("div");
-  overlay.className = "sgr-overlay";
-  overlay.setAttribute("role", "dialog");
-  overlay.setAttribute("aria-modal", "true");
-  overlay.innerHTML =
-    '<div class="sgr-viewer">' +
-      '<button class="sgr-viewer-close" aria-label="Close viewer">&times;</button>' +
-      '<div class="sgr-viewer-poster"></div>' +
-      '<video class="sgr-viewer-video" playsinline webkit-playsinline preload="metadata"></video>' +
-      '<div class="sgr-cap-overlay" aria-live="polite"></div>' +
-      '<button class="sgr-viewer-cc" aria-label="Captions">CC</button>' +
-      '<div class="sgr-lang-menu" role="menu"></div>' +
-      '<button class="sgr-viewer-mute" aria-label="Mute audio" aria-pressed="false">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
-          '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>' +
-          '<path class="sgr-vm-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>' +
-          '<line class="sgr-vm-x1" x1="23" y1="9" x2="17" y2="15" style="display:none"/>' +
-          '<line class="sgr-vm-x2" x1="17" y1="9" x2="23" y2="15" style="display:none"/>' +
-        '</svg>' +
-      '</button>' +
-      '<div class="sgr-viewer-title"></div>' +
-      '<div class="sgr-viewer-prog" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
-        '<div class="sgr-viewer-prog-track"></div>' +
-        '<div class="sgr-viewer-prog-fill"></div>' +
-      '</div>' +
-    '</div>';
-  document.body.appendChild(overlay);
+  // ── Popout (single-widget pattern: card scales 1.3x in place) ────
+  // Shared backdrop only — the popped card itself is reparented to
+  // document.body so its transform isn't clipped by any overflow on
+  // the host page. Controls live PER CARD (close, mute, CC, title,
+  // progress) and are revealed by a CSS class on the card.
+  var POPOUT_SCALE = 1.3;
+  var backdrop = document.createElement("div");
+  backdrop.className = "sgr-popout-backdrop";
+  backdrop.setAttribute("aria-hidden", "true");
+  document.body.appendChild(backdrop);
 
-  var vClose    = overlay.querySelector(".sgr-viewer-close");
-  var vVideo    = overlay.querySelector(".sgr-viewer-video");
-  var vPoster   = overlay.querySelector(".sgr-viewer-poster");
-  var vTitle    = overlay.querySelector(".sgr-viewer-title");
-  var vMute     = overlay.querySelector(".sgr-viewer-mute");
-  var vCC       = overlay.querySelector(".sgr-viewer-cc");
-  var vLangMenu = overlay.querySelector(".sgr-lang-menu");
-  var vCapOver  = overlay.querySelector(".sgr-cap-overlay");
-  var vProg     = overlay.querySelector(".sgr-viewer-prog");
-  var vProgFill = overlay.querySelector(".sgr-viewer-prog-fill");
-  var vMuteX1   = vMute.querySelector(".sgr-vm-x1");
-  var vMuteX2   = vMute.querySelector(".sgr-vm-x2");
-  var vUnmuteIcon = vMute.querySelector(".sgr-vm-unmute");
+  var poppedCard  = null;       // currently popped card object (null if none)
+  var poppedHold  = null;       // placeholder div sitting in the grid where the card used to be
+  var popBusy     = false;
 
-  var activeReelIdx = -1;
-  function syncMuteIcon() {
-    var muted = !!vVideo.muted;
-    if (vMuteX1) vMuteX1.style.display = muted ? "block" : "none";
-    if (vMuteX2) vMuteX2.style.display = muted ? "block" : "none";
-    if (vUnmuteIcon) vUnmuteIcon.style.display = muted ? "none" : "block";
-    vMute.setAttribute("aria-pressed", muted ? "true" : "false");
-  }
-  function openViewer(idx) {
-    var reel = reels[idx]; if (!reel || !reel.videoUrl) return;
-    activeReelIdx = idx;
-    // Pause every grid card so audio doesn't double when the viewer
-    // plays unmuted.
-    cards.forEach(function (c) { if (c.video) stopCardPlay(c); });
-    vVideo.src = reel.videoUrl;
-    vVideo.muted = false;            // viewer starts unmuted by default
-    if (reel.posterUrl) {
-      vPoster.style.backgroundImage = 'url("' + safeUrl(reel.posterUrl).replace(/"/g, '\\"') + '")';
-      vPoster.classList.add("visible");
-    } else {
-      vPoster.style.backgroundImage = "";
-      vPoster.classList.remove("visible");
-    }
-    vTitle.textContent = reel.label || "";
-    vTitle.setAttribute("aria-label", reel.label || "");
-    syncMuteIcon();
-    overlay.classList.add("visible");
-    document.body.style.overflow = "hidden";
-    capBuildMenu();
-    capSyncBtnState();
-    var p = vVideo.play();
-    if (p && p.catch) p.catch(function () {
-      // Autoplay blocked — start muted and try once more.
-      vVideo.muted = true; syncMuteIcon();
-      var p2 = vVideo.play();
-      if (p2 && p2.catch) p2.catch(function () {});
+  function openPopout(c) {
+    if (!c || !c.video || !c.reel || poppedCard || popBusy) return;
+    popBusy = true;
+
+    // Pause every other (autoplay/lane) card so audio doesn't double
+    // and CPU doesn't churn while the popped card plays unmuted.
+    cards.forEach(function (other) {
+      if (other === c) return;
+      if (other.video) stopCardPlay(other);
     });
-    // Hide poster once the video has decoded enough to show first frame.
-    var hidePoster = function () {
-      vPoster.classList.remove("visible");
-      vVideo.removeEventListener("playing", hidePoster);
-    };
-    vVideo.addEventListener("playing", hidePoster);
+
+    // Measure the card's current on-screen rect BEFORE lifting it.
+    var r  = c.el.getBoundingClientRect();
+    var w  = r.width, h = r.height;
+    var tw = w * POPOUT_SCALE, th = h * POPOUT_SCALE;
+    // Target top-left = centered over the original card's centre,
+    // clamped to viewport with a 16px margin.
+    var cx = r.left + w / 2, cy = r.top + h / 2;
+    var tx = cx - tw / 2,    ty = cy - th / 2;
+    var m  = 16;
+    var maxX = window.innerWidth  - tw - m;
+    var maxY = window.innerHeight - th - m;
+    tx = Math.max(m, Math.min(tx, maxX));
+    ty = Math.max(m, Math.min(ty, maxY));
+
+    // Drop a placeholder into the card's grid slot so neighbors don't
+    // reflow under the lifted card.
+    poppedHold = document.createElement("div");
+    poppedHold.className = "sgr-card-holder";
+    poppedHold.style.width  = w + "px";
+    poppedHold.style.height = h + "px";
+    c.el.parentNode.insertBefore(poppedHold, c.el);
+
+    // Lift to fixed position at the CURRENT rect (no visual jump).
+    c.el.classList.add("sgr-popped");
+    c.el.style.transition = "none";
+    c.el.style.left   = r.left + "px";
+    c.el.style.top    = r.top  + "px";
+    c.el.style.width  = w + "px";
+    c.el.style.height = h + "px";
+    c.el.style.transformOrigin = "top left";
+    c.el.style.transform = "translate(0px,0px) scale(1)";
+    document.body.appendChild(c.el);
+    c.el.offsetHeight;        // force reflow so the next change animates
+
+    // Animate: backdrop fade-in, card translate + scale.
+    backdrop.classList.add("open");
+    c.el.classList.add("sgr-popped--open");
+    c.el.style.transition = "";
+    c.el.style.transform =
+      "translate(" + (tx - r.left) + "px," + (ty - r.top) + "px) scale(" + POPOUT_SCALE + ")";
+
+    // Configure popped controls for this card.
+    var titleEl = c.el.querySelector(".sgr-pop-title");
+    if (titleEl) titleEl.textContent = c.reel.label || "";
+    c.video.muted = false;            // popout starts unmuted
+    syncCardMuteIcon(c);
+    capBuildMenuForCard(c);
+    capSyncCardBtnState(c);
+
+    // Try to play. If autoplay-with-sound is blocked (some browsers
+    // require an explicit user gesture for audio), fall back to muted.
+    var p = c.video.play();
+    if (p && p.catch) p.catch(function () {
+      c.video.muted = true; syncCardMuteIcon(c);
+      var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
+    });
+
+    document.body.style.overflow = "hidden";
+    poppedCard = c;
+    setTimeout(function () { popBusy = false; }, 360);
   }
-  function closeViewer() {
-    overlay.classList.remove("visible");
-    vLangMenu.classList.remove("visible");
-    vCapOver.classList.remove("visible");
-    vCapOver.textContent = "";
+
+  function closePopout() {
+    if (!poppedCard || popBusy) return;
+    popBusy = true;
+    var c = poppedCard;
+
+    // Animate the card back to its original rect (transform identity).
+    c.el.style.transform = "translate(0px,0px) scale(1)";
+    c.el.classList.remove("sgr-popped--open");
+    backdrop.classList.remove("open");
     document.body.style.overflow = "";
-    try { vVideo.pause(); } catch (e) {}
-    vVideo.removeAttribute("src");
-    try { vVideo.load(); } catch (e) {}
-    activeReelIdx = -1;
+
+    // Hide caption + lang menu state immediately.
+    var capOver = c.el.querySelector(".sgr-cap-overlay");
+    if (capOver) { capOver.classList.remove("visible"); capOver.textContent = ""; }
+    var langMenu = c.el.querySelector(".sgr-lang-menu");
+    if (langMenu) langMenu.classList.remove("visible");
+
+    // Pause the popped card now; reset state via stopCardPlay.
+    try { c.video.pause(); } catch (e) {}
+    c.video.muted = true;
+    c.el.classList.remove("is-playing");
+    if (c.icon) c.icon.classList.remove("hidden");
+
+    setTimeout(function () {
+      c.el.classList.remove("sgr-popped");
+      c.el.style.transition = "";
+      c.el.style.transform  = "";
+      c.el.style.transformOrigin = "";
+      c.el.style.left = c.el.style.top = "";
+      c.el.style.width = c.el.style.height = "";
+      if (poppedHold && poppedHold.parentNode) {
+        poppedHold.parentNode.insertBefore(c.el, poppedHold);
+        poppedHold.parentNode.removeChild(poppedHold);
+      }
+      poppedHold = null;
+      poppedCard = null;
+      popBusy = false;
+      // Resume the autoplay lanes if the grid is in viewport.
+      if (inViewport && !lanesActive && !isMobileLayout()) startAllLanes();
+      if (mobileLaneActive) playMobileLane();
+    }, 360);
   }
-  vClose.addEventListener("click", function (e) { e.stopPropagation(); closeViewer(); });
-  overlay.addEventListener("click", function (e) {
-    // Click on the dim backdrop (anything outside the viewer card) closes.
-    if (e.target === overlay) closeViewer();
-  });
+
+  backdrop.addEventListener("click", function () { closePopout(); });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && overlay.classList.contains("visible")) closeViewer();
+    if (e.key === "Escape" && poppedCard) closePopout();
   });
 
-  // Mute / unmute
-  vMute.addEventListener("click", function (e) {
-    e.stopPropagation();
-    vVideo.muted = !vVideo.muted;
-    syncMuteIcon();
-  });
-
-  // Progress bar — scrub-to-seek
-  vProg.addEventListener("click", function (e) {
-    if (!vVideo.duration) return;
-    var r = vProg.getBoundingClientRect();
-    var pct = (e.clientX - r.left) / r.width;
-    if (pct < 0) pct = 0; if (pct > 1) pct = 1;
-    vVideo.currentTime = pct * vVideo.duration;
-  });
-  vVideo.addEventListener("timeupdate", function () {
-    if (!vVideo.duration) return;
-    var pct = (vVideo.currentTime / vVideo.duration) * 100;
-    vProgFill.style.width = pct + "%";
-    vProg.setAttribute("aria-valuenow", Math.round(pct));
-    capRender(false);
-  });
-
-  // Card click → open viewer
+  // ── Card click + control wiring ────────────────────
   cards.forEach(function (c) {
     if (!c.video || !c.reel) return;
-    c.el.addEventListener("click", function () { openViewer(c.idx); });
+
+    // Card click → pop out (unless already popped).
+    c.el.addEventListener("click", function (e) {
+      // Clicks on popped controls (close / mute / CC / lang menu /
+      // progress) shouldn't bubble up and re-trigger openPopout.
+      if (poppedCard === c) return;
+      // Don't pop if click came from inside the lang menu (handled below).
+      if (e.target.closest && e.target.closest(".sgr-lang-menu")) return;
+      openPopout(c);
+    });
     c.el.setAttribute("tabindex", "0");
     c.el.setAttribute("role", "button");
     c.el.setAttribute("aria-label", "Open: " + (c.reel.label || ("Video " + (c.idx + 1))));
     c.el.addEventListener("keydown", function (e) {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openViewer(c.idx); }
+      if (poppedCard) return;
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopout(c); }
+    });
+
+    // Close button.
+    var closeBtn = c.el.querySelector(".sgr-close-btn");
+    if (closeBtn) closeBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (poppedCard === c) closePopout();
+    });
+
+    // Mute toggle.
+    var muteBtn = c.el.querySelector(".sgr-pop-mute-btn");
+    if (muteBtn) muteBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      c.video.muted = !c.video.muted;
+      syncCardMuteIcon(c);
+    });
+
+    // CC button + language menu.
+    var ccBtn   = c.el.querySelector(".sgr-pop-cc-btn");
+    var ccMenu  = c.el.querySelector(".sgr-lang-menu");
+    if (ccBtn && ccMenu) {
+      ccBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        ccMenu.classList.toggle("visible");
+      });
+      ccMenu.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var btn = e.target.closest && e.target.closest(".sgr-lang-opt");
+        if (!btn) return;
+        capSelectForCard(c, btn.getAttribute("data-lang") || null);
+        ccMenu.classList.remove("visible");
+      });
+    }
+
+    // Progress bar — scrub-to-seek.
+    var prog = c.el.querySelector(".sgr-pop-prog");
+    if (prog) prog.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (!c.video.duration) return;
+      var r = prog.getBoundingClientRect();
+      var pct = (e.clientX - r.left) / r.width;
+      if (pct < 0) pct = 0; if (pct > 1) pct = 1;
+      c.video.currentTime = pct * c.video.duration;
+    });
+
+    // timeupdate → update progress + render captions, but only while
+    // the card is the popped one.
+    c.video.addEventListener("timeupdate", function () {
+      if (poppedCard !== c) return;
+      if (c.video.duration) {
+        var pct = (c.video.currentTime / c.video.duration) * 100;
+        var fill = c.el.querySelector(".sgr-pop-prog-fill");
+        if (fill) fill.style.width = pct + "%";
+        if (prog) prog.setAttribute("aria-valuenow", Math.round(pct));
+      }
+      capRenderForCard(c, false);
+    });
+    c.video.addEventListener("seeked", function () {
+      if (poppedCard === c) capRenderForCard(c, true);
     });
   });
 
-  // ── Captions in the viewer ─────────────────────────
-  function capCurrentReelLangs() { return activeReelIdx >= 0 ? (capLangsByReel[activeReelIdx] || []) : []; }
-  function capCurrentReelCues()  { return activeReelIdx >= 0 ? (capCuesByReel[activeReelIdx]  || {}) : {}; }
-  function capRender(force) {
-    var cues = capCurrentReelCues()[capSelected];
+  function syncCardMuteIcon(c) {
+    var muteBtn = c.el.querySelector(".sgr-pop-mute-btn");
+    if (!muteBtn) return;
+    var muted = !!c.video.muted;
+    var x1 = muteBtn.querySelector(".sgr-pm-x1");
+    var x2 = muteBtn.querySelector(".sgr-pm-x2");
+    var um = muteBtn.querySelector(".sgr-pm-unmute");
+    if (x1) x1.style.display = muted ? "block" : "none";
+    if (x2) x2.style.display = muted ? "block" : "none";
+    if (um) um.style.display = muted ? "none" : "block";
+    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+  }
+
+  // ── Captions in the popout (per-card) ───────────────
+  function capRenderForCard(c, force) {
+    var capOver = c.el.querySelector(".sgr-cap-overlay");
+    if (!capOver) return;
+    var cues = (capCuesByReel[c.idx] || {})[capSelected];
     if (!capSelected || !cues) {
-      if (vCapOver.classList.contains("visible")) {
-        vCapOver.classList.remove("visible");
-        vCapOver.textContent = "";
+      if (capOver.classList.contains("visible")) {
+        capOver.classList.remove("visible");
+        capOver.textContent = "";
       }
       return;
     }
-    var cue = splCapActiveCue(cues, vVideo.currentTime || 0);
+    var cue = splCapActiveCue(cues, c.video.currentTime || 0);
     if (cue) {
-      if (vCapOver.textContent !== cue.text || force) vCapOver.textContent = cue.text;
-      vCapOver.classList.add("visible");
-    } else if (vCapOver.classList.contains("visible")) {
-      vCapOver.classList.remove("visible");
-      vCapOver.textContent = "";
+      if (capOver.textContent !== cue.text || force) capOver.textContent = cue.text;
+      capOver.classList.add("visible");
+    } else if (capOver.classList.contains("visible")) {
+      capOver.classList.remove("visible");
+      capOver.textContent = "";
     }
   }
-  function capBuildMenu() {
-    var langs = capCurrentReelLangs();
-    if (!langs.length) { vCC.classList.remove("visible"); return; }
-    vCC.classList.add("visible");
+  function capBuildMenuForCard(c) {
+    var menu  = c.el.querySelector(".sgr-lang-menu");
+    var btn   = c.el.querySelector(".sgr-pop-cc-btn");
+    var langs = capLangsByReel[c.idx] || [];
+    if (!menu || !btn) return;
+    if (!langs.length) { btn.classList.remove("has-langs"); return; }
+    btn.classList.add("has-langs");
     var opts = [{ code: "", label: "Off" }];
-    langs.forEach(function (lang) { opts.push({ code: lang, label: SPL_CAP_LANG_NAMES[lang] || lang.toUpperCase() }); });
-    vLangMenu.innerHTML = opts.map(function (o) {
+    langs.forEach(function (lang) {
+      opts.push({ code: lang, label: SPL_CAP_LANG_NAMES[lang] || lang.toUpperCase() });
+    });
+    menu.innerHTML = opts.map(function (o) {
       var selected = (o.code === (capSelected || ""));
       return '<button class="sgr-lang-opt' + (selected ? ' is-selected' : '') +
         '" data-lang="' + o.code + '" role="menuitemradio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
         o.label + '</button>';
     }).join("");
   }
-  function capSyncBtnState() {
-    var langs = capCurrentReelLangs();
-    if (!langs.length) { vCC.classList.remove("visible"); vCC.classList.remove("is-active"); return; }
-    vCC.classList.add("visible");
-    if (capSelected && capCurrentReelCues()[capSelected]) {
-      vCC.classList.add("is-active");
-      vCC.setAttribute("aria-pressed", "true");
+  function capSyncCardBtnState(c) {
+    var btn   = c.el.querySelector(".sgr-pop-cc-btn");
+    var langs = capLangsByReel[c.idx] || [];
+    if (!btn) return;
+    if (!langs.length) { btn.classList.remove("has-langs"); btn.classList.remove("is-active"); return; }
+    btn.classList.add("has-langs");
+    if (capSelected && (capCuesByReel[c.idx] || {})[capSelected]) {
+      btn.classList.add("is-active");
+      btn.setAttribute("aria-pressed", "true");
     } else {
-      vCC.classList.remove("is-active");
-      vCC.setAttribute("aria-pressed", "false");
+      btn.classList.remove("is-active");
+      btn.setAttribute("aria-pressed", "false");
     }
   }
-  function capSelect(lang) {
+  function capSelectForCard(c, lang) {
     capSelected = lang || null;
     splCapSaveLang(capSelected || "off");
-    capBuildMenu();
-    capSyncBtnState();
-    capRender(true);
+    capBuildMenuForCard(c);
+    capSyncCardBtnState(c);
+    capRenderForCard(c, true);
   }
-  vCC.addEventListener("click", function (e) {
-    e.stopPropagation();
-    vLangMenu.classList.toggle("visible");
-  });
-  vLangMenu.addEventListener("click", function (e) {
-    e.stopPropagation();
-    var btn = e.target.closest && e.target.closest(".sgr-lang-opt");
-    if (!btn) return;
-    capSelect(btn.getAttribute("data-lang") || null);
-    vLangMenu.classList.remove("visible");
-  });
-  overlay.addEventListener("click", function (e) {
-    if (!vLangMenu.classList.contains("visible")) return;
-    if (e.target.closest && (e.target.closest(".sgr-viewer-cc") || e.target.closest(".sgr-lang-menu"))) return;
-    vLangMenu.classList.remove("visible");
-  });
 
   // ── Resize handler ─────────────────────────────────
   // CSS handles the desktop ↔ mobile layout flip via media query.
-  // Just (re-)evaluate the lanes: stop on mobile, resume on desktop
-  // when the grid is in the viewport.
+  // Re-evaluate which lane variant should be running.
   window.addEventListener("resize", function () {
-    if (isMobileLayout()) { stopAllLanes(); return; }
-    if (inViewport && !lanesActive) startAllLanes();
+    if (isMobileLayout()) {
+      stopAllLanes();
+      if (inViewport && !mobileLaneActive) startMobileLane();
+    } else {
+      stopMobileLane();
+      if (inViewport && !lanesActive) startAllLanes();
+    }
   });
 
   } // end initWidget
