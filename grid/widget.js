@@ -1383,35 +1383,29 @@
       });
     }
     if (popoutSwappedFromHls) {
-      // The MP4 src was just assigned. Wait until the video can
-      // actually play before calling play() — listening on
-      // loadedmetadata wasn't enough (sometimes play() resolved
-      // immediately but the decoder hadn't acquired frames yet, so
-      // the video stayed paused on its 0-frame placeholder).
-      // 'canplay' (HAVE_FUTURE_DATA, readyState >= 3) is the right
-      // gate; 'loadeddata' (HAVE_CURRENT_DATA, >= 2) is a fallback.
-      //
-      // ONE listener that does seek-back + play, removes itself.
-      // Listens on both events; whichever fires first wins.
-      var swapStartedPlay = false;
-      function onSwapReady() {
-        if (swapStartedPlay) return;
-        swapStartedPlay = true;
-        try { c.video.removeEventListener("canplay",   onSwapReady); } catch (e) {}
-        try { c.video.removeEventListener("loadeddata", onSwapReady); } catch (e) {}
-        if (poppedCard !== c) return;
-        try { c.video.currentTime = savedTime; } catch (e) {}
-        popPlay();
+      // CRITICAL: call play() IMMEDIATELY rather than waiting for
+      // canplay/loadedmetadata. Chrome's autoplay policy ties the
+      // user-gesture token to the synchronous tail of the click
+      // event — if we await an async event (which can take 1-3s
+      // for a fresh MP4 fetch), the gesture is gone and play()
+      // gets rejected with "play() failed because the user didn't
+      // interact with the document first". That's the
+      // "buffer-then-pause" symptom: data loads, then play()
+      // rejects silently. The browser internally waits for data
+      // before actually starting playback, so calling play() with
+      // no buffered data is fine — it just delays playback start
+      // until canplay-equivalent state is reached.
+      popPlay();
+      // Seek-back to where the lane left off, once metadata is
+      // parsed enough to know where to seek to.
+      if (savedTime > 0.1) {
+        var onMeta = function () {
+          c.video.removeEventListener("loadedmetadata", onMeta);
+          if (poppedCard !== c) return;
+          try { c.video.currentTime = savedTime; } catch (e) {}
+        };
+        c.video.addEventListener("loadedmetadata", onMeta);
       }
-      c.video.addEventListener("canplay",   onSwapReady);
-      c.video.addEventListener("loadeddata", onSwapReady);
-      // Safety: if neither event fires within 1.5s, force-kick play
-      // anyway — the browser will queue the play until data arrives.
-      setTimeout(function () {
-        if (swapStartedPlay) return;
-        if (poppedCard !== c) return;
-        onSwapReady();
-      }, 1500);
     } else {
       popPlay();
     }
