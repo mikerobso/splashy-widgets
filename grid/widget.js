@@ -52,6 +52,11 @@
   // When true, the grid renders at 70% width on desktop (centered),
   // with proportionally tighter padding + gap. Mobile is unaffected.
   var shrinkDesktop = !!cfg.shrinkDesktop;
+  // When true, only the first 6 reels render and the grid is laid out
+  // as 3 cols x 2 rows on desktop / 2 cols x 3 rows on mobile (no
+  // pagination, no swipe dots). Used by the side-text Studio variant
+  // where a 6-card grid sits next to a text block.
+  var compact6 = !!cfg.compact6;
   // Autoplay-eligible positions (0-indexed). Default = reels 1, 4, 8,
   // 12 (1-indexed). Only ONE of these plays at a time as part of an
   // auto-advance chain: when the current chain card's video ends, the
@@ -60,6 +65,10 @@
   var autoplayIndices = Array.isArray(cfg.autoplayIndices)
     ? cfg.autoplayIndices
     : [0, 3, 7, 11];
+  if (compact6) {
+    // Only cards 0-5 render in compact mode — drop lane starts past idx 5.
+    autoplayIndices = autoplayIndices.filter(function (i) { return i < 6; });
+  }
   var autoplayMap = {};
   autoplayIndices.forEach(function (i) { autoplayMap[i] = true; });
 
@@ -284,6 +293,14 @@
       // 1fr columns so they shrink with the container; aspect-ratio:9/16
       // keeps the vertical proportion intact.
       "@media(min-width:768px){.sgr-widget--shrink{max-width:75%;margin-left:auto;margin-right:auto;padding:14px 12px}.sgr-widget--shrink .sgr-grid{gap:11px}}",
+      // compact6 option: only the first 6 cards render, in a 3x2 grid
+      // on desktop and a 2x3 grid on mobile (no scroll/swipe). Used by
+      // the Studio's side-text Grid variant. Hides cards 6-11 and the
+      // page-indicator dots entirely.
+      ".sgr-widget--compact .sgr-card[data-idx='6'],.sgr-widget--compact .sgr-card[data-idx='7'],.sgr-widget--compact .sgr-card[data-idx='8'],.sgr-widget--compact .sgr-card[data-idx='9'],.sgr-widget--compact .sgr-card[data-idx='10'],.sgr-widget--compact .sgr-card[data-idx='11']{display:none!important}",
+      ".sgr-widget--compact .sgr-dots{display:none!important}",
+      "@media(min-width:768px){.sgr-widget--compact .sgr-grid{grid-template-columns:repeat(3,1fr);gap:10px}.sgr-widget--compact{padding:14px 12px}}",
+      "@media(max-width:767px){.sgr-widget--compact .sgr-grid{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:10px!important;overflow-x:visible!important;padding-bottom:0!important}.sgr-widget--compact .sgr-page{display:contents!important;flex:none!important;padding:0!important}}",
       // Page indicator dots (mobile only).
       // Page dots — same dimensions + behavior as the infinite/stories
       // widget dots so accessibility is consistent across all widgets:
@@ -404,6 +421,7 @@
     '<div class="sgr-widget' +
       (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') +
       (shrinkDesktop ? ' sgr-widget--shrink' : '') +
+      (compact6 ? ' sgr-widget--compact' : '') +
     '">' +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
       '<div class="sgr-dots" role="tablist" aria-label="Grid pages">' +
@@ -577,6 +595,7 @@
   // On desktop with hideBottomRowDesktop, indices >=6 are off-screen and
   // ineligible for lane play / rotation. Mobile ignores this entirely.
   function laneIdxHidden(idx) {
+    if (compact6 && idx >= 6) return true;
     return hideBottomRowDesktop && !isMobileLayout() && idx >= 6;
   }
   autoplayIndices.forEach(function (startIdx) {
@@ -585,7 +604,10 @@
   });
 
   function startAllLanes() {
-    if (lanesActive || isMobileLayout() || !lanes.length) return;
+    // compact6 uses desktop-style multi-lane on mobile too, since the
+    // grid isn't paginated (no concept of a "current page") and the
+    // mobile single-lane behavior would only rotate between 2 cards.
+    if (lanesActive || (isMobileLayout() && !compact6) || !lanes.length) return;
     lanesActive = true;
     lanes.forEach(function (lane) {
       if (laneIdxHidden(lane.current)) return;
@@ -696,8 +718,8 @@
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
       if (inViewport) {
-        if (isMobileLayout()) startMobileLane();
-        else                  startAllLanes();
+        if (isMobileLayout() && !compact6) startMobileLane();
+        else                                startAllLanes();
       } else {
         stopAllLanes();
         stopMobileLane();
@@ -920,7 +942,7 @@
       poppedCard = null;
       popBusy = false;
       // Resume the autoplay lanes if the grid is in viewport.
-      if (inViewport && !lanesActive && !isMobileLayout()) startAllLanes();
+      if (inViewport && !lanesActive && (!isMobileLayout() || compact6)) startAllLanes();
       if (mobileLaneActive) playMobileLane();
     }, 360);
   }
@@ -1219,7 +1241,7 @@
   // CSS handles the desktop ↔ mobile layout flip via media query.
   // Re-evaluate which lane variant should be running.
   window.addEventListener("resize", function () {
-    if (isMobileLayout()) {
+    if (isMobileLayout() && !compact6) {
       stopAllLanes();
       if (inViewport && !mobileLaneActive) startMobileLane();
     } else {
