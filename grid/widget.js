@@ -44,6 +44,35 @@
 
   var reels       = cfg.reels       || [];
   var containerId = cfg.containerId || "splshy-grid";
+
+  // Preconnect to every unique video host so DNS + TLS handshake is
+  // primed before the first card requests its file. Saves ~100-300ms
+  // per cold connection on first interaction. Run once per host even
+  // if multiple widgets on the same page hit the same CDN.
+  (function () {
+    if (!reels || !reels.length || !document.head) return;
+    if (!window.__SPLSHY_PRECONNECTED) window.__SPLSHY_PRECONNECTED = {};
+    var done = window.__SPLSHY_PRECONNECTED;
+    var hosts = {};
+    reels.forEach(function (r) {
+      if (!r) return;
+      [r.videoUrl, r.videoUrlSd, r.posterUrl].forEach(function (u) {
+        if (!u || typeof u !== "string") return;
+        try {
+          var h = new URL(u, window.location.href).origin;
+          if (h && !done[h]) hosts[h] = true;
+        } catch (e) {}
+      });
+    });
+    Object.keys(hosts).forEach(function (origin) {
+      done[origin] = true;
+      var l = document.createElement("link");
+      l.rel = "preconnect";
+      l.href = origin;
+      l.crossOrigin = "anonymous";
+      document.head.appendChild(l);
+    });
+  })();
   // When true, only the first row (cards 0-5) is shown on desktop;
   // mobile still shows all 12 across 3 swipeable pages. The autoplay
   // lanes that start in the hidden row (>= 6) are skipped on desktop
@@ -547,11 +576,16 @@
     video.playsInline = true;
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
-    video.preload = autoplayMap[idx] ? "metadata" : "none";
     // Lanes can advance into any card, so no video should loop —
     // they each need to fire 'ended' for the lane to step forward.
     // Hover replays from the start (startCardPlay resets currentTime).
     video.loop = false;
+    // preload='metadata' on EVERY card (not just autoplay lane starts)
+    // so the moov atom is fetched at init. Costs ~60KB per card upfront
+    // but makes hover-play and pop-out feel instant — without it,
+    // non-lane cards do a cold DNS+TLS+moov+first-chunk fetch on
+    // interaction (500-1500ms even on fast networks).
+    video.preload = "metadata";
     // Initial src = the SD variant if the library has one (used while
     // the card sits in the grid). Popout opens swap to the full-res
     // videoUrl for higher quality during focused viewing.
