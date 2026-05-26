@@ -90,6 +90,29 @@
     return video.canPlayType("application/vnd.apple.mpegurl") !== "" ||
            video.canPlayType("application/x-mpegURL")        !== "";
   }
+  // Force every TextTrack on the element into 'disabled' so the
+  // browser's native subtitle renderer never paints. Listens for
+  // addtrack so tracks added after manifest load (HLS playlists
+  // populate them async) also get muted. Our .sgr-cap-overlay
+  // handles caption display via its own VTT parser, completely
+  // independent of the TextTrack API, so this is safe.
+  function suppressNativeTextTracks(video) {
+    function killAll() {
+      try {
+        var tt = video.textTracks;
+        if (!tt) return;
+        for (var i = 0; i < tt.length; i++) tt[i].mode = "disabled";
+      } catch (e) {}
+    }
+    killAll();
+    try {
+      if (video.textTracks && video.textTracks.addEventListener) {
+        video.textTracks.addEventListener("addtrack", killAll);
+        // Some Safari builds need 'change' too.
+        video.textTracks.addEventListener("change", killAll);
+      }
+    } catch (e) {}
+  }
   var hlsJsLoaderPromise = null;
   function ensureHlsJsLoaded() {
     if (window.Hls) return Promise.resolve(window.Hls);
@@ -113,6 +136,11 @@
       video.src = reel.videoUrlHls;
       cardObj.usingHls = true;
       cardObj.hlsKind  = "native";
+      // Vimeo's HLS playlists embed subtitle tracks. Safari's native
+      // player renders them via TextTrack API and they'd stack on
+      // top of our custom .sgr-cap-overlay. Suppress them — our
+      // overlay parses VTT independently and doesn't use TextTrack.
+      suppressNativeTextTracks(video);
       // Safari native HLS doesn't dispatch fatal-error events the same
       // way hls.js does; a 404/CORS/playback failure surfaces as the
       // standard <video> 'error' event. Swap to MP4 if that fires.
@@ -137,8 +165,16 @@
           capLevelToPlayerSize: true,  // pick quality based on rendered px size
           enableWorker: true,
           lowLatencyMode: false,
-          backBufferLength: 30
+          backBufferLength: 30,
+          // Don't let hls.js render embedded subtitle tracks — our
+          // custom .sgr-cap-overlay handles that.
+          subtitleDisplay: false,
+          renderTextTracksNatively: false
         });
+        // Belt-and-suspenders: also disable any TextTrack entries that
+        // appear later. hls.js still populates video.textTracks for
+        // programmatic access even with subtitleDisplay:false.
+        suppressNativeTextTracks(video);
         // Fatal-error fallback: manifest 404, CORS on the playlist,
         // segment fetch failures, codec mismatch, etc. all bubble up
         // as fatal errors. Tear down the Hls instance and attach the
