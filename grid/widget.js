@@ -141,7 +141,15 @@
     // overrides the MP4 src and freezes playback.
     cardObj.attachGen = (cardObj.attachGen || 0) + 1;
     var myGen = cardObj.attachGen;
-    if (reel.videoUrlHls && canPlayHlsNatively(video)) {
+    // Only autoplay-lane cards use HLS. The other cards play one at
+    // a time on hover/click — MP4 is equivalent quality for a single
+    // stream and avoids the hls.js cost (Web Worker, MediaSource
+    // buffer, manifest fetch). 12-card grid: 4 HLS / 8 MP4.
+    // compact6 (side-text) grid: 2 HLS / 4 MP4. Major reduction in
+    // browser overhead, and the HLS->MP4 popout swap (which has had
+    // freeze issues in Chrome) only applies to the lane cards now.
+    var useHls = !!(reel.videoUrlHls && autoplayMap[cardObj.idx]);
+    if (useHls && canPlayHlsNatively(video)) {
       video.src = reel.videoUrlHls;
       cardObj.usingHls = true;
       cardObj.hlsKind  = "native";
@@ -163,7 +171,7 @@
       });
       return;
     }
-    if (reel.videoUrlHls) {
+    if (useHls) {
       // Lazy-load hls.js. Until it resolves the card has no src; the
       // poster image stays visible. If the load fails, MSE isn't
       // supported, or the playlist itself errors out, fall back to
