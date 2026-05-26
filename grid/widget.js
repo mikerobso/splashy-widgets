@@ -132,6 +132,15 @@
     video.src = reel.videoUrlSd || reel.videoUrl;
   }
   function attachVideoSource(video, reel, cardObj) {
+    // Bump the attach-generation. Any in-flight HLS setup from a
+    // previous attachVideoSource call will see its generation
+    // mismatch the current one and bail before mutating state.
+    // Prevents the race where: close-popout fires attachVideoSource
+    // (async hls.js load), user re-pops before it resolves,
+    // openPopout's MP4 swap runs, then the late HLS attach
+    // overrides the MP4 src and freezes playback.
+    cardObj.attachGen = (cardObj.attachGen || 0) + 1;
+    var myGen = cardObj.attachGen;
     if (reel.videoUrlHls && canPlayHlsNatively(video)) {
       video.src = reel.videoUrlHls;
       cardObj.usingHls = true;
@@ -160,6 +169,9 @@
       // supported, or the playlist itself errors out, fall back to
       // MP4 so the card still plays.
       ensureHlsJsLoaded().then(function (Hls) {
+        // Stale callback (a newer attachVideoSource or openPopout
+        // has taken over) — bail.
+        if (myGen !== cardObj.attachGen) return;
         if (!Hls.isSupported()) { attachMp4Fallback(video, reel); return; }
         var hls = new Hls({
           // capLevelToPlayerSize sounds right but doesn't work here:
@@ -215,6 +227,7 @@
         cardObj.hlsKind     = "hlsjs";
         cardObj.hlsInstance = hls;
       }).catch(function (e) {
+        if (myGen !== cardObj.attachGen) return;
         try { console.warn("SPLSHY grid: hls.js load failed, falling back to MP4", e); } catch (_) {}
         attachMp4Fallback(video, reel);
       });
@@ -1274,6 +1287,9 @@
     // the SINGLE-stream popout it's not worth fighting the issue.
     // Tear down hls.js entirely and play the MP4 URL instead — one
     // stream, predictable playback. Restored to HLS in closePopout.
+    // Invalidate any pending HLS attach so a late async callback from
+    // a previous open/close cycle can't race the MP4 swap below.
+    c.attachGen = (c.attachGen || 0) + 1;
     var savedTime = 0;
     var popoutSwappedFromHls = false;
     if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
@@ -1287,12 +1303,17 @@
     try { c.video.pause(); } catch (e) {}
     if (popoutSwappedFromHls) {
       // Swap to MP4. Prefer the full-res URL for the popped view;
-      // fall back to SD URL if HD isn't in the library.
+      // fall back to SD URL if HD isn't in the library. Fully reset
+      // the <video> first (removeAttribute + load) so the old
+      // MediaSource binding from hls.js is fully cleared before we
+      // assign a new src. Skipping this caused the second-popout
+      // freeze: the second-time MediaSource was left half-attached.
       var mp4Url = c.reel.videoUrl || c.reel.videoUrlSd;
       if (mp4Url) {
+        try { c.video.removeAttribute("src"); c.video.load(); } catch (e) {}
         c.video.src = mp4Url;
-        // Seek back to where we were once metadata loads. Brief
-        // ~200-500ms reload but reliable.
+        try { c.video.load(); } catch (e) {}
+        // Seek back to where we were once metadata loads.
         var onMeta = function () {
           c.video.removeEventListener("loadedmetadata", onMeta);
           try { c.video.currentTime = savedTime; } catch (e) {}
