@@ -153,6 +153,96 @@
   if (!reels.length) { console.warn("Splshy Stories: no reels configured."); return; }
   var n = reels.length;
 
+  // ── Caption helpers ─────────────────────────────
+  // Same shape as the helpers in infinite + single widget.js — each
+  // widget file is self-contained, so the helper code is duplicated.
+  // Tweaks here should be mirrored across the other two.
+  function splCapParseTime(ts) {
+    if (!ts) return 0;
+    var p = ts.split(':'); if (p.length !== 3) return 0;
+    var sec = parseFloat(p[2]);
+    return (parseInt(p[0], 10) || 0) * 3600 + (parseInt(p[1], 10) || 0) * 60 + (isFinite(sec) ? sec : 0);
+  }
+  function splCapParseVtt(vtt) {
+    var out = [];
+    if (!vtt || typeof vtt !== "string") return out;
+    var lines = vtt.split(/\r\n|\n|\r/);
+    var i = 0;
+    if (i < lines.length && /^\s*WEBVTT/.test(lines[i])) i++;
+    while (i < lines.length) {
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i >= lines.length) break;
+      if (lines[i].indexOf("-->") === -1 && i + 1 < lines.length && lines[i + 1].indexOf("-->") !== -1) i++;
+      if (i >= lines.length) break;
+      var m = lines[i].match(/^\s*(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+      if (!m) { i++; continue; }
+      var start = splCapParseTime(m[1]);
+      var end   = splCapParseTime(m[2]);
+      i++;
+      var textLines = [];
+      while (i < lines.length && lines[i].trim() !== "") { textLines.push(lines[i]); i++; }
+      if (end > start && textLines.length) out.push({ start: start, end: end, text: textLines.join("\n") });
+    }
+    return out;
+  }
+  function splCapDetectLang(availableLangs) {
+    if (!availableLangs || !availableLangs.length) return null;
+    var langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < langs.length; i++) {
+      var base = (langs[i] || "").toLowerCase().split("-")[0];
+      if (base && base !== "en" && availableLangs.indexOf(base) !== -1) return base;
+    }
+    return null;
+  }
+  function splCapGetSavedLang() { try { return sessionStorage.getItem("splshy.captionLang") || null; } catch (e) { return null; } }
+  function splCapSaveLang(lang) { try { sessionStorage.setItem("splshy.captionLang", lang || ""); } catch (e) {} }
+  function splCapActiveCue(cues, currentTime) {
+    if (!cues || !cues.length) return null;
+    for (var i = 0; i < cues.length; i++) {
+      if (currentTime >= cues[i].start && currentTime < cues[i].end) return cues[i];
+    }
+    return null;
+  }
+  var SPL_CAP_LANG_NAMES = { en: "English", es: "Español", fr: "Français", de: "Deutsch", zh: "中文" };
+
+  // Pre-parse every reel's captions at init time. capCuesByReel[i] is
+  // the per-language cue map for reels[i]; capLangsByReel[i] is the
+  // ordered list of available language codes. We swap which one the
+  // overlay reads from whenever the user navigates between reels.
+  var capCuesByReel  = [];
+  var capLangsByReel = [];
+  for (var ci = 0; ci < reels.length; ci++) {
+    var perReel = {};
+    var perReelLangs = [];
+    var rc = reels[ci] && reels[ci].captions;
+    if (rc && typeof rc === "object") {
+      Object.keys(rc).forEach(function(lang) {
+        var vttStr = rc[lang];
+        if (typeof vttStr === "string" && vttStr) {
+          var parsedCues = splCapParseVtt(vttStr);
+          if (parsedCues.length) { perReel[lang] = parsedCues; perReelLangs.push(lang); }
+        }
+      });
+    }
+    capCuesByReel.push(perReel);
+    capLangsByReel.push(perReelLangs);
+  }
+  // Selected language is shared across reels in this overlay session.
+  // Saved sessionStorage value wins; otherwise browser-detect across
+  // the union of available languages.
+  var capSelected = (function() {
+    var saved = splCapGetSavedLang();
+    if (saved === "off") return null;
+    var unionLangs = [];
+    capLangsByReel.forEach(function(arr) {
+      arr.forEach(function(l) { if (unionLangs.indexOf(l) === -1) unionLangs.push(l); });
+    });
+    if (saved && unionLangs.indexOf(saved) !== -1) return saved;
+    return splCapDetectLang(unionLangs);
+  })();
+  // True if any reel in this overlay has at least one translated VTT.
+  var capAnyReelHasCaptions = capLangsByReel.some(function(arr) { return arr.length > 0; });
+
   // The Instagram-style story ring — a conic gradient sweeping warm yellow
   // through pink/magenta into purple, like the Instagram stories ring.
   var IG_RING = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
@@ -340,12 +430,29 @@
       // .15s. Pure CSS — no JS timer. Scoped to (hover:hover) so touch
       // devices keep the always-visible mute in the overlay player.
       "@media(hover:hover){",
-        ".sst-stage .sst-mute-btn{opacity:0;transition:opacity .35s ease 2s}",
-        ".sst-stage:hover .sst-mute-btn{opacity:1;transition:opacity .15s ease 0s}",
+        ".sst-stage .sst-mute-btn,.sst-stage .sst-cc-btn{opacity:0;transition:opacity .35s ease 2s}",
+        ".sst-stage:hover .sst-mute-btn,.sst-stage:hover .sst-cc-btn{opacity:1;transition:opacity .15s ease 0s}",
       "}",
-      // Keyboard-focused mute reappears immediately even if the hover-fade
-      // has dropped it to opacity:0.
-      ".sst-mute-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
+      // Keyboard-focused mute / CC reappear immediately even if the
+      // hover-fade has dropped them to opacity:0.
+      ".sst-mute-btn:focus-visible,.sst-cc-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
+      // CC button + language menu + caption overlay. Stage stacking
+      // matches infinite/single: CC sits above mute on the right edge,
+      // menu pops left of the button, overlay band covers the burned-
+      // in English caption position (roughly 66%-77% from the top).
+      ".sst-cc-btn{position:absolute;bottom:96px;right:14px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25);display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;padding:0;color:#fff;font-weight:700;font-size:11px;font-family:system-ui,-apple-system,sans-serif;letter-spacing:.04em;-webkit-tap-highlight-color:transparent}",
+      ".sst-cc-btn.visible{display:flex}",
+      ".sst-cc-btn:hover{background:rgba(0,0,0,.7)}",
+      ".sst-cc-btn.is-active{background:#fff;border-color:rgba(0,0,0,.35);color:#000}",
+      ".sst-lang-menu{position:absolute;bottom:96px;right:56px;display:none;flex-direction:column;background:rgba(0,0,0,.95);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".sst-lang-menu.visible{display:flex}",
+      ".sst-lang-opt{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;border-radius:5px;text-align:left}",
+      ".sst-lang-opt:hover{background:rgba(255,255,255,.08)}",
+      ".sst-lang-opt.is-selected{background:#fff;color:#000}",
+      ".sst-lang-opt.is-selected:hover{background:#f0f0f0}",
+      ".sst-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sst-cap-overlay.visible{display:flex}",
+      "@media(max-width:767px){.sst-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;box-sizing:border-box}",
       ".sst-speed.visible{opacity:1}",
       // Progress bar
@@ -527,6 +634,11 @@
         '<div class="sst-loading" role="status" aria-label="Loading video"></div>' +
         '<div class="sst-speed">2&times;</div>' +
         '<button class="sst-mute-btn" aria-label="Mute audio" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path class="sst-unmute" d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/><line class="sst-mx1" x1="23" y1="9" x2="17" y2="15" style="display:none"/><line class="sst-mx2" x1="17" y1="9" x2="23" y2="15" style="display:none"/></svg></button>' +
+        (capAnyReelHasCaptions
+          ? '<button class="sst-cc-btn" aria-label="Captions" aria-pressed="false">CC</button>' +
+            '<div class="sst-lang-menu" role="menu"></div>' +
+            '<div class="sst-cap-overlay" aria-live="polite"></div>'
+          : '') +
         '<div class="sst-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="sst-progress-track"></div><div class="sst-progress-fill"></div><div class="sst-progress-thumb"></div></div>' +
         '<div class="sst-time-counter">0:00 / 0:00</div>' +
       '</div>' +
@@ -573,6 +685,97 @@
   video.addEventListener("error",       hideLoading);
   var speedEl  = overlay.querySelector(".sst-speed");
   var muteBtn  = overlay.querySelector(".sst-mute-btn");
+  var ccBtn      = overlay.querySelector(".sst-cc-btn");      // null if no captions on any reel
+  var ccMenu     = overlay.querySelector(".sst-lang-menu");
+  var capOverlay = overlay.querySelector(".sst-cap-overlay");
+
+  // ── Captions: render / menu / per-reel swap ───────
+  function capCurrentReelLangs() { return capLangsByReel[cur] || []; }
+  function capCurrentReelCues()  { return capCuesByReel[cur]  || {}; }
+  function capRender(force) {
+    if (!capOverlay) return;
+    var cues = capCurrentReelCues()[capSelected];
+    if (!capSelected || !cues) {
+      if (capOverlay.classList.contains("visible")) {
+        capOverlay.classList.remove("visible");
+        capOverlay.textContent = "";
+      }
+      return;
+    }
+    var cue = splCapActiveCue(cues, video.currentTime || 0);
+    if (cue) {
+      if (capOverlay.textContent !== cue.text || force) capOverlay.textContent = cue.text;
+      capOverlay.classList.add("visible");
+    } else if (capOverlay.classList.contains("visible")) {
+      capOverlay.classList.remove("visible");
+      capOverlay.textContent = "";
+    }
+  }
+  function capBuildMenu() {
+    if (!ccMenu) return;
+    var opts = [{ code: "", label: "Off" }];
+    capCurrentReelLangs().forEach(function(lang) {
+      opts.push({ code: lang, label: SPL_CAP_LANG_NAMES[lang] || lang.toUpperCase() });
+    });
+    ccMenu.innerHTML = opts.map(function(o) {
+      var selected = (o.code === (capSelected || ""));
+      return '<button class="sst-lang-opt' + (selected ? ' is-selected' : '') +
+        '" data-lang="' + o.code + '" role="menuitemradio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
+        o.label + '</button>';
+    }).join("");
+  }
+  function capSyncBtnState() {
+    if (!ccBtn) return;
+    // Hide the CC button entirely on reels that have no captions —
+    // the menu would just say "Off" by itself, which is confusing.
+    var hasAny = capCurrentReelLangs().length > 0;
+    if (!hasAny) { ccBtn.classList.remove("visible"); ccBtn.classList.remove("is-active"); return; }
+    ccBtn.classList.add("visible");
+    if (capSelected && capCurrentReelCues()[capSelected]) {
+      ccBtn.classList.add("is-active"); ccBtn.setAttribute("aria-pressed", "true");
+    } else {
+      ccBtn.classList.remove("is-active"); ccBtn.setAttribute("aria-pressed", "false");
+    }
+  }
+  function capSelect(lang) {
+    capSelected = lang || null;
+    splCapSaveLang(capSelected || "off");
+    capBuildMenu();
+    capSyncBtnState();
+    capRender(true);
+  }
+  // Called from playIndex on every reel change so the menu reflects
+  // the new reel's available languages and the overlay clears any
+  // stale text from the previous reel.
+  function capOnReelChange() {
+    if (capOverlay) { capOverlay.classList.remove("visible"); capOverlay.textContent = ""; }
+    if (ccMenu) ccMenu.classList.remove("visible");
+    capBuildMenu();
+    capSyncBtnState();
+  }
+  if (ccBtn) {
+    ccBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      ccMenu.classList.toggle("visible");
+    });
+    ccMenu.addEventListener("click", function(e) {
+      e.stopPropagation();
+      var btn = e.target.closest && e.target.closest(".sst-lang-opt");
+      if (!btn) return;
+      capSelect(btn.getAttribute("data-lang") || null);
+      ccMenu.classList.remove("visible");
+    });
+    // Click anywhere else on the stage closes the menu.
+    overlay.addEventListener("click", function(e) {
+      if (!ccMenu.classList.contains("visible")) return;
+      if (e.target.closest && (e.target.closest(".sst-cc-btn") || e.target.closest(".sst-lang-menu"))) return;
+      ccMenu.classList.remove("visible");
+    });
+  }
+  if (capOverlay) {
+    video.addEventListener("timeupdate", function() { capRender(false); });
+    video.addEventListener("seeked",     function() { capRender(true);  });
+  }
   var progBar  = overlay.querySelector(".sst-progress");
   var progFill = overlay.querySelector(".sst-progress-fill");
   var progThumb= overlay.querySelector(".sst-progress-thumb");
@@ -623,6 +826,10 @@
     }
     var reel = reels[cur];
     titleEl.textContent = reel.videoTitle || reel.label || "";
+    // Captions: swap the menu + clear stale overlay text. capSelected
+    // persists across reels; capRender will silently no-op if this
+    // reel has no VTT for the selected language.
+    if (typeof capOnReelChange === "function") capOnReelChange();
     // a11y: announce reel change to screen readers via the live region.
     var liveEl = overlay.querySelector(".sst-live");
     if (liveEl) {
