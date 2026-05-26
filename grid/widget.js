@@ -1251,10 +1251,17 @@
   // Both scales bumped 20% over their previous values.
   // Desktop still ends up ~20% larger than mobile because we scaled
   // both by the same factor.
-  var POPOUT_SCALE_MOBILE  = 2.04;
-  var POPOUT_SCALE_DESKTOP = 2.45;
+  var POPOUT_SCALE_MOBILE          = 2.04;
+  var POPOUT_SCALE_DESKTOP         = 2.45;
+  // When the grid is at full width (shrinkDesktop NOT checked), the
+  // cards are already larger, so 2.45x scale produces a popout that
+  // feels too big. Shrink the popout 15% in that case. When the grid
+  // is in shrink mode (75% width, smaller cards), keep the full 2.45x
+  // so the popout reads at a similar absolute size.
+  var POPOUT_SCALE_DESKTOP_FULL    = 2.08;  // 2.45 * 0.85
   function currentPopoutScale() {
-    return isMobileLayout() ? POPOUT_SCALE_MOBILE : POPOUT_SCALE_DESKTOP;
+    if (isMobileLayout()) return POPOUT_SCALE_MOBILE;
+    return shrinkDesktop ? POPOUT_SCALE_DESKTOP : POPOUT_SCALE_DESKTOP_FULL;
   }
   var backdrop = document.createElement("div");
   backdrop.className = "sgr-popout-backdrop";
