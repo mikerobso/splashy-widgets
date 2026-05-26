@@ -283,7 +283,7 @@
       // centered, with proportionally tighter gap + padding. Cards are
       // 1fr columns so they shrink with the container; aspect-ratio:9/16
       // keeps the vertical proportion intact.
-      "@media(min-width:768px){.sgr-widget--shrink{max-width:70%;margin-left:auto;margin-right:auto;padding:13px 11px}.sgr-widget--shrink .sgr-grid{gap:10px}}",
+      "@media(min-width:768px){.sgr-widget--shrink{max-width:75%;margin-left:auto;margin-right:auto;padding:14px 12px}.sgr-widget--shrink .sgr-grid{gap:11px}}",
       // Page indicator dots (mobile only).
       // Page dots — same dimensions + behavior as the infinite/stories
       // widget dots so accessibility is consistent across all widgets:
