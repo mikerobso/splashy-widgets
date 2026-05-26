@@ -668,11 +668,13 @@
     if (!c.video) return;
     c.el.addEventListener("mouseenter", function () {
       if (isMobileLayout()) return;
+      if (poppedCard) return;     // popout owns the playback while open
       c.hovered = true;
       startCardPlay(c);
     });
     c.el.addEventListener("mouseleave", function () {
       if (isMobileLayout()) return;
+      if (poppedCard) return;     // never tear down a popped card on mouseleave
       c.hovered = false;
       // If a lane is currently on this card, don't tear it down —
       // mouseleave would silently stop the lane's video.
