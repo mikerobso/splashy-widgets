@@ -1294,13 +1294,28 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
-    // HLS quality bump for the popped card. hls.js can't auto-detect
-    // the popout's larger render size (CSS transform doesn't change
-    // measured dimensions), so we explicitly lift the autoLevelCapping
-    // so the player can pick the highest available variant. Restored
-    // on closePopout.
+    // HLS popout setup. Two things going wrong without intervention:
+    //   1. Chrome + hls.js: reparenting the <video> to document.body
+    //      disturbs the MediaSource binding and the video freezes on
+    //      its last frame. Recovery: explicit pause -> seek-nudge ->
+    //      play sequence to force the decoder back to life.
+    //   2. autoLevelCapping was being lifted immediately, triggering
+    //      an in-flight variant switch on top of the already-disturbed
+    //      buffer. Delay it 300ms so the player is stable first;
+    //      the small quality-bump latency is invisible against the
+    //      popout animation.
     if (c.usingHls && c.hlsInstance) {
-      try { c.hlsInstance.autoLevelCapping = -1; } catch (e) {}
+      var hlsInst = c.hlsInstance;
+      try { c.video.pause(); } catch (e) {}
+      try {
+        // Nudge currentTime to force the decoder to re-acquire frames.
+        var t = c.video.currentTime || 0;
+        c.video.currentTime = t;
+      } catch (e) {}
+      setTimeout(function () {
+        if (poppedCard !== c) return;
+        try { hlsInst.autoLevelCapping = -1; } catch (e) {}
+      }, 300);
     }
 
     // Quality swap: if the library has a separate full-res URL, swap
@@ -1332,6 +1347,26 @@
         c.video.muted = true; syncCardMuteIcon(c);
         var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
       });
+      // HLS reparenting safety net: if the video is paused or has not
+      // made progress 600ms after popout open, force a clean restart.
+      // Covers the "frozen on a frame, no buffer event" case that
+      // happens when Chrome's MediaSource gets disturbed by the DOM
+      // move and play() didn't fully kick in.
+      if (c.usingHls) {
+        var checkTime = c.video.currentTime || 0;
+        setTimeout(function () {
+          if (poppedCard !== c) return;
+          var stillStuck = c.video.paused ||
+                           (c.video.currentTime === checkTime && c.video.readyState < 3);
+          if (!stillStuck) return;
+          try {
+            // Nudge: tiny seek to wake the decoder, then play again.
+            c.video.currentTime = (c.video.currentTime || 0) + 0.01;
+          } catch (e) {}
+          var p3 = c.video.play();
+          if (p3 && p3.catch) p3.catch(function () {});
+        }, 600);
+      }
     }
 
     document.body.style.overflow = "hidden";
