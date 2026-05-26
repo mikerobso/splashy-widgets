@@ -550,7 +550,14 @@
     });
   });
 
-  function startCardPlay(card) {
+  // viaAutoplay = true when this start is part of an autoplay lane
+  // (initial 4-lane play, lane rotation on 'ended', or the mobile
+  // single lane). Those plays are passive — they happen when the
+  // grid scrolls into view, without any user action — so we skip
+  // both the qualified-play counter and the watch-time tracker.
+  // Hover/click paths leave viaAutoplay false so user-initiated
+  // playback still feeds analytics.
+  function startCardPlay(card, viaAutoplay) {
     if (!card.video) return;
     if (!card.el.classList.contains("is-playing")) {
       card.el.classList.add("is-playing");
@@ -558,8 +565,9 @@
       try { card.video.currentTime = 0; } catch (e) {}
       var p = card.video.play();
       if (p && p.catch) p.catch(function () { /* autoplay blocked; silent */ });
-      // Splshy analytics: "qualified play" after 3s.
-      if (analyticsOn && !card.playedFor3s && card.reel) {
+      // Splshy analytics: "qualified play" after 3s, only for
+      // user-initiated playback.
+      if (!viaAutoplay && analyticsOn && !card.playedFor3s && card.reel) {
         if (card.watchTimer) clearTimeout(card.watchTimer);
         card.watchTimer = setTimeout(function () {
           if (!card.el.classList.contains("is-playing")) return;
@@ -567,7 +575,10 @@
           trackPlay(reelIdFor(card.reel.videoUrl));
         }, 3000);
       }
-      if (card.watchStart == null) card.watchStart = Date.now();
+      // Only start the watch-time clock for user-initiated plays;
+      // autoplay leaves watchStart null so stopCardPlay skips the
+      // trackWatch call.
+      if (!viaAutoplay && card.watchStart == null) card.watchStart = Date.now();
     }
   }
   function stopCardPlay(card) {
@@ -617,7 +628,7 @@
     lanes.forEach(function (lane) {
       if (laneIdxHidden(lane.current)) return;
       var c = cards[lane.current];
-      if (c && c.video) startCardPlay(c);
+      if (c && c.video) startCardPlay(c, true);
     });
   }
   function stopAllLanes() {
@@ -647,7 +658,7 @@
       }
       lanes[li].current = next;
       var newCard = cards[next];
-      if (newCard && newCard.video) startCardPlay(newCard);
+      if (newCard && newCard.video) startCardPlay(newCard, true);
       return;
     }
   }
@@ -703,7 +714,7 @@
     cards.forEach(function (other) {
       if (other && other.video && other !== card) stopCardPlay(other);
     });
-    startCardPlay(card);
+    startCardPlay(card, true);
   }
   function onMobileLaneCardEnded(card) {
     if (!mobileLaneActive) return;
