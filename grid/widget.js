@@ -242,7 +242,7 @@
       ".sgr-card{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent}",
       ".sgr-poster{position:absolute;inset:0;background-size:cover;background-position:center;background-color:#0f0f0f}",
       ".sgr-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s}",
-      ".sgr-card.is-playing .sgr-video{opacity:1}",
+      ".sgr-card.is-playing .sgr-video,.sgr-card.sgr-popped--open .sgr-video{opacity:1}",
       // Soft hover lift on desktop. Touch devices skip the scale so taps
       // don't feel laggy.
       "@media(hover:hover){.sgr-card{transition:transform .18s,box-shadow .18s}.sgr-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.32)}}",
