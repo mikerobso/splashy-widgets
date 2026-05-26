@@ -1263,34 +1263,50 @@
     c.el.style.transformOrigin = "top left";
     c.el.style.transform = "translate(0px,0px) scale(1)";
 
-    // VisitRaleigh (and many other host pages) has ancestor elements
-    // with transform/will-change that trap position:fixed inside
-    // them — without reparenting, the popped card gets clipped or
-    // ends up in the wrong stacking context (backdrop blur covers
-    // the video, or the card disappears on iOS). So we DO reparent.
+    // VisitRaleigh has ancestor elements with transform/will-change
+    // that trap position:fixed inside them, so we MUST reparent to
+    // body for the popout to render correctly.
     //
-    // For hls.js, the move disturbs the MediaSource binding. The
-    // recovery sequence: detach -> video.load() to fully reset the
-    // element -> move -> attachMedia again. video.load() is the key
-    // bit that was missing before; without it, attachMedia inherited
-    // a partially-torn-down MediaSource.
-    var hlsWasDetached = false;
+    // For hls.js + DOM reparent: even with detachMedia + video.load()
+    // + attachMedia the MediaSource is unreliable in Chrome (~50%
+    // freeze rate). Switch strategy: HLS is great for the grid
+    // (adaptive bitrate, multiple simultaneous streams), but for
+    // the SINGLE-stream popout it's not worth fighting the issue.
+    // Tear down hls.js entirely and play the MP4 URL instead — one
+    // stream, predictable playback. Restored to HLS in closePopout.
+    var savedTime = 0;
+    var popoutSwappedFromHls = false;
     if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
-      try { c.hlsInstance.detachMedia(); hlsWasDetached = true; } catch (e) {}
+      savedTime = c.video.currentTime || 0;
+      try { c.hlsInstance.destroy(); } catch (e) {}
+      c.hlsInstance = null;
+      c.usingHls   = false;
+      c.hlsKind    = null;
+      popoutSwappedFromHls = true;
     }
     try { c.video.pause(); } catch (e) {}
-    if (hlsWasDetached) {
-      // Fully reset the <video> element so the post-reparent attach
-      // doesn't inherit any stale MediaSource state.
+    if (popoutSwappedFromHls) {
+      // Swap to MP4. Prefer the full-res URL for the popped view;
+      // fall back to SD URL if HD isn't in the library.
+      var mp4Url = c.reel.videoUrl || c.reel.videoUrlSd;
+      if (mp4Url) {
+        c.video.src = mp4Url;
+        // Seek back to where we were once metadata loads. Brief
+        // ~200-500ms reload but reliable.
+        var onMeta = function () {
+          c.video.removeEventListener("loadedmetadata", onMeta);
+          try { c.video.currentTime = savedTime; } catch (e) {}
+        };
+        c.video.addEventListener("loadedmetadata", onMeta);
+      }
+      c.popoutOriginallyHls = true;  // remembered for restore on close
+    } else {
+      // Native HLS (Safari) or pure MP4 path — no swap needed.
       try { c.video.load(); } catch (e) {}
     }
 
     document.body.appendChild(c.el);
     c.el.offsetHeight;        // force reflow so the next change animates
-
-    if (hlsWasDetached) {
-      try { c.hlsInstance.attachMedia(c.video); } catch (e) {}
-    }
 
     // Animate: backdrop fade-in, card translate + scale.
     backdrop.classList.add("open");
@@ -1321,86 +1337,31 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
-    // HLS quality bump: 300ms after popout opens (animation has
-    // settled, hls.js has re-attached after the DOM move), lift the
-    // autoLevelCapping so the player can pick higher variants for the
-    // larger render. Restored on closePopout.
-    if (c.usingHls && c.hlsInstance) {
-      var hlsInst = c.hlsInstance;
+    // Single play path. Whether the card is now on MP4 (via the
+    // HLS->MP4 swap above), native HLS, or pure MP4 from init, the
+    // video is paused with the right src — call play() with autoplay-
+    // fallback to muted if the browser blocks audio.
+    function popPlay() {
+      var p = c.video.play();
+      if (p && p.catch) p.catch(function () {
+        c.video.muted = true; syncCardMuteIcon(c);
+        var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
+      });
+    }
+    if (popoutSwappedFromHls) {
+      // Wait for the new MP4 src to load metadata before playing.
+      var onPlayMeta = function () {
+        c.video.removeEventListener("loadedmetadata", onPlayMeta);
+        popPlay();
+      };
+      c.video.addEventListener("loadedmetadata", onPlayMeta);
+      // Safety: kick play() at 800ms even if loadedmetadata is late.
       setTimeout(function () {
         if (poppedCard !== c) return;
-        try { hlsInst.autoLevelCapping = -1; } catch (e) {}
-      }, 300);
-    }
-
-    // Quality swap: if the library has a separate full-res URL, swap
-    // to it now for higher quality during focused viewing. Preserve
-    // currentTime via a one-shot loadedmetadata listener so the user
-    // doesn't lose their place. If no SD variant exists or src is
-    // already at the high-res URL, this is a no-op. Skipped for HLS
-    // cards — capLevelToPlayerSize handles quality automatically when
-    // the video element scales up via the popout transform.
-    var hasSdSwap = !c.usingHls && c.reel.videoUrlSd && c.reel.videoUrl &&
-                    c.reel.videoUrlSd !== c.reel.videoUrl;
-    if (hasSdSwap && c.video.src !== c.reel.videoUrl) {
-      var resumeTime = c.video.currentTime || 0;
-      c.video.src = c.reel.videoUrl;
-      var onMeta = function () {
-        c.video.removeEventListener("loadedmetadata", onMeta);
-        try { c.video.currentTime = resumeTime; } catch (e) {}
-        var pp = c.video.play();
-        if (pp && pp.catch) pp.catch(function () {
-          c.video.muted = true; syncCardMuteIcon(c);
-          var pp2 = c.video.play(); if (pp2 && pp2.catch) pp2.catch(function () {});
-        });
-      };
-      c.video.addEventListener("loadedmetadata", onMeta);
+        if (c.video.paused) popPlay();
+      }, 800);
     } else {
-      // Play with autoplay-fallback to muted if the browser blocks
-      // audio without an explicit gesture chain.
-      function popPlay() {
-        var p = c.video.play();
-        if (p && p.catch) p.catch(function () {
-          c.video.muted = true; syncCardMuteIcon(c);
-          var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
-        });
-      }
-      if (hlsWasDetached) {
-        // hls.js was detached around the reparent — wait for its
-        // MEDIA_ATTACHED event before play(), so the player has fully
-        // rebound to the moved <video> element. Belt-and-suspenders
-        // 800ms timeout in case the event never fires.
-        var attachedFired = false;
-        var onAttached = function () {
-          if (attachedFired) return;
-          attachedFired = true;
-          try { c.hlsInstance.off("hlsMediaAttached", onAttached); } catch (e) {}
-          if (poppedCard !== c) return;
-          popPlay();
-        };
-        try { c.hlsInstance.on("hlsMediaAttached", onAttached); } catch (e) {}
-        setTimeout(onAttached, 800);
-      } else {
-        popPlay();
-      }
-      // Last-resort recovery: if the video is still paused or not
-      // advancing 900ms after popout open, force a tiny seek + retry.
-      // Covers the rare case where MEDIA_ATTACHED fired but the
-      // decoder still didn't pick up.
-      if (c.usingHls) {
-        var checkTime = c.video.currentTime || 0;
-        setTimeout(function () {
-          if (poppedCard !== c) return;
-          var stillStuck = c.video.paused ||
-                           (c.video.currentTime === checkTime && c.video.readyState < 3);
-          if (!stillStuck) return;
-          try {
-            c.video.currentTime = (c.video.currentTime || 0) + 0.01;
-          } catch (e) {}
-          var p3 = c.video.play();
-          if (p3 && p3.catch) p3.catch(function () {});
-        }, 900);
-      }
+      popPlay();
     }
 
     document.body.style.overflow = "hidden";
@@ -1436,23 +1397,22 @@
     c.el.classList.remove("is-playing");
     if (c.icon) c.icon.classList.remove("hidden");
 
-    // Quality swap-back (MP4 only): if we upgraded to the full-res URL
-    // on popout open, swap back to the SD variant so any subsequent
-    // autoplay-lane rotation onto this card streams the low-res file
-    // again.
-    if (!c.usingHls &&
-        c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
-        c.video.src !== c.reel.videoUrlSd) {
+    // Restore the original playback source for grid use. Three cases:
+    //   - Card was HLS originally: tear down the popout's MP4, build a
+    //     fresh hls.js instance, re-attach. Card streams adaptive
+    //     bitrate in the grid again.
+    //   - Card was MP4 with SD/HD split: swap back to SD URL so any
+    //     subsequent lane rotation streams low-res.
+    //   - Pure MP4 (no HLS, no SD): nothing to swap.
+    if (c.popoutOriginallyHls && c.reel.videoUrlHls) {
+      c.popoutOriginallyHls = false;
+      // Tear down whatever the popout was using and rebuild HLS.
+      try { c.video.removeAttribute("src"); c.video.load(); } catch (e) {}
+      attachVideoSource(c.video, c.reel, c);
+    } else if (!c.usingHls &&
+               c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
+               c.video.src !== c.reel.videoUrlSd) {
       c.video.src = c.reel.videoUrlSd;
-    }
-    // HLS quality re-cap: restore the grid-card autoLevelCapping that
-    // was set when the manifest first parsed, so any subsequent lane
-    // rotation onto this card streams ~540p again instead of staying
-    // at the higher quality bump.
-    if (c.usingHls && c.hlsInstance) {
-      try {
-        c.hlsInstance.autoLevelCapping = (typeof c.hlsGridCap === "number") ? c.hlsGridCap : -1;
-      } catch (e) {}
     }
 
     setTimeout(function () {
