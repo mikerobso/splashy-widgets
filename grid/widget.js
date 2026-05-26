@@ -288,8 +288,11 @@
       ".sgr-card.sgr-popped--open .sgr-pop-cc-btn.has-langs{display:flex}",
       ".sgr-card.sgr-popped--open .sgr-pop-title{display:block}",
       ".sgr-card.sgr-popped--open .sgr-pop-prog{display:flex}",
-      // Hide play-icon while popped (the card is now the active player).
+      // Hide play-icon while popped & playing. While popped & paused
+      // (.sgr-paused), show it as a "tap to resume" cue.
       ".sgr-card.sgr-popped--open .sgr-play-icon{display:none}",
+      ".sgr-card.sgr-popped--open.sgr-paused .sgr-play-icon{display:flex;opacity:1}",
+      ".sgr-card.sgr-popped--open.sgr-paused .sgr-play-circle{background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.7)}",
       // Close button — top-right corner. Strong reset so host-page
       // CSS can't push the icon off-center.
       ".sgr-close-btn{position:absolute;top:6px;right:6px;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;border-radius:50%!important;background:rgba(0,0,0,.6)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;font-size:0;line-height:0;box-shadow:none!important}",
@@ -318,9 +321,9 @@
       // Caption overlay (only visible while popped AND a language is
       // selected — class .visible is toggled by capRender). Strong
       // !important so host-page CSS can't inflate the font.
-      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:9px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:3px 7px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:3px 7px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
-      "@media(max-width:767px){.sgr-cap-overlay{font-size:9.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
+      "@media(max-width:767px){.sgr-cap-overlay{font-size:8.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
       // Press-and-hold 2x speed indicator — same style as the other
       // widgets. Shown while .visible, hidden otherwise.
       ".sgr-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55)!important;color:#fff!important;font-size:11px!important;font-weight:700!important;line-height:1!important;padding:5px 10px!important;border-radius:99px!important;border:1.5px solid rgba(255,255,255,.3)!important;z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;font-family:system-ui,-apple-system,sans-serif!important}",
@@ -806,6 +809,7 @@
     var spd = c.el.querySelector(".sgr-speed");
     if (spd) spd.classList.remove("visible");
     try { c.video.playbackRate = 1; } catch (e) {}
+    c.el.classList.remove("sgr-paused");
 
     // Pause the popped card now; reset state via stopCardPlay.
     try { c.video.pause(); } catch (e) {}
@@ -842,13 +846,36 @@
   cards.forEach(function (c) {
     if (!c.video || !c.reel) return;
 
-    // Card click → pop out (unless already popped).
+    // Card click → pop out (unless already popped). When already
+    // popped, clicking the video area toggles play/pause; clicks on
+    // controls are excluded so they keep their own behavior.
     c.el.addEventListener("click", function (e) {
-      // Swallow the trailing click after a press-and-hold release.
       if (c._swallowClick && c._swallowClick()) { e.stopPropagation(); return; }
-      if (poppedCard === c) return;
+      if (poppedCard === c) {
+        if (e.target.closest && (
+              e.target.closest(".sgr-close-btn") ||
+              e.target.closest(".sgr-pop-mute-btn") ||
+              e.target.closest(".sgr-pop-cc-btn") ||
+              e.target.closest(".sgr-lang-menu") ||
+              e.target.closest(".sgr-pop-prog"))) return;
+        if (c.video.paused) {
+          var pp = c.video.play();
+          if (pp && pp.catch) pp.catch(function () {});
+        } else {
+          c.video.pause();
+        }
+        return;
+      }
       if (e.target.closest && e.target.closest(".sgr-lang-menu")) return;
       openPopout(c);
+    });
+    // Reflect paused/playing state on the card so the play-circle cue
+    // shows whenever the video is paused while popped.
+    c.video.addEventListener("pause", function () {
+      if (poppedCard === c) c.el.classList.add("sgr-paused");
+    });
+    c.video.addEventListener("play", function () {
+      c.el.classList.remove("sgr-paused");
     });
     c.el.setAttribute("tabindex", "0");
     c.el.setAttribute("role", "button");
