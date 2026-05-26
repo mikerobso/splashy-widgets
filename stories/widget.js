@@ -450,7 +450,7 @@
       ".sst-lang-opt:hover{background:rgba(255,255,255,.08)}",
       ".sst-lang-opt.is-selected{background:#fff;color:#000}",
       ".sst-lang-opt.is-selected:hover{background:#f0f0f0}",
-      ".sst-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sst-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sst-cap-overlay.visible{display:flex}",
       "@media(max-width:767px){.sst-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       ".sst-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;box-sizing:border-box}",

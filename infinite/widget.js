@@ -532,7 +532,7 @@
       // which fully covers the burned-in band on every VisitRaleigh
       // video the team showed me. Background is near-opaque navy so
       // the English underneath can't bleed through.
-      ".sif-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sif-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sif-cap-overlay.visible{display:flex}",
       "@media(max-width:767px){.sif-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. Default (card

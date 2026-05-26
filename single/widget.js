@@ -407,7 +407,7 @@
       ".srv-lang-opt.is-selected{background:#fff;color:#000}",
       ".srv-lang-opt.is-selected:hover{background:#f0f0f0}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-lang-menu{bottom:142px}}",
-      ".srv-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".srv-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".srv-cap-overlay.visible{display:flex}",
       "@media(max-width:767px){.srv-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. See infinite/widget.js
