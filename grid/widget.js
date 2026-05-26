@@ -292,22 +292,22 @@
       ".sgr-card.sgr-popped--open .sgr-play-icon{display:none}",
       // Close button — top-right corner. Strong reset so host-page
       // CSS can't push the icon off-center.
-      ".sgr-close-btn{position:absolute;top:8px;right:8px;width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;border-radius:50%!important;background:rgba(0,0,0,.6)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;font-size:0;line-height:0;box-shadow:none!important}",
+      ".sgr-close-btn{position:absolute;top:6px;right:6px;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;border-radius:50%!important;background:rgba(0,0,0,.6)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;font-size:0;line-height:0;box-shadow:none!important}",
       ".sgr-close-btn:hover{background:rgba(0,0,0,.85)!important}",
-      ".sgr-close-btn svg{width:13px;height:13px;display:block}",
+      ".sgr-close-btn svg{width:10px!important;height:10px!important;display:block}",
       // Mute button — bottom-right column on popped card.
-      ".sgr-pop-mute-btn{position:absolute;bottom:54px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0}",
-      ".sgr-pop-mute-btn:hover{background:rgba(0,0,0,.8)}",
-      ".sgr-pop-mute-btn svg{width:14px;height:14px}",
+      ".sgr-pop-mute-btn{position:absolute;bottom:18px;right:8px;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;border-radius:50%!important;background:rgba(0,0,0,.55)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;box-shadow:none!important}",
+      ".sgr-pop-mute-btn:hover{background:rgba(0,0,0,.8)!important}",
+      ".sgr-pop-mute-btn svg{width:11px!important;height:11px!important;display:block}",
       // CC button — above mute.
-      ".sgr-pop-cc-btn{position:absolute;bottom:90px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.25);color:#fff;font-weight:700;font-size:10px;letter-spacing:.04em;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0}",
-      ".sgr-pop-cc-btn:hover{background:rgba(0,0,0,.8)}",
-      ".sgr-pop-cc-btn.is-active{background:#fff;color:#000;border-color:rgba(0,0,0,.35)}",
-      ".sgr-pop-cc-btn.is-active:hover{background:#f0f0f0}",
+      ".sgr-pop-cc-btn{position:absolute;bottom:46px;right:8px;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;border-radius:50%!important;background:rgba(0,0,0,.55)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff!important;font-family:system-ui,-apple-system,sans-serif!important;font-weight:700!important;font-size:7.5px!important;line-height:1!important;letter-spacing:.04em!important;cursor:pointer;align-items:center;justify-content:center;z-index:14;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;box-shadow:none!important}",
+      ".sgr-pop-cc-btn:hover{background:rgba(0,0,0,.8)!important}",
+      ".sgr-pop-cc-btn.is-active{background:#fff!important;color:#000!important;border-color:rgba(0,0,0,.35)!important}",
+      ".sgr-pop-cc-btn.is-active:hover{background:#f0f0f0!important}",
       // Language menu — pops left of the CC button when open.
       // max-height + overflow-y so a 5-item menu stays inside the
       // small popped card without overflowing top/bottom.
-      ".sgr-lang-menu{position:absolute;bottom:88px;right:46px;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px;z-index:15;min-width:78px;max-height:65%;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".sgr-lang-menu{position:absolute;bottom:44px;right:36px;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px;z-index:15;min-width:78px;max-height:65%;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
       ".sgr-card.sgr-popped--open .sgr-lang-menu.visible{display:flex}",
       // Strong reset on the menu buttons so host-page CSS (typical
       // .button or button{} rules on the embed site) can't blow up
@@ -326,8 +326,8 @@
       // ellipsis so a long title can't crash into the caption band.
       // !important on font/line-height so host-page typography rules
       // (often setting h-tag styles or .title font-size) can't bloat it.
-      ".sgr-pop-title{position:absolute;left:10px;right:48px;bottom:20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:11px!important;font-weight:700!important;line-height:1.25!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none!important}",
-      "@media(max-width:767px){.sgr-pop-title{font-size:10px!important;bottom:18px}}",
+      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:8px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:6.5px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none!important}",
+      "@media(max-width:767px){.sgr-pop-title{font-size:6px!important;bottom:6px}}",
       // Progress bar at very bottom of popped card.
       ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
       ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
