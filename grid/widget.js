@@ -66,8 +66,13 @@
     ? cfg.autoplayIndices
     : [0, 3, 7, 11];
   if (compact6) {
-    // Only cards 0-5 render in compact mode — drop lane starts past idx 5.
-    autoplayIndices = autoplayIndices.filter(function (i) { return i < 6; });
+    // Compact mode only renders 6 cards. Lane starts default to reels
+    // 1 and 5 (idx 0 and 4) so the two playing videos sit diagonally
+    // across the 3x2 grid instead of stacked on top of each other.
+    // cfg.autoplayIndices overrides if set.
+    autoplayIndices = Array.isArray(cfg.autoplayIndices)
+      ? cfg.autoplayIndices.filter(function (i) { return i < 6; })
+      : [0, 4];
   }
   var autoplayMap = {};
   autoplayIndices.forEach(function (i) { autoplayMap[i] = true; });
