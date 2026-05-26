@@ -298,14 +298,14 @@
       // 1fr columns so they shrink with the container; aspect-ratio:9/16
       // keeps the vertical proportion intact.
       "@media(min-width:768px){.sgr-widget--shrink{max-width:75%;margin-left:auto;margin-right:auto;padding:14px 12px}.sgr-widget--shrink .sgr-grid{gap:11px}}",
-      // compact6 option: only the first 6 cards render, in a 3x2 grid
-      // on desktop and a 2x3 grid on mobile (no scroll/swipe). Used by
-      // the Studio's side-text Grid variant. Hides cards 6-11 and the
-      // page-indicator dots entirely.
-      ".sgr-widget--compact .sgr-card[data-idx='6'],.sgr-widget--compact .sgr-card[data-idx='7'],.sgr-widget--compact .sgr-card[data-idx='8'],.sgr-widget--compact .sgr-card[data-idx='9'],.sgr-widget--compact .sgr-card[data-idx='10'],.sgr-widget--compact .sgr-card[data-idx='11']{display:none!important}",
-      ".sgr-widget--compact .sgr-dots{display:none!important}",
+      // compact6 option: only 6 cards exist. Desktop renders them as a
+      // single 3x2 grid (override grid-template-columns to 3). Mobile
+      // uses the default swipeable paging — each .sgr-page contains
+      // just 2 cards, so each page shows 2 reels side-by-side and the
+      // user swipes through 3 pages. Used by the Studio side-text
+      // Grid variant. Dots stay visible on mobile (3 pages = 3 dots),
+      // hidden on desktop by the existing .sgr-dots rule.
       "@media(min-width:768px){.sgr-widget--compact .sgr-grid{grid-template-columns:repeat(3,1fr);gap:10px}.sgr-widget--compact{padding:14px 12px}}",
-      "@media(max-width:767px){.sgr-widget--compact .sgr-grid{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:10px!important;overflow-x:visible!important;padding-bottom:0!important}.sgr-widget--compact .sgr-page{display:contents!important;flex:none!important;padding:0!important}}",
       // Page indicator dots (mobile only).
       // Page dots — same dimensions + behavior as the infinite/stories
       // widget dots so accessibility is consistent across all widgets:
@@ -410,14 +410,17 @@
   if (container.dataset.sgrInit === "1") return; // idempotent
   container.dataset.sgrInit = "1";
 
-  // Build pages: 3 pages × 4 cards. On desktop, .sgr-page has
-  // display:contents so the cards land in the single 6×2 grid; on
-  // mobile each page becomes a snap-target 2×2 grid.
+  // Build pages. Default: 3 pages × 4 cards (mobile shows 2x2 per page).
+  // compact6: 3 pages × 2 cards (mobile shows 2 side-by-side per page,
+  // user swipes through 3 pages of 2). Desktop in either mode uses
+  // display:contents on .sgr-page so all cards flow into the single
+  // top-level grid.
+  var slotsPerPage = compact6 ? 2 : 4;
   var pagesHTML = "";
   for (var pageIdx = 0; pageIdx < 3; pageIdx++) {
     var cardsHTML = "";
-    for (var slot = 0; slot < 4; slot++) {
-      var reelIdx = pageIdx * 4 + slot;
+    for (var slot = 0; slot < slotsPerPage; slot++) {
+      var reelIdx = pageIdx * slotsPerPage + slot;
       cardsHTML += '<div class="sgr-card" data-idx="' + reelIdx + '"></div>';
     }
     pagesHTML += '<div class="sgr-page">' + cardsHTML + '</div>';
@@ -609,10 +612,7 @@
   });
 
   function startAllLanes() {
-    // compact6 uses desktop-style multi-lane on mobile too, since the
-    // grid isn't paginated (no concept of a "current page") and the
-    // mobile single-lane behavior would only rotate between 2 cards.
-    if (lanesActive || (isMobileLayout() && !compact6) || !lanes.length) return;
+    if (lanesActive || isMobileLayout() || !lanes.length) return;
     lanesActive = true;
     lanes.forEach(function (lane) {
       if (laneIdxHidden(lane.current)) return;
@@ -659,12 +659,16 @@
   });
 
   // ── Mobile autoplay lane (single rotating slot) ────
-  // On mobile, ONE lane plays at a time. It alternates between the
-  // top-right (slot 1) and bottom-left (slot 2) of the CURRENTLY
-  // VISIBLE 2×2 page. When the user swipes to a new page the lane
-  // resets to that page's top-right.
+  // On mobile, ONE lane plays at a time. Per-mode slot setup:
+  //   - 12-card (4 cards per page, 2x2): slot 1 = top-right, 2 =
+  //     bottom-left. Alternates 1 <-> 2 within the visible page.
+  //   - compact6 (2 cards per page, side-by-side): slot 1 = right,
+  //     0 = left. Alternates 1 <-> 0 within the visible page.
+  // In both modes the lane resets to slot 1 (right) on swipe.
   var mobileLaneActive = false;
-  var mobileLaneSlot   = 1;     // 1 = top-right, 2 = bottom-left within the page's 4 cards
+  var mobileSlotsPerPage = compact6 ? 2 : 4;
+  var mobileLaneAltSlot  = compact6 ? 0 : 2;
+  var mobileLaneSlot     = 1;
   function mobileVisiblePage() {
     if (!grid) return 0;
     var w = grid.clientWidth || 1;
@@ -672,11 +676,11 @@
   }
   function mobileLaneCard() {
     var page = mobileVisiblePage();
-    var idx  = page * 4 + mobileLaneSlot;
+    var idx  = page * mobileSlotsPerPage + mobileLaneSlot;
     var card = cards[idx];
     if (card && card.video) return card;
     // Slot empty? Try the OTHER slot on the same page.
-    var alt = page * 4 + (mobileLaneSlot === 1 ? 2 : 1);
+    var alt = page * mobileSlotsPerPage + (mobileLaneSlot === 1 ? mobileLaneAltSlot : 1);
     return cards[alt] && cards[alt].video ? cards[alt] : null;
   }
   function startMobileLane() {
@@ -704,8 +708,9 @@
   function onMobileLaneCardEnded(card) {
     if (!mobileLaneActive) return;
     stopCardPlay(card);
-    // Alternate slot: 1 ↔ 2 within the current page.
-    mobileLaneSlot = (mobileLaneSlot === 1 ? 2 : 1);
+    // Alternate within current page: 1 <-> altSlot (2 in 12-card mode,
+    // 0 in compact6 mode).
+    mobileLaneSlot = (mobileLaneSlot === 1 ? mobileLaneAltSlot : 1);
     playMobileLane();
   }
   // Attach 'ended' to every card for mobile-lane advance — desktop
@@ -723,8 +728,8 @@
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
       if (inViewport) {
-        if (isMobileLayout() && !compact6) startMobileLane();
-        else                                startAllLanes();
+        if (isMobileLayout()) startMobileLane();
+        else                  startAllLanes();
       } else {
         stopAllLanes();
         stopMobileLane();
@@ -947,7 +952,7 @@
       poppedCard = null;
       popBusy = false;
       // Resume the autoplay lanes if the grid is in viewport.
-      if (inViewport && !lanesActive && (!isMobileLayout() || compact6)) startAllLanes();
+      if (inViewport && !lanesActive && !isMobileLayout()) startAllLanes();
       if (mobileLaneActive) playMobileLane();
     }, 360);
   }
@@ -1246,7 +1251,7 @@
   // CSS handles the desktop ↔ mobile layout flip via media query.
   // Re-evaluate which lane variant should be running.
   window.addEventListener("resize", function () {
-    if (isMobileLayout() && !compact6) {
+    if (isMobileLayout()) {
       stopAllLanes();
       if (inViewport && !mobileLaneActive) startMobileLane();
     } else {
