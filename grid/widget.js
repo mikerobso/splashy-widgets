@@ -1263,31 +1263,23 @@
     c.el.style.transformOrigin = "top left";
     c.el.style.transform = "translate(0px,0px) scale(1)";
 
-    // hls.js + DOM reparent doesn't mix cleanly. Moving the <video>
-    // element while a MediaSource is attached frequently leaves the
-    // video frozen on the last frame in Chrome — the player's buffer
-    // is disturbed and there's no 'waiting' event to recover from.
-    // Proper fix per hls.js maintainers: detach BEFORE the move,
-    // re-attach AFTER, and wait for MEDIA_ATTACHED before resuming
-    // playback.
-    var hlsWasDetached = false;
-    if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
-      try { c.hlsInstance.detachMedia(); hlsWasDetached = true; } catch (e) {}
-    }
-    // Also pause everything-else (native HLS, MP4) so the move
-    // happens against a quiescent video — fewer race conditions.
-    try { c.video.pause(); } catch (e) {}
-
-    document.body.appendChild(c.el);
+    // No DOM reparent. The card stays in its grid slot in the DOM
+    // tree — position:fixed + z-index:100000 lifts it visually
+    // without disturbing the <video>/MediaSource binding. Avoids the
+    // hls.js freeze-on-frame bug in Chrome that even detachMedia
+    // + attachMedia couldn't reliably recover from. Trade-off: if a
+    // customer's host page has an ancestor with transform/filter/
+    // perspective/will-change, fixed positioning would be relative
+    // to that ancestor instead of the viewport (might clip the
+    // popout). VisitRaleigh's pages don't have that issue. If it
+    // breaks elsewhere, we can re-add reparenting behind a check.
     c.el.offsetHeight;        // force reflow so the next change animates
 
-    // Re-attach hls.js now that the element is in its final DOM
-    // location. hls.js will fire 'hlsMediaAttached' once it's ready
-    // — we wait for that before calling play() below.
-    if (hlsWasDetached) {
-      try { c.hlsInstance.attachMedia(c.video); } catch (e) {}
-    }
-    c._hlsReadyForPlay = !hlsWasDetached; // true if no detach happened
+    // Always pause briefly — gives the browser a clean state to
+    // transition from when play() is called after the popout
+    // animation kicks in.
+    try { c.video.pause(); } catch (e) {}
+    var hlsWasDetached = false;
 
     // Animate: backdrop fade-in, card translate + scale.
     backdrop.classList.add("open");
@@ -1460,7 +1452,13 @@
       c.el.style.left = c.el.style.top = "";
       c.el.style.width = c.el.style.height = "";
       if (poppedHold && poppedHold.parentNode) {
-        poppedHold.parentNode.insertBefore(c.el, poppedHold);
+        // No-reparent path: c.el is already in its grid slot, just
+        // adjacent to the placeholder. Reparent path (if ever
+        // re-enabled): c.el is in body and needs to be moved back.
+        // Defensive — works for both.
+        if (c.el.parentNode !== poppedHold.parentNode) {
+          poppedHold.parentNode.insertBefore(c.el, poppedHold);
+        }
         poppedHold.parentNode.removeChild(poppedHold);
       }
       poppedHold = null;
