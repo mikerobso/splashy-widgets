@@ -905,10 +905,34 @@
   // card is the currently-active chain card (in which case stopping
   // would silently kill the chain). Non-chain cards always stop on
   // mouseleave.
+  // Hover-preload helper. When the card has a separate full-res URL
+  // (videoUrlSd != videoUrl), warming the HTTP cache for the HD file
+  // on hover means the popout's src swap is instant when the user
+  // eventually clicks. Once-per-card flag avoids re-firing if the
+  // user mouseenters repeatedly. The hidden <video> is removed after
+  // 30s — the browser's HTTP cache holds the bytes from there on.
+  function preloadHd(card) {
+    if (card.hdPreloaded) return;
+    var r = card.reel;
+    if (!r || !r.videoUrlSd || !r.videoUrl || r.videoUrlSd === r.videoUrl) return;
+    card.hdPreloaded = true;
+    var pv = document.createElement("video");
+    pv.muted = true;
+    pv.playsInline = true;
+    pv.preload = "auto";
+    pv.style.cssText = "position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;left:-9999px!important;top:0";
+    pv.src = r.videoUrl;
+    document.body.appendChild(pv);
+    setTimeout(function () { try { pv.remove(); } catch (e) {} }, 30000);
+  }
+
   cards.forEach(function (c) {
     if (!c.video) return;
     c.el.addEventListener("mouseenter", function () {
       if (isMobileLayout()) return;
+      // Preload the HD URL regardless of poppedCard state — even if
+      // a popout is open, this primes the cache for the NEXT pop.
+      preloadHd(c);
       if (poppedCard) return;     // popout owns the playback while open
       c.hovered = true;
       startCardPlay(c);
