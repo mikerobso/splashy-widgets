@@ -326,6 +326,7 @@
       ".sgr-lang-opt{display:flex!important;align-items:center;padding:3px 7px!important;margin:0!important;background:transparent!important;border:0!important;outline:0!important;-webkit-appearance:none;appearance:none;color:#fff!important;font-family:system-ui,-apple-system,sans-serif!important;font-size:8.5px!important;font-weight:500!important;line-height:1.2!important;letter-spacing:0!important;cursor:pointer;border-radius:3px;text-align:left;width:100%;min-height:0!important;height:auto!important;text-transform:none!important;box-shadow:none!important}",
       ".sgr-lang-opt:hover{background:rgba(255,255,255,.08)!important}",
       ".sgr-lang-opt.is-selected{background:#fff!important;color:#000!important}",
+      "@media(max-width:767px){.sgr-lang-menu{min-width:54px}.sgr-lang-opt{font-size:7.5px!important;padding:3px 6px!important}}",
       // Caption overlay (only visible while popped AND a language is
       // selected — class .visible is toggled by capRender). Strong
       // !important so host-page CSS can't inflate the font.
