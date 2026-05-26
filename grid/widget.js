@@ -113,12 +113,24 @@
       video.src = reel.videoUrlHls;
       cardObj.usingHls = true;
       cardObj.hlsKind  = "native";
+      // Safari native HLS doesn't dispatch fatal-error events the same
+      // way hls.js does; a 404/CORS/playback failure surfaces as the
+      // standard <video> 'error' event. Swap to MP4 if that fires.
+      video.addEventListener("error", function onErr() {
+        if (cardObj.hlsKind !== "native") return;
+        try { console.warn("SPLSHY grid: native HLS playback errored, falling back to MP4"); } catch (e) {}
+        video.removeEventListener("error", onErr);
+        cardObj.usingHls = false;
+        cardObj.hlsKind  = null;
+        attachMp4Fallback(video, reel);
+      });
       return;
     }
     if (reel.videoUrlHls) {
       // Lazy-load hls.js. Until it resolves the card has no src; the
-      // poster image stays visible. If the load fails or MSE isn't
-      // supported (rare), fall back to MP4.
+      // poster image stays visible. If the load fails, MSE isn't
+      // supported, or the playlist itself errors out, fall back to
+      // MP4 so the card still plays.
       ensureHlsJsLoaded().then(function (Hls) {
         if (!Hls.isSupported()) { attachMp4Fallback(video, reel); return; }
         var hls = new Hls({
@@ -127,12 +139,29 @@
           lowLatencyMode: false,
           backBufferLength: 30
         });
+        // Fatal-error fallback: manifest 404, CORS on the playlist,
+        // segment fetch failures, codec mismatch, etc. all bubble up
+        // as fatal errors. Tear down the Hls instance and attach the
+        // MP4 src so the card still plays SOMETHING. Surface to
+        // console so the embedder can debug.
+        hls.on(Hls.Events.ERROR, function (event, data) {
+          if (!data || !data.fatal) return;
+          try { console.warn("SPLSHY grid: HLS fatal error, falling back to MP4", data); } catch (e) {}
+          try { hls.destroy(); } catch (e) {}
+          cardObj.usingHls    = false;
+          cardObj.hlsKind     = null;
+          cardObj.hlsInstance = null;
+          attachMp4Fallback(video, reel);
+        });
         hls.loadSource(reel.videoUrlHls);
         hls.attachMedia(video);
         cardObj.usingHls    = true;
         cardObj.hlsKind     = "hlsjs";
         cardObj.hlsInstance = hls;
-      }).catch(function () { attachMp4Fallback(video, reel); });
+      }).catch(function (e) {
+        try { console.warn("SPLSHY grid: hls.js load failed, falling back to MP4", e); } catch (_) {}
+        attachMp4Fallback(video, reel);
+      });
       return;
     }
     attachMp4Fallback(video, reel);
@@ -674,20 +703,33 @@
     loadingEl.setAttribute("role", "status");
     loadingEl.setAttribute("aria-label", "Loading video");
     el.appendChild(loadingEl);
+    // Buffer-spinner logic. HLS fires lots of brief 'waiting' events
+    // at segment boundaries even when playback is healthy, so the
+    // grace period is generous (1000ms) and we suppress the spinner
+    // entirely if the video already has enough data to play through
+    // a brief stall (readyState >= HAVE_FUTURE_DATA = 3).
     var bufferTimer = null;
     function showBuffering() {
       if (bufferTimer) clearTimeout(bufferTimer);
-      bufferTimer = setTimeout(function () { loadingEl.classList.add("visible"); }, 400);
+      bufferTimer = setTimeout(function () {
+        // Re-check at fire time — if data has arrived (readyState 3+)
+        // or the video is no longer paused-on-data, skip the spinner.
+        if (video.readyState >= 3) return;
+        loadingEl.classList.add("visible");
+      }, 1000);
     }
     function hideBuffering() {
       if (bufferTimer) { clearTimeout(bufferTimer); bufferTimer = null; }
       loadingEl.classList.remove("visible");
     }
-    video.addEventListener("waiting", showBuffering);
-    video.addEventListener("stalled", showBuffering);
-    video.addEventListener("playing", hideBuffering);
-    video.addEventListener("canplay", hideBuffering);
-    video.addEventListener("error",   hideBuffering);
+    video.addEventListener("waiting",  showBuffering);
+    video.addEventListener("stalled",  showBuffering);
+    video.addEventListener("playing",  hideBuffering);
+    video.addEventListener("canplay",  hideBuffering);
+    video.addEventListener("error",    hideBuffering);
+    // HLS streams briefly flap between buffered and not — also hide
+    // when timeupdate fires (proves playback is actively progressing).
+    video.addEventListener("timeupdate", hideBuffering);
 
     // Popout-only controls. All hidden by default via CSS; only
     // visible while the card has .sgr-popped--open. Keeping them on
