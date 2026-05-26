@@ -44,6 +44,11 @@
 
   var reels       = cfg.reels       || [];
   var containerId = cfg.containerId || "splshy-grid";
+  // When true, only the first row (cards 0-5) is shown on desktop;
+  // mobile still shows all 12 across 3 swipeable pages. The autoplay
+  // lanes that start in the hidden row (>= 6) are skipped on desktop
+  // and the lane-rotation logic wraps within the visible range.
+  var hideBottomRowDesktop = !!cfg.hideBottomRowDesktop;
   // Autoplay-eligible positions (0-indexed). Default = reels 1, 4, 8,
   // 12 (1-indexed). Only ONE of these plays at a time as part of an
   // auto-advance chain: when the current chain card's video ends, the
@@ -265,6 +270,12 @@
       // wrappers are still in the DOM; we display:contents them so they
       // don't affect the visual grid layout.
       "@media(min-width:768px){.sgr-page{display:contents}}",
+      // hideBottomRowDesktop option: only the first .sgr-page (cards 0-3)
+      // and the first 2 cards of the second page would render — but the
+      // simplest target is "first 6 cards of the flattened grid", which
+      // is .sgr-page:nth-child(1) plus the first 2 cells of nth-child(2).
+      // Easier: keep the markup intact and hide cards 6-11 by data-idx.
+      "@media(min-width:768px){.sgr-widget--top-only .sgr-card[data-idx='6'],.sgr-widget--top-only .sgr-card[data-idx='7'],.sgr-widget--top-only .sgr-card[data-idx='8'],.sgr-widget--top-only .sgr-card[data-idx='9'],.sgr-widget--top-only .sgr-card[data-idx='10'],.sgr-widget--top-only .sgr-card[data-idx='11']{display:none}}",
       // Page indicator dots (mobile only).
       ".sgr-dots{display:none;justify-content:center;gap:8px;margin-top:10px}",
       "@media(max-width:767px){.sgr-dots{display:flex}}",
@@ -376,7 +387,7 @@
     pagesHTML += '<div class="sgr-page">' + cardsHTML + '</div>';
   }
   container.innerHTML =
-    '<div class="sgr-widget">' +
+    '<div class="sgr-widget' + (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') + '">' +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
       '<div class="sgr-dots" aria-hidden="true">' +
         '<div class="sgr-dot is-active"></div><div class="sgr-dot"></div><div class="sgr-dot"></div>' +
@@ -543,6 +554,12 @@
   var inViewport  = false;
   var lanesActive = false;
   var lanes = [];
+  // True when an index belongs to a row currently hidden on this layout.
+  // On desktop with hideBottomRowDesktop, indices >=6 are off-screen and
+  // ineligible for lane play / rotation. Mobile ignores this entirely.
+  function laneIdxHidden(idx) {
+    return hideBottomRowDesktop && !isMobileLayout() && idx >= 6;
+  }
   autoplayIndices.forEach(function (startIdx) {
     var card = cards[startIdx];
     if (card && card.video) lanes.push({ current: startIdx });
@@ -552,6 +569,7 @@
     if (lanesActive || isMobileLayout() || !lanes.length) return;
     lanesActive = true;
     lanes.forEach(function (lane) {
+      if (laneIdxHidden(lane.current)) return;
       var c = cards[lane.current];
       if (c && c.video) startCardPlay(c);
     });
@@ -577,7 +595,7 @@
       var tries = 0;
       while (tries < cards.length) {
         var nc = cards[next];
-        if (nc && nc.video) break;
+        if (nc && nc.video && !laneIdxHidden(next)) break;
         next = (next + 1) % cards.length;
         tries++;
       }
