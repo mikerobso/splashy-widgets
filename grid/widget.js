@@ -1084,14 +1084,18 @@
   }
 
   if (typeof IntersectionObserver === "function") {
-    // threshold 0.7 — autoplay fires only when the widget is mostly
-    // (70%+) on-screen, not just barely peeking above the fold.
-    // Tracks intersectionRatio against the threshold list so we can
-    // also stop when the user scrolls past the 70% mark in either
-    // direction.
+    // 70% threshold on customer pages — autoplay only fires when the
+    // grid is mostly on-screen. In an iframe context (Studio preview,
+    // or any host that wraps the widget in its own iframe), the
+    // iframe's viewport may be smaller than the grid's total height,
+    // so intersectionRatio caps below 0.7 forever and autoplay never
+    // starts. Detect iframe and use a much lower threshold there.
+    var inIframe = false;
+    try { inIframe = window.self !== window.top; } catch (e) { inIframe = true; }
+    var ioThreshold = inIframe ? 0.1 : 0.7;
     var rootIo = new IntersectionObserver(function (entries) {
       var e = entries[0]; if (!e) return;
-      var nowVisible = e.intersectionRatio >= 0.7;
+      var nowVisible = e.intersectionRatio >= ioThreshold;
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
       if (inViewport) {
@@ -1100,7 +1104,7 @@
         stopAllLanes();
         stopMobileLane();
       }
-    }, { threshold: [0, 0.7] });
+    }, { threshold: [0, ioThreshold] });
     rootIo.observe(container);
   }
 
