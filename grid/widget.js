@@ -277,13 +277,16 @@
       // Easier: keep the markup intact and hide cards 6-11 by data-idx.
       "@media(min-width:768px){.sgr-widget--top-only .sgr-card[data-idx='6'],.sgr-widget--top-only .sgr-card[data-idx='7'],.sgr-widget--top-only .sgr-card[data-idx='8'],.sgr-widget--top-only .sgr-card[data-idx='9'],.sgr-widget--top-only .sgr-card[data-idx='10'],.sgr-widget--top-only .sgr-card[data-idx='11']{display:none}}",
       // Page indicator dots (mobile only).
-      ".sgr-dots{display:none;justify-content:center;gap:8px;margin-top:10px}",
+      // Page dots — same dimensions + behavior as the infinite/stories
+      // widget dots so accessibility is consistent across all widgets:
+      // 24x24 hit target (well above the WCAG 24x24 minimum), 8.5px
+      // visible disc via ::before, 1.35x scale on active.
+      ".sgr-dots{display:none;justify-content:center;gap:0;margin-top:10px}",
       "@media(max-width:767px){.sgr-dots{display:flex}}",
-      // Dot itself is small but its hit area is padded so it's a comfy
-      // tap target on mobile. background-clip:content-box keeps the
-      // visible disc the same size despite the padding.
-      ".sgr-dot{width:7px;height:7px;padding:9px;box-sizing:content-box;border:0;border-radius:50%;background:rgba(0,0,0,.25);background-clip:content-box;cursor:pointer;-webkit-appearance:none;appearance:none;margin:0;transition:background .18s,transform .18s;-webkit-tap-highlight-color:transparent}",
-      ".sgr-dot.is-active{background:rgba(0,0,0,.7);background-clip:content-box;transform:scale(1.2)}",
+      ".sgr-dot{width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;border-radius:50%!important;background:transparent!important;border:none!important;cursor:pointer;padding:0!important;margin:0!important;display:flex;align-items:center;justify-content:center;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent}",
+      ".sgr-dot::before{content:\"\";display:block;width:8.5px;height:8.5px;border-radius:50%;background:rgba(0,0,0,.35);transition:background .25s,transform .25s}",
+      ".sgr-dot.is-active::before{background:rgba(0,0,0,.85);transform:scale(1.35)}",
+      ".sgr-dot:focus-visible{outline:2px solid rgba(0,0,0,.45);outline-offset:2px}",
 
       // ── Popout (single-widget style: card scales 1.3x in place) ────
       // Backdrop overlay — fixed full-viewport, fades in when a card
