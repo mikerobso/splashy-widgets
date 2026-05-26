@@ -316,9 +316,12 @@
       ".sgr-lang-opt:hover{background:rgba(255,255,255,.08)!important}",
       ".sgr-lang-opt.is-selected{background:#fff!important;color:#000!important}",
       // Caption overlay (only visible while popped AND a language is
-      // selected — class .visible is toggled by capRender).
-      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:6px 10px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      // selected — class .visible is toggled by capRender). Strong
+      // !important so host-page CSS can't inflate the font.
+      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:11px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:4px 8px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
+      // Even smaller on mobile — the popped card is narrow.
+      "@media(max-width:767px){.sgr-cap-overlay{font-size:9.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
       // Title — bottom-left while popped.
       ".sgr-pop-title{position:absolute;left:10px;right:48px;bottom:32px;font-size:13px;font-weight:700;line-height:1.25;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none;z-index:13}",
       // Progress bar at very bottom of popped card.
