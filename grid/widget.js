@@ -239,7 +239,11 @@
       "@media(max-width:767px){.sgr-widget{padding:14px 10px}}",
       // Desktop: 6-column / 2-row grid.
       ".sgr-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}",
-      ".sgr-card{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent}",
+      ".sgr-card{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}",
+      // Belt-and-suspenders: also kill long-press callout / selection
+      // on the inner video + image elements (iOS Safari sometimes
+      // ignores the parent's -webkit-touch-callout for media).
+      ".sgr-card video,.sgr-card img{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-tap-highlight-color:transparent!important;pointer-events:auto}",
       ".sgr-poster{position:absolute;inset:0;background-size:cover;background-position:center;background-color:#0f0f0f}",
       ".sgr-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .18s}",
       ".sgr-card.is-playing .sgr-video,.sgr-card.sgr-popped--open .sgr-video{opacity:1}",
