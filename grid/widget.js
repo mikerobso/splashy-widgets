@@ -580,17 +580,15 @@
     // they each need to fire 'ended' for the lane to step forward.
     // Hover replays from the start (startCardPlay resets currentTime).
     video.loop = false;
-    // preload strategy:
-    //   - Autoplay-lane starter cards on a fast connection: 'auto' so
-    //     the entire 540p file is downloaded before the user even
-    //     reaches the widget — autoplay starts instantly with zero
-    //     buffering. ~2MB per card x 4 lanes = ~9MB upfront on broadband.
-    //   - All other cases: 'metadata' so the moov atom is fetched but
-    //     not the video bytes. ~60KB per card. Hover/pop is still fast
-    //     because the cold-fetch step is done.
-    //   - Slow connections (2g/3g/saveData) downgrade auto -> metadata
-    //     to avoid burning data.
-    video.preload = (autoplayMap[idx] && !isSlowConnection()) ? "auto" : "metadata";
+    // preload='metadata' on EVERY card. moov atom is fetched at init
+    // (~60KB per card) so hover-play and pop-out start in ~200-500ms
+    // instead of doing a cold DNS+TLS+moov fetch on first interaction.
+    // We considered preload='auto' for the autoplay-lane starters but
+    // at ~1min/11MB per 540p clip, 4 lanes = ~45MB on page load —
+    // too aggressive even on broadband. The native progressive-
+    // download path (browser pulls bytes ahead of playback) is
+    // fast enough on a primed connection.
+    video.preload = "metadata";
     // Initial src = the SD variant if the library has one (used while
     // the card sits in the grid). Popout opens swap to the full-res
     // videoUrl for higher quality during focused viewing.
