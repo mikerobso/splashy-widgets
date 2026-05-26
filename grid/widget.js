@@ -552,7 +552,10 @@
     // they each need to fire 'ended' for the lane to step forward.
     // Hover replays from the start (startCardPlay resets currentTime).
     video.loop = false;
-    video.src = reel.videoUrl;
+    // Initial src = the SD variant if the library has one (used while
+    // the card sits in the grid). Popout opens swap to the full-res
+    // videoUrl for higher quality during focused viewing.
+    video.src = reel.videoUrlSd || reel.videoUrl;
     el.appendChild(video);
 
     // Play-icon overlay (visible when not playing, hidden when popped)
@@ -1063,13 +1066,34 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
-    // Try to play. If autoplay-with-sound is blocked (some browsers
-    // require an explicit user gesture for audio), fall back to muted.
-    var p = c.video.play();
-    if (p && p.catch) p.catch(function () {
-      c.video.muted = true; syncCardMuteIcon(c);
-      var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
-    });
+    // Quality swap: if the library has a separate full-res URL, swap
+    // to it now for higher quality during focused viewing. Preserve
+    // currentTime via a one-shot loadedmetadata listener so the user
+    // doesn't lose their place. If no SD variant exists or src is
+    // already at the high-res URL, this is a no-op.
+    var hasSdSwap = c.reel.videoUrlSd && c.reel.videoUrl &&
+                    c.reel.videoUrlSd !== c.reel.videoUrl;
+    if (hasSdSwap && c.video.src !== c.reel.videoUrl) {
+      var resumeTime = c.video.currentTime || 0;
+      c.video.src = c.reel.videoUrl;
+      var onMeta = function () {
+        c.video.removeEventListener("loadedmetadata", onMeta);
+        try { c.video.currentTime = resumeTime; } catch (e) {}
+        var pp = c.video.play();
+        if (pp && pp.catch) pp.catch(function () {
+          c.video.muted = true; syncCardMuteIcon(c);
+          var pp2 = c.video.play(); if (pp2 && pp2.catch) pp2.catch(function () {});
+        });
+      };
+      c.video.addEventListener("loadedmetadata", onMeta);
+    } else {
+      // No swap needed — just play whatever's already loaded.
+      var p = c.video.play();
+      if (p && p.catch) p.catch(function () {
+        c.video.muted = true; syncCardMuteIcon(c);
+        var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
+      });
+    }
 
     document.body.style.overflow = "hidden";
     poppedCard = c;
@@ -1103,6 +1127,16 @@
     c.video.muted = true;
     c.el.classList.remove("is-playing");
     if (c.icon) c.icon.classList.remove("hidden");
+
+    // Quality swap-back: if we upgraded to the full-res URL on
+    // popout open, swap back to the SD variant so any subsequent
+    // autoplay-lane rotation onto this card streams the low-res
+    // file again. No need to preserve currentTime — the card is
+    // paused and startCardPlay resets to 0 anyway.
+    if (c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
+        c.video.src !== c.reel.videoUrlSd) {
+      c.video.src = c.reel.videoUrlSd;
+    }
 
     setTimeout(function () {
       c.el.classList.remove("sgr-popped");
