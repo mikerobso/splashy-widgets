@@ -303,11 +303,16 @@
       ".sgr-pop-cc-btn.is-active{background:#fff;color:#000;border-color:rgba(0,0,0,.35)}",
       ".sgr-pop-cc-btn.is-active:hover{background:#f0f0f0}",
       // Language menu — pops left of the CC button when open.
-      ".sgr-lang-menu{position:absolute;bottom:90px;right:48px;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:7px;padding:3px;z-index:15;min-width:110px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      // max-height + overflow-y so a 5-item menu stays inside the
+      // small popped card without overflowing top/bottom.
+      ".sgr-lang-menu{position:absolute;bottom:88px;right:46px;flex-direction:column;background:rgba(0,0,0,.95);border:1px solid rgba(255,255,255,.18);border-radius:6px;padding:2px;z-index:15;min-width:78px;max-height:65%;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
       ".sgr-card.sgr-popped--open .sgr-lang-menu.visible{display:flex}",
-      ".sgr-lang-opt{display:flex;align-items:center;padding:6px 10px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:12px;font-weight:500;cursor:pointer;border-radius:4px;text-align:left}",
-      ".sgr-lang-opt:hover{background:rgba(255,255,255,.08)}",
-      ".sgr-lang-opt.is-selected{background:#fff;color:#000}",
+      // Strong reset on the menu buttons so host-page CSS (typical
+      // .button or button{} rules on the embed site) can't blow up
+      // their size. !important on the few that really matter.
+      ".sgr-lang-opt{display:flex!important;align-items:center;padding:4px 8px!important;margin:0!important;background:transparent!important;border:0!important;outline:0!important;-webkit-appearance:none;appearance:none;color:#fff!important;font-family:system-ui,-apple-system,sans-serif!important;font-size:10.5px!important;font-weight:500!important;line-height:1.2!important;letter-spacing:0!important;cursor:pointer;border-radius:3px;text-align:left;width:100%;min-height:0!important;height:auto!important;text-transform:none!important;box-shadow:none!important}",
+      ".sgr-lang-opt:hover{background:rgba(255,255,255,.08)!important}",
+      ".sgr-lang-opt.is-selected{background:#fff!important;color:#000!important}",
       // Caption overlay (only visible while popped AND a language is
       // selected — class .visible is toggled by capRender).
       ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:13px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.91);padding:6px 10px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
