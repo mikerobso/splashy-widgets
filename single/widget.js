@@ -213,9 +213,14 @@
   }
   var SPL_CAP_LANG_NAMES = { en: "English", es: "Español", fr: "Français", de: "Deutsch", zh: "中文" };
 
-  // Parse all available caption languages from cfg.captions once at
-  // widget init. Map of langCode -> array of { start, end, text }.
+  // Captions can arrive in two shapes:
+  //   - cfg.captions:          { en: "WEBVTT\n...", ... }  (legacy inline)
+  //   - cfg.captionsAvailable: ["en", "es"]                 (lazy fetch)
+  // Inline cues are parsed upfront. captionsAvailable populates the
+  // menu and triggers a /api/play/captions fetch on first selection.
+  var captionsEndpoint = cfg.captionsEndpoint || "https://www.getsplashy.com/api/play/captions";
   var capCues = {};
+  var capPending = {};
   var capAvailableLangs = [];
   if (cfg.captions && typeof cfg.captions === "object") {
     Object.keys(cfg.captions).forEach(function(lang) {
@@ -225,6 +230,44 @@
         if (cues.length) { capCues[lang] = cues; capAvailableLangs.push(lang); }
       }
     });
+  }
+  if (Array.isArray(cfg.captionsAvailable)) {
+    cfg.captionsAvailable.forEach(function(lang) {
+      if (typeof lang === "string" && lang && capAvailableLangs.indexOf(lang) === -1) {
+        capAvailableLangs.push(lang);
+      }
+    });
+  }
+  // djb2 hash of the video URL — matches the storage key the server
+  // uses to find captions for this reel.
+  function capReelId() {
+    if (!videoUrl) return "";
+    var h = 5381;
+    for (var i = 0; i < videoUrl.length; i++) h = ((h << 5) + h + videoUrl.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function capEnsureLoaded(lang, onLoaded) {
+    if (capCues[lang]) { if (typeof onLoaded === "function") onLoaded(); return; }
+    if (capAvailableLangs.indexOf(lang) === -1) return;
+    if (capPending[lang]) return;
+    if (!clientId || !videoUrl) return;
+    capPending[lang] = true;
+    var url = captionsEndpoint
+      + "?c=" + encodeURIComponent(clientId)
+      + "&r=" + encodeURIComponent(capReelId())
+      + "&l=" + encodeURIComponent(lang);
+    fetch(url, { credentials: "omit" })
+      .then(function(r) { return r.ok ? r.text() : null; })
+      .then(function(text) {
+        capPending[lang] = false;
+        if (!text) return;
+        var cues = splCapParseVtt(text);
+        if (cues.length) {
+          capCues[lang] = cues;
+          if (typeof onLoaded === "function") onLoaded();
+        }
+      })
+      .catch(function() { capPending[lang] = false; });
   }
   // Selected language: saved preference wins, else browser-detect, else off.
   var capSelected = (function() {
@@ -514,6 +557,11 @@
   // ── Captions: render / menu / persistence ─────────
   function capRender(force) {
     if (!capOverlay) return;
+    // Lang available but cues not loaded yet — kick off fetch, bail.
+    // Once VTT arrives, the resolver calls capRender again.
+    if (capSelected && !capCues[capSelected] && capAvailableLangs.indexOf(capSelected) !== -1) {
+      capEnsureLoaded(capSelected, function() { capRender(true); });
+    }
     if (!capSelected || !capCues[capSelected]) {
       if (capOverlay.classList.contains("visible")) {
         capOverlay.classList.remove("visible");

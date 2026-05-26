@@ -207,14 +207,17 @@
 
   // Pre-parse every reel's captions at init time. capCuesByReel[i] is
   // the per-language cue map for reels[i]; capLangsByReel[i] is the
-  // ordered list of available language codes. We swap which one the
-  // overlay reads from whenever the user navigates between reels.
-  var capCuesByReel  = [];
-  var capLangsByReel = [];
+  // ordered list of available language codes. Cues from reel.captions
+  // (legacy inline) are parsed upfront. reel.captionsAvailable just
+  // lists langs the widget can lazy-fetch from /api/play/captions.
+  var captionsEndpoint = cfg.captionsEndpoint || "https://www.getsplashy.com/api/play/captions";
+  var capCuesByReel    = [];
+  var capLangsByReel   = [];
+  var capPendingByReel = [];
   for (var ci = 0; ci < reels.length; ci++) {
-    var perReel = {};
-    var perReelLangs = [];
+    var perReel = {}; var perReelLangs = []; var perReelPending = {};
     var rc = reels[ci] && reels[ci].captions;
+    var av = reels[ci] && reels[ci].captionsAvailable;
     if (rc && typeof rc === "object") {
       Object.keys(rc).forEach(function(lang) {
         var vttStr = rc[lang];
@@ -224,8 +227,49 @@
         }
       });
     }
+    if (Array.isArray(av)) {
+      av.forEach(function(lang) {
+        if (typeof lang === "string" && lang && perReelLangs.indexOf(lang) === -1) {
+          perReelLangs.push(lang);
+        }
+      });
+    }
     capCuesByReel.push(perReel);
     capLangsByReel.push(perReelLangs);
+    capPendingByReel.push(perReelPending);
+  }
+  function capReelIdFor(url) {
+    if (!url) return "";
+    var h = 5381;
+    for (var i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  function capEnsureCuesLoaded(reelIdx, lang, onLoaded) {
+    if (capCuesByReel[reelIdx] && capCuesByReel[reelIdx][lang]) {
+      if (typeof onLoaded === "function") onLoaded(); return;
+    }
+    if (capLangsByReel[reelIdx].indexOf(lang) === -1) return;
+    if (capPendingByReel[reelIdx][lang]) return;
+    if (!clientId) return;
+    var reel = reels[reelIdx];
+    if (!reel || !reel.videoUrl) return;
+    capPendingByReel[reelIdx][lang] = true;
+    var url = captionsEndpoint
+      + "?c=" + encodeURIComponent(clientId)
+      + "&r=" + encodeURIComponent(capReelIdFor(reel.videoUrl))
+      + "&l=" + encodeURIComponent(lang);
+    fetch(url, { credentials: "omit" })
+      .then(function(r) { return r.ok ? r.text() : null; })
+      .then(function(text) {
+        capPendingByReel[reelIdx][lang] = false;
+        if (!text) return;
+        var cues = splCapParseVtt(text);
+        if (cues.length) {
+          capCuesByReel[reelIdx][lang] = cues;
+          if (typeof onLoaded === "function") onLoaded();
+        }
+      })
+      .catch(function() { capPendingByReel[reelIdx][lang] = false; });
   }
   // Selected language is shared across reels in this overlay session.
   // Saved sessionStorage value wins; otherwise browser-detect across
@@ -695,6 +739,14 @@
   function capRender(force) {
     if (!capOverlay) return;
     var cues = capCurrentReelCues()[capSelected];
+    // Lang available for the current reel but cues not loaded —
+    // lazy-fetch + bail; resolver triggers a re-render on success.
+    if (!cues && capSelected && capCurrentReelLangs().indexOf(capSelected) !== -1) {
+      var thisCur = cur;
+      capEnsureCuesLoaded(cur, capSelected, function() {
+        if (cur === thisCur) capRender(true);
+      });
+    }
     if (!capSelected || !cues) {
       if (capOverlay.classList.contains("visible")) {
         capOverlay.classList.remove("visible");

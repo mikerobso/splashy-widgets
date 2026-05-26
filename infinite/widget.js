@@ -833,9 +833,9 @@
           '<svg class="sif-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>'+
         '</button>'+
         // CC button + language menu + caption overlay only appear
-        // when this reel has caption data. Menu options are built
-        // from the reel's available languages at card-setup time.
-        (reel.captions
+        // when this reel has caption data — either inline
+        // (reel.captions) or lazy-fetchable (reel.captionsAvailable).
+        ((reel.captions || (Array.isArray(reel.captionsAvailable) && reel.captionsAvailable.length))
           ? '<button class="sif-cc-btn" aria-label="Captions" aria-pressed="false">CC</button>' +
             '<div class="sif-lang-menu" role="menu"></div>' +
             '<div class="sif-cap-overlay" aria-live="polite"></div>'
@@ -941,10 +941,12 @@
       var capOverlay = card.querySelector(".sif-cap-overlay");
 
       // ── Captions: per-card state ───────────────────
-      // Build the per-language parsed-cue map once at card setup so
-      // timeupdate doesn't reparse on every tick. `capCues[lang]` is
-      // an array of { start, end, text }.
+      // Two shapes:
+      //   reel.captions          -> { lang: vttString } inline (parsed upfront)
+      //   reel.captionsAvailable -> [lang, ...] fetched lazily from
+      //                              /api/play/captions on first use
       var capCues = {};
+      var capPending = {};
       var capAvailableLangs = [];
       if (reel.captions && typeof reel.captions === "object") {
         Object.keys(reel.captions).forEach(function(lang) {
@@ -957,6 +959,43 @@
             }
           }
         });
+      }
+      if (Array.isArray(reel.captionsAvailable)) {
+        reel.captionsAvailable.forEach(function(lang) {
+          if (typeof lang === "string" && lang && capAvailableLangs.indexOf(lang) === -1) {
+            capAvailableLangs.push(lang);
+          }
+        });
+      }
+      var capEndpoint = cfg.captionsEndpoint || "https://www.getsplashy.com/api/play/captions";
+      function capReelId() {
+        if (!reel.videoUrl) return "";
+        var h = 5381;
+        for (var i = 0; i < reel.videoUrl.length; i++) h = ((h << 5) + h + reel.videoUrl.charCodeAt(i)) | 0;
+        return (h >>> 0).toString(36);
+      }
+      function capEnsureLoaded(lang, onLoaded) {
+        if (capCues[lang]) { if (typeof onLoaded === "function") onLoaded(); return; }
+        if (capAvailableLangs.indexOf(lang) === -1) return;
+        if (capPending[lang]) return;
+        if (!clientId || !reel.videoUrl) return;
+        capPending[lang] = true;
+        var url = capEndpoint
+          + "?c=" + encodeURIComponent(clientId)
+          + "&r=" + encodeURIComponent(capReelId())
+          + "&l=" + encodeURIComponent(lang);
+        fetch(url, { credentials: "omit" })
+          .then(function(r) { return r.ok ? r.text() : null; })
+          .then(function(text) {
+            capPending[lang] = false;
+            if (!text) return;
+            var cues = splCapParseVtt(text);
+            if (cues.length) {
+              capCues[lang] = cues;
+              if (typeof onLoaded === "function") onLoaded();
+            }
+          })
+          .catch(function() { capPending[lang] = false; });
       }
 
       // Selected language for this card: session-saved preference
@@ -971,6 +1010,10 @@
 
       function capRender(force) {
         if (!capOverlay) return;
+        // Lang available but cues not loaded — lazy-fetch, bail.
+        if (capSelected && !capCues[capSelected] && capAvailableLangs.indexOf(capSelected) !== -1) {
+          capEnsureLoaded(capSelected, function() { capRender(true); });
+        }
         if (!capSelected || !capCues[capSelected]) {
           if (capOverlay.classList.contains("visible")) {
             capOverlay.classList.remove("visible");
