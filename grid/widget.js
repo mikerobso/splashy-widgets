@@ -331,6 +331,15 @@
       // Soft hover lift on desktop. Touch devices skip the scale so taps
       // don't feel laggy.
       "@media(hover:hover){.sgr-card{transition:transform .18s,box-shadow .18s}.sgr-card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.32)}}",
+      // Buffering spinner — shown while video is stalled, hidden when
+      // data arrives. Sits over the card (z-index between video and
+      // controls). 400ms grace before showing so a quick stall on
+      // play() doesn't cause flicker.
+      ".sgr-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:42px;height:42px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;z-index:11;pointer-events:none;opacity:0;transition:opacity .2s ease}",
+      ".sgr-loading.visible{opacity:1}",
+      ".sgr-loading::after{content:\"\";width:20px;height:20px;border-radius:50%;border:2.5px solid rgba(255,255,255,.25);border-top-color:rgba(255,255,255,.95);animation:sgr-spin .8s linear infinite}",
+      "@keyframes sgr-spin{to{transform:rotate(360deg)}}",
+      "@media(prefers-reduced-motion:reduce){.sgr-loading::after{animation:none}}",
       ".sgr-play-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:opacity .18s}",
       ".sgr-play-icon.hidden{opacity:0}",
       ".sgr-play-circle{width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);border:1.5px solid rgba(255,255,255,.5);display:flex;align-items:center;justify-content:center}",
@@ -556,6 +565,29 @@
         '</svg>' +
       '</div>';
     el.appendChild(icon);
+
+    // Buffering spinner — same lifecycle pattern as the infinite widget.
+    // 400ms grace before showing so the brief 'waiting' that fires at
+    // the start of every play() doesn't cause a flash.
+    var loadingEl = document.createElement("div");
+    loadingEl.className = "sgr-loading";
+    loadingEl.setAttribute("role", "status");
+    loadingEl.setAttribute("aria-label", "Loading video");
+    el.appendChild(loadingEl);
+    var bufferTimer = null;
+    function showBuffering() {
+      if (bufferTimer) clearTimeout(bufferTimer);
+      bufferTimer = setTimeout(function () { loadingEl.classList.add("visible"); }, 400);
+    }
+    function hideBuffering() {
+      if (bufferTimer) { clearTimeout(bufferTimer); bufferTimer = null; }
+      loadingEl.classList.remove("visible");
+    }
+    video.addEventListener("waiting", showBuffering);
+    video.addEventListener("stalled", showBuffering);
+    video.addEventListener("playing", hideBuffering);
+    video.addEventListener("canplay", hideBuffering);
+    video.addEventListener("error",   hideBuffering);
 
     // Popout-only controls. All hidden by default via CSS; only
     // visible while the card has .sgr-popped--open. Keeping them on
@@ -795,21 +827,75 @@
     });
   });
 
+  // ── Network-aware autoplay gate ───────────────────
+  // Skip autoplay entirely on slow connections (effectiveType 2g/3g
+  // or the user's data-saver pref). The grid still renders posters
+  // and the user can tap to popout — only the eager-stream lanes
+  // are suppressed. We re-evaluate when the network changes so a
+  // user who reconnects to WiFi mid-page gets autoplay back.
+  function isSlowConnection() {
+    var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c) return false;
+    if (c.saveData) return true;
+    if (c.effectiveType && /^(slow-2g|2g|3g)$/.test(c.effectiveType)) return true;
+    return false;
+  }
+  function tryStartLanes() {
+    if (isSlowConnection()) return;
+    if (document.hidden) return;
+    if (isMobileLayout()) startMobileLane();
+    else                  startAllLanes();
+  }
+
   if (typeof IntersectionObserver === "function") {
+    // threshold 0.7 — autoplay fires only when the widget is mostly
+    // (70%+) on-screen, not just barely peeking above the fold.
+    // Tracks intersectionRatio against the threshold list so we can
+    // also stop when the user scrolls past the 70% mark in either
+    // direction.
     var rootIo = new IntersectionObserver(function (entries) {
-      var nowVisible = entries[0] && entries[0].isIntersecting;
+      var e = entries[0]; if (!e) return;
+      var nowVisible = e.intersectionRatio >= 0.7;
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
       if (inViewport) {
-        if (isMobileLayout()) startMobileLane();
-        else                  startAllLanes();
+        tryStartLanes();
       } else {
         stopAllLanes();
         stopMobileLane();
       }
-    }, { threshold: 0.1 });
+    }, { threshold: [0, 0.7] });
     rootIo.observe(container);
   }
+
+  // Tab/window visibility: pause every lane when the page is hidden
+  // (saves data + CPU when the user has the widget in a background
+  // tab). Resume on visibility return if the grid is still in view
+  // and the connection is OK.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) {
+      stopAllLanes();
+      stopMobileLane();
+    } else if (inViewport) {
+      tryStartLanes();
+    }
+  });
+
+  // Network status change: re-evaluate whether we should be autoplaying
+  // when the connection switches (e.g. cellular -> WiFi or vice versa).
+  try {
+    var navConn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (navConn && typeof navConn.addEventListener === "function") {
+      navConn.addEventListener("change", function () {
+        if (isSlowConnection()) {
+          stopAllLanes();
+          stopMobileLane();
+        } else if (inViewport && !document.hidden) {
+          tryStartLanes();
+        }
+      });
+    }
+  } catch (e) {}
 
   // ── Hover-to-play (desktop only) ───────────────────
   // Hover plays any card on demand. mouseleave stops it, UNLESS the
