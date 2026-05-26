@@ -1262,8 +1262,32 @@
     c.el.style.height = h + "px";
     c.el.style.transformOrigin = "top left";
     c.el.style.transform = "translate(0px,0px) scale(1)";
+
+    // hls.js + DOM reparent doesn't mix cleanly. Moving the <video>
+    // element while a MediaSource is attached frequently leaves the
+    // video frozen on the last frame in Chrome — the player's buffer
+    // is disturbed and there's no 'waiting' event to recover from.
+    // Proper fix per hls.js maintainers: detach BEFORE the move,
+    // re-attach AFTER, and wait for MEDIA_ATTACHED before resuming
+    // playback.
+    var hlsWasDetached = false;
+    if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
+      try { c.hlsInstance.detachMedia(); hlsWasDetached = true; } catch (e) {}
+    }
+    // Also pause everything-else (native HLS, MP4) so the move
+    // happens against a quiescent video — fewer race conditions.
+    try { c.video.pause(); } catch (e) {}
+
     document.body.appendChild(c.el);
     c.el.offsetHeight;        // force reflow so the next change animates
+
+    // Re-attach hls.js now that the element is in its final DOM
+    // location. hls.js will fire 'hlsMediaAttached' once it's ready
+    // — we wait for that before calling play() below.
+    if (hlsWasDetached) {
+      try { c.hlsInstance.attachMedia(c.video); } catch (e) {}
+    }
+    c._hlsReadyForPlay = !hlsWasDetached; // true if no detach happened
 
     // Animate: backdrop fade-in, card translate + scale.
     backdrop.classList.add("open");
@@ -1294,24 +1318,12 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
-    // HLS popout setup. Two things going wrong without intervention:
-    //   1. Chrome + hls.js: reparenting the <video> to document.body
-    //      disturbs the MediaSource binding and the video freezes on
-    //      its last frame. Recovery: explicit pause -> seek-nudge ->
-    //      play sequence to force the decoder back to life.
-    //   2. autoLevelCapping was being lifted immediately, triggering
-    //      an in-flight variant switch on top of the already-disturbed
-    //      buffer. Delay it 300ms so the player is stable first;
-    //      the small quality-bump latency is invisible against the
-    //      popout animation.
+    // HLS quality bump: 300ms after popout opens (animation has
+    // settled, hls.js has re-attached after the DOM move), lift the
+    // autoLevelCapping so the player can pick higher variants for the
+    // larger render. Restored on closePopout.
     if (c.usingHls && c.hlsInstance) {
       var hlsInst = c.hlsInstance;
-      try { c.video.pause(); } catch (e) {}
-      try {
-        // Nudge currentTime to force the decoder to re-acquire frames.
-        var t = c.video.currentTime || 0;
-        c.video.currentTime = t;
-      } catch (e) {}
       setTimeout(function () {
         if (poppedCard !== c) return;
         try { hlsInst.autoLevelCapping = -1; } catch (e) {}
@@ -1341,17 +1353,37 @@
       };
       c.video.addEventListener("loadedmetadata", onMeta);
     } else {
-      // No swap needed — just play whatever's already loaded.
-      var p = c.video.play();
-      if (p && p.catch) p.catch(function () {
-        c.video.muted = true; syncCardMuteIcon(c);
-        var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
-      });
-      // HLS reparenting safety net: if the video is paused or has not
-      // made progress 600ms after popout open, force a clean restart.
-      // Covers the "frozen on a frame, no buffer event" case that
-      // happens when Chrome's MediaSource gets disturbed by the DOM
-      // move and play() didn't fully kick in.
+      // Play with autoplay-fallback to muted if the browser blocks
+      // audio without an explicit gesture chain.
+      function popPlay() {
+        var p = c.video.play();
+        if (p && p.catch) p.catch(function () {
+          c.video.muted = true; syncCardMuteIcon(c);
+          var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
+        });
+      }
+      if (hlsWasDetached) {
+        // hls.js was detached around the reparent — wait for its
+        // MEDIA_ATTACHED event before play(), so the player has fully
+        // rebound to the moved <video> element. Belt-and-suspenders
+        // 800ms timeout in case the event never fires.
+        var attachedFired = false;
+        var onAttached = function () {
+          if (attachedFired) return;
+          attachedFired = true;
+          try { c.hlsInstance.off("hlsMediaAttached", onAttached); } catch (e) {}
+          if (poppedCard !== c) return;
+          popPlay();
+        };
+        try { c.hlsInstance.on("hlsMediaAttached", onAttached); } catch (e) {}
+        setTimeout(onAttached, 800);
+      } else {
+        popPlay();
+      }
+      // Last-resort recovery: if the video is still paused or not
+      // advancing 900ms after popout open, force a tiny seek + retry.
+      // Covers the rare case where MEDIA_ATTACHED fired but the
+      // decoder still didn't pick up.
       if (c.usingHls) {
         var checkTime = c.video.currentTime || 0;
         setTimeout(function () {
@@ -1360,12 +1392,11 @@
                            (c.video.currentTime === checkTime && c.video.readyState < 3);
           if (!stillStuck) return;
           try {
-            // Nudge: tiny seek to wake the decoder, then play again.
             c.video.currentTime = (c.video.currentTime || 0) + 0.01;
           } catch (e) {}
           var p3 = c.video.play();
           if (p3 && p3.catch) p3.catch(function () {});
-        }, 600);
+        }, 900);
       }
     }
 
