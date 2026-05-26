@@ -377,9 +377,9 @@
       // Caption overlay (only visible while popped AND a language is
       // selected — class .visible is toggled by capRender). Strong
       // !important so host-page CSS can't inflate the font.
-      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:3px 7px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".sgr-cap-overlay{position:absolute;left:5%;right:5%;bottom:23%;min-height:11%;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:7px!important;font-weight:600!important;line-height:1.28!important;letter-spacing:0!important;color:#fff!important;background:rgba(0,0,0,.91);padding:3px 7px!important;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
-      "@media(max-width:767px){.sgr-cap-overlay{font-size:8.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
+      "@media(max-width:767px){.sgr-cap-overlay{font-size:7.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
       // Press-and-hold 2x speed indicator — same style as the other
       // widgets. Shown while .visible, hidden otherwise.
       ".sgr-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:29px!important;height:29px!important;min-width:29px!important;min-height:29px!important;box-sizing:border-box!important;background:rgba(0,0,0,.55)!important;color:#fff!important;font-size:9px!important;font-weight:700!important;line-height:1!important;padding:0!important;border-radius:50%!important;border:1.5px solid rgba(255,255,255,.3)!important;display:flex!important;align-items:center!important;justify-content:center!important;z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;font-family:system-ui,-apple-system,sans-serif!important;text-align:center!important}",
@@ -820,7 +820,14 @@
   // document.body so its transform isn't clipped by any overflow on
   // the host page. Controls live PER CARD (close, mute, CC, title,
   // progress) and are revealed by a CSS class on the card.
-  var POPOUT_SCALE = 1.7;
+  // Mobile uses the original 1.7x scale (its cards are already a
+  // larger share of the viewport). Desktop bumps to ~2.04x so the
+  // popped card is ~20% bigger than mobile-equivalent.
+  var POPOUT_SCALE_MOBILE  = 1.7;
+  var POPOUT_SCALE_DESKTOP = 2.04;
+  function currentPopoutScale() {
+    return isMobileLayout() ? POPOUT_SCALE_MOBILE : POPOUT_SCALE_DESKTOP;
+  }
   var backdrop = document.createElement("div");
   backdrop.className = "sgr-popout-backdrop";
   backdrop.setAttribute("aria-hidden", "true");
@@ -847,6 +854,7 @@
     // Measure the card's current on-screen rect BEFORE lifting it.
     var r  = c.el.getBoundingClientRect();
     var w  = r.width, h = r.height;
+    var POPOUT_SCALE = currentPopoutScale();
     var tw = w * POPOUT_SCALE, th = h * POPOUT_SCALE;
     // Target top-left = centered over the original card's centre,
     // clamped to viewport with a 16px margin.
