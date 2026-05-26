@@ -204,12 +204,23 @@
   }
   var SPL_CAP_LANG_NAMES = { en: "English", es: "Español", fr: "Français", de: "Deutsch", zh: "中文" };
 
-  // Pre-parse each reel's captions once.
-  var capCuesByReel  = [];
-  var capLangsByReel = [];
+  // Captions can arrive in two shapes per reel:
+  //   - reel.captions:          { en: "WEBVTT\n...", es: "..." }  (legacy inline)
+  //   - reel.captionsAvailable: ["en", "es"]                       (lazy fetch)
+  // For inline shape we parse cues upfront. For captionsAvailable we
+  // store an empty placeholder and fetch the VTT the first time the
+  // user picks that language for that reel. Either way the union of
+  // languages drives the CC menu.
+  var captionsEndpoint = cfg.captionsEndpoint || "https://www.getsplashy.com/api/play/captions";
+  var capCuesByReel    = [];
+  var capLangsByReel   = [];
+  // capPendingByReel[reelIdx][lang] = true while a fetch is in flight,
+  // so concurrent capRender calls don't double-fetch the same VTT.
+  var capPendingByReel = [];
   for (var ci = 0; ci < reels.length; ci++) {
-    var perReel = {}; var perReelLangs = [];
-    var rc = reels[ci] && reels[ci].captions;
+    var perReel = {}; var perReelLangs = []; var perReelPending = {};
+    var rc  = reels[ci] && reels[ci].captions;
+    var av  = reels[ci] && reels[ci].captionsAvailable;
     if (rc && typeof rc === "object") {
       Object.keys(rc).forEach(function (lang) {
         var vttStr = rc[lang];
@@ -219,13 +230,61 @@
         }
       });
     }
+    if (Array.isArray(av)) {
+      av.forEach(function (lang) {
+        if (typeof lang === "string" && lang && perReelLangs.indexOf(lang) === -1) {
+          perReelLangs.push(lang);
+        }
+      });
+    }
     capCuesByReel.push(perReel);
     capLangsByReel.push(perReelLangs);
+    capPendingByReel.push(perReelPending);
   }
   var capUnionLangs = [];
   capLangsByReel.forEach(function (arr) {
     arr.forEach(function (l) { if (capUnionLangs.indexOf(l) === -1) capUnionLangs.push(l); });
   });
+
+  // Reel ID matches the server's storage key (djb2 of videoUrl). Used
+  // to address the captions endpoint when fetching a VTT.
+  function capReelIdFor(url) {
+    if (!url) return "";
+    var h = 5381;
+    for (var i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+  }
+  // Lazy fetch + parse + cache. Calls onLoaded() once cues exist (or
+  // never if the request fails / returns 404). Subsequent calls for
+  // the same reel/lang short-circuit and call onLoaded() synchronously.
+  function capEnsureCuesLoaded(reelIdx, lang, onLoaded) {
+    if (capCuesByReel[reelIdx] && capCuesByReel[reelIdx][lang]) {
+      if (typeof onLoaded === "function") onLoaded();
+      return;
+    }
+    if (capLangsByReel[reelIdx].indexOf(lang) === -1) return;
+    if (capPendingByReel[reelIdx][lang]) return; // fetch already in flight
+    if (!clientId) return;
+    var reel = reels[reelIdx];
+    if (!reel || !reel.videoUrl) return;
+    capPendingByReel[reelIdx][lang] = true;
+    var url = captionsEndpoint
+      + "?c=" + encodeURIComponent(clientId)
+      + "&r=" + encodeURIComponent(capReelIdFor(reel.videoUrl))
+      + "&l=" + encodeURIComponent(lang);
+    fetch(url, { credentials: "omit" })
+      .then(function (r) { return r.ok ? r.text() : null; })
+      .then(function (text) {
+        capPendingByReel[reelIdx][lang] = false;
+        if (!text) return;
+        var parsed = splCapParseVtt(text);
+        if (parsed.length) {
+          capCuesByReel[reelIdx][lang] = parsed;
+          if (typeof onLoaded === "function") onLoaded();
+        }
+      })
+      .catch(function () { capPendingByReel[reelIdx][lang] = false; });
+  }
   var capSelected = (function () {
     var saved = splCapGetSavedLang();
     if (saved === "off") return null;
@@ -1210,6 +1269,14 @@
     var capOver = c.el.querySelector(".sgr-cap-overlay");
     if (!capOver) return;
     var cues = (capCuesByReel[c.idx] || {})[capSelected];
+    // Cues not loaded yet but lang IS available for this reel — kick
+    // off a lazy fetch and bail. Once the VTT arrives the resolver
+    // calls capRender again to display it.
+    if (!cues && capSelected && capLangsByReel[c.idx] && capLangsByReel[c.idx].indexOf(capSelected) !== -1) {
+      capEnsureCuesLoaded(c.idx, capSelected, function () {
+        if (poppedCard === c) capRenderForCard(c, true);
+      });
+    }
     if (!capSelected || !cues) {
       if (capOver.classList.contains("visible")) {
         capOver.classList.remove("visible");
