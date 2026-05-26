@@ -330,7 +330,7 @@
       // shown without crashing into the caption band or the scrub
       // bar. !important on font + line-height so host-page typography
       // can't bloat it.
-      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:14px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
+      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:14px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
       ".sgr-card.sgr-popped--open .sgr-pop-title{display:-webkit-box}",
       "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:12px}}",
       // Progress bar at very bottom of popped card.
@@ -716,10 +716,13 @@
 
     // Pause every other (autoplay/lane) card so audio doesn't double
     // and CPU doesn't churn while the popped card plays unmuted.
+    // Mark the lanes inactive too — otherwise closePopout sees
+    // lanesActive===true and skips the restart.
     cards.forEach(function (other) {
       if (other === c) return;
       if (other.video) stopCardPlay(other);
     });
+    lanesActive = false;
 
     // Measure the card's current on-screen rect BEFORE lifting it.
     var r  = c.el.getBoundingClientRect();
