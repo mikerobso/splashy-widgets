@@ -879,11 +879,11 @@
   // document.body so its transform isn't clipped by any overflow on
   // the host page. Controls live PER CARD (close, mute, CC, title,
   // progress) and are revealed by a CSS class on the card.
-  // Mobile uses the original 1.7x scale (its cards are already a
-  // larger share of the viewport). Desktop bumps to ~2.04x so the
-  // popped card is ~20% bigger than mobile-equivalent.
-  var POPOUT_SCALE_MOBILE  = 1.7;
-  var POPOUT_SCALE_DESKTOP = 2.04;
+  // Both scales bumped 20% over their previous values.
+  // Desktop still ends up ~20% larger than mobile because we scaled
+  // both by the same factor.
+  var POPOUT_SCALE_MOBILE  = 2.04;
+  var POPOUT_SCALE_DESKTOP = 2.45;
   function currentPopoutScale() {
     return isMobileLayout() ? POPOUT_SCALE_MOBILE : POPOUT_SCALE_DESKTOP;
   }
