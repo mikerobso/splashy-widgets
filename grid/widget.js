@@ -322,8 +322,12 @@
       ".sgr-card.sgr-popped--open .sgr-cap-overlay.visible{display:flex}",
       // Even smaller on mobile — the popped card is narrow.
       "@media(max-width:767px){.sgr-cap-overlay{font-size:9.5px!important;padding:3px 6px!important;line-height:1.25!important;min-height:10%}}",
-      // Title — bottom-left while popped.
-      ".sgr-pop-title{position:absolute;left:10px;right:48px;bottom:32px;font-size:13px;font-weight:700;line-height:1.25;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none;z-index:13}",
+      // Title — bottom-left while popped. Single-line truncated with
+      // ellipsis so a long title can't crash into the caption band.
+      // !important on font/line-height so host-page typography rules
+      // (often setting h-tag styles or .title font-size) can't bloat it.
+      ".sgr-pop-title{position:absolute;left:10px;right:48px;bottom:20px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:11px!important;font-weight:700!important;line-height:1.25!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:none!important}",
+      "@media(max-width:767px){.sgr-pop-title{font-size:10px!important;bottom:18px}}",
       // Progress bar at very bottom of popped card.
       ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
       ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
@@ -690,7 +694,7 @@
   // document.body so its transform isn't clipped by any overflow on
   // the host page. Controls live PER CARD (close, mute, CC, title,
   // progress) and are revealed by a CSS class on the card.
-  var POPOUT_SCALE = 1.3;
+  var POPOUT_SCALE = 1.7;
   var backdrop = document.createElement("div");
   backdrop.className = "sgr-popout-backdrop";
   backdrop.setAttribute("aria-hidden", "true");
