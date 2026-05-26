@@ -282,7 +282,7 @@
       ".sgr-card-holder{display:block}",
       // Per-card controls: invisible on the inline grid; revealed only
       // when the card has .sgr-popped--open (i.e. it's popped + animated).
-      ".sgr-close-btn,.sgr-pop-mute-btn,.sgr-pop-cc-btn,.sgr-lang-menu,.sgr-cap-overlay,.sgr-pop-title,.sgr-pop-prog{display:none}",
+      ".sgr-close-btn,.sgr-pop-mute-btn,.sgr-pop-cc-btn,.sgr-lang-menu,.sgr-cap-overlay,.sgr-pop-title,.sgr-pop-prog,.sgr-pop-time{display:none}",
       ".sgr-card.sgr-popped--open .sgr-close-btn{display:flex}",
       ".sgr-card.sgr-popped--open .sgr-pop-mute-btn{display:flex}",
       ".sgr-card.sgr-popped--open .sgr-pop-cc-btn.has-langs{display:flex}",
@@ -295,7 +295,7 @@
       // with two vertical bars overlaid on the video while paused.
       ".sgr-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:14;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".sgr-card.sgr-popped--open.sgr-paused .sgr-pause-ind{opacity:1}",
-      ".sgr-pause-circle{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.18)!important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.6)!important;display:flex;align-items:center;justify-content:center;padding:0!important;box-sizing:border-box!important}",
+      ".sgr-pause-circle{width:40px!important;height:40px!important;min-width:40px!important;min-height:40px!important;border-radius:50%!important;background:rgba(0,0,0,.5)!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border:1.5px solid rgba(255,255,255,.6)!important;display:flex;align-items:center;justify-content:center;padding:0!important;box-sizing:border-box!important}",
       ".sgr-pause-circle svg{display:block}",
       // Close button — top-right corner. Strong reset so host-page
       // CSS can't push the icon off-center.
@@ -337,9 +337,13 @@
       // shown without crashing into the caption band or the scrub
       // bar. !important on font + line-height so host-page typography
       // can't bloat it.
-      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:14px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
+      ".sgr-pop-title{position:absolute;left:8px;right:38px;bottom:30px;font-family:system-ui,-apple-system,'Segoe UI',sans-serif!important;font-size:8px!important;font-weight:700!important;line-height:1.2!important;letter-spacing:0!important;color:#fff!important;text-shadow:0 1px 3px rgba(0,0,0,.7)!important;pointer-events:none;z-index:13;margin:0!important;padding:0!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;text-transform:none!important}",
       ".sgr-card.sgr-popped--open .sgr-pop-title{display:-webkit-box}",
-      "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:12px}}",
+      "@media(max-width:767px){.sgr-pop-title{font-size:7.5px!important;bottom:26px}}",
+      // Time counter (e.g. "0:08 / 0:22") above the scrub bar, right-aligned.
+      ".sgr-pop-time{position:absolute;right:8px;bottom:17px;font-family:system-ui,-apple-system,sans-serif!important;font-size:8px!important;font-weight:600!important;line-height:1!important;letter-spacing:.02em!important;color:rgba(255,255,255,.95)!important;text-shadow:0 1px 3px rgba(0,0,0,.55)!important;z-index:14;pointer-events:none;font-variant-numeric:tabular-nums;margin:0!important;padding:0!important;text-transform:none!important;background:transparent!important;border:0!important}",
+      ".sgr-card.sgr-popped--open .sgr-pop-time{display:block}",
+      "@media(max-width:767px){.sgr-pop-time{font-size:7.5px!important;bottom:15px}}",
       // Progress bar at very bottom of popped card.
       ".sgr-pop-prog{position:absolute;bottom:0;left:0;right:0;height:14px;z-index:20;cursor:pointer;align-items:flex-end}",
       ".sgr-pop-prog-track{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(255,255,255,.25);pointer-events:none}",
@@ -457,12 +461,13 @@
         : '') +
       '<div class="sgr-pop-title"></div>' +
       '<div class="sgr-pause-ind"><div class="sgr-pause-circle">' +
-        '<svg width="16" height="18" viewBox="0 0 18 20" fill="none">' +
+        '<svg width="14" height="16" viewBox="0 0 18 20" fill="none">' +
           '<rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/>' +
           '<rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/>' +
         '</svg>' +
       '</div></div>' +
       '<div class="sgr-speed">2&times;</div>' +
+      '<div class="sgr-pop-time">0:00 / 0:00</div>' +
       '<div class="sgr-pop-prog" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
         '<div class="sgr-pop-prog-track"></div>' +
         '<div class="sgr-pop-prog-fill"></div>' +
@@ -783,6 +788,20 @@
     // Configure popped controls for this card.
     var titleEl = c.el.querySelector(".sgr-pop-title");
     if (titleEl) titleEl.textContent = c.reel.label || "";
+    // Seed the timer text with whatever we know right now (duration
+    // may not be loaded yet — the loadedmetadata listener will fill
+    // it in once it is).
+    var tEl = c.el.querySelector(".sgr-pop-time");
+    if (tEl) {
+      var d0 = c.video.duration;
+      var fmt0 = function (s) {
+        if (!isFinite(s) || s < 0) s = 0;
+        var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+        return m + ":" + (sec < 10 ? "0" : "") + sec;
+      };
+      tEl.textContent = fmt0(c.video.currentTime) + " / " +
+                        fmt0(isFinite(d0) ? d0 : 0);
+    }
     c.video.muted = false;            // popout starts unmuted
     syncCardMuteIcon(c);
     capBuildMenuForCard(c);
@@ -929,25 +948,55 @@
       });
     }
 
-    // Progress bar — scrub-to-seek. If duration isn't loaded yet
-    // (preload='none' cards reach the popout before metadata arrives),
-    // capture the pct and apply once 'loadedmetadata' fires.
+    // Progress bar — drag-to-scrub (mouse + touch). mousedown/touchstart
+    // on the bar starts a drag; document-level mousemove/touchmove
+    // continuously seek while the pointer stays down. Mouseup/touchend
+    // ends the drag. Quick clicks still work (mousedown→seek, mouseup
+    // immediately after, no movement). If duration isn't loaded yet we
+    // cache the last pct and apply once 'loadedmetadata' fires.
     var prog = c.el.querySelector(".sgr-pop-prog");
-    if (prog) prog.addEventListener("click", function (e) {
-      e.stopPropagation();
+    var dragging = false;
+    function getPct(e) {
       var r = prog.getBoundingClientRect();
-      var pct = (e.clientX - r.left) / r.width;
-      if (pct < 0) pct = 0; if (pct > 1) pct = 1;
+      var x = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+      var p = (x - r.left) / r.width;
+      if (p < 0) p = 0; if (p > 1) p = 1;
+      return p;
+    }
+    function seekTo(p) {
       if (isFinite(c.video.duration) && c.video.duration > 0) {
-        c.video.currentTime = pct * c.video.duration;
+        c.video.currentTime = p * c.video.duration;
       } else {
         var once = function () {
-          c.video.currentTime = pct * c.video.duration;
+          c.video.currentTime = p * c.video.duration;
           c.video.removeEventListener("loadedmetadata", once);
         };
         c.video.addEventListener("loadedmetadata", once);
       }
-    });
+    }
+    if (prog) {
+      prog.addEventListener("mousedown", function (e) {
+        e.stopPropagation(); e.preventDefault();
+        dragging = true;
+        seekTo(getPct(e));
+      });
+      prog.addEventListener("touchstart", function (e) {
+        e.stopPropagation();
+        dragging = true;
+        seekTo(getPct(e));
+      }, { passive: true });
+      document.addEventListener("mousemove", function (e) {
+        if (!dragging || poppedCard !== c) return;
+        seekTo(getPct(e));
+      });
+      document.addEventListener("touchmove", function (e) {
+        if (!dragging || poppedCard !== c) return;
+        seekTo(getPct(e));
+      }, { passive: true });
+      document.addEventListener("mouseup",     function () { dragging = false; });
+      document.addEventListener("touchend",    function () { dragging = false; });
+      document.addEventListener("touchcancel", function () { dragging = false; });
+    }
 
     // ── Press-and-hold for 2× speed ─────────────────
     // Same pattern as the other widgets: 350ms hold on the popped
@@ -1003,8 +1052,20 @@
     // immediately after press-and-hold release.
     c._swallowClick = function () { return swallowNextClick; };
 
-    // timeupdate → update progress + render captions, but only while
-    // the card is the popped one.
+    // timeupdate → update progress fill + timer + captions, while popped.
+    var timeEl = c.el.querySelector(".sgr-pop-time");
+    function fmtT(s) {
+      if (!isFinite(s) || s < 0) s = 0;
+      var m = Math.floor(s / 60), sec = Math.floor(s % 60);
+      return m + ":" + (sec < 10 ? "0" : "") + sec;
+    }
+    function refreshTimeText() {
+      if (!timeEl) return;
+      var d = c.video.duration;
+      timeEl.textContent = fmtT(c.video.currentTime) + " / " +
+                           fmtT(isFinite(d) ? d : 0);
+    }
+    c.video.addEventListener("loadedmetadata", refreshTimeText);
     c.video.addEventListener("timeupdate", function () {
       if (poppedCard !== c) return;
       if (c.video.duration) {
@@ -1013,10 +1074,13 @@
         if (fill) fill.style.width = pct + "%";
         if (prog) prog.setAttribute("aria-valuenow", Math.round(pct));
       }
+      refreshTimeText();
       capRenderForCard(c, false);
     });
     c.video.addEventListener("seeked", function () {
-      if (poppedCard === c) capRenderForCard(c, true);
+      if (poppedCard !== c) return;
+      refreshTimeText();
+      capRenderForCard(c, true);
     });
   });
 
