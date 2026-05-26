@@ -56,7 +56,7 @@
     var hosts = {};
     reels.forEach(function (r) {
       if (!r) return;
-      [r.videoUrl, r.videoUrlSd, r.posterUrl].forEach(function (u) {
+      [r.videoUrl, r.videoUrlSd, r.videoUrlHls, r.posterUrl].forEach(function (u) {
         if (!u || typeof u !== "string") return;
         try {
           var h = new URL(u, window.location.href).origin;
@@ -73,6 +73,70 @@
       document.head.appendChild(l);
     });
   })();
+
+  // ── HLS support ───────────────────────────────────
+  // Three playback paths:
+  //   1. Native HLS (Safari, iOS WebKit, Edge Legacy): set
+  //      video.src = playlist URL and the browser handles it.
+  //   2. hls.js (Chrome/Firefox/Edge): lazy-load the library on first
+  //      use, attach to the video element. capLevelToPlayerSize=true
+  //      caps quality to roughly match the rendered video size, so
+  //      grid cards stream low quality and popped cards auto-upgrade.
+  //   3. MP4 fallback (no HLS support or no urlHls in cfg): same SD/HD
+  //      swap pattern as before — videoUrlSd for the grid card,
+  //      videoUrl swap on popout.
+  var HLS_JS_SRC = cfg.hlsJsSrc || "https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js";
+  function canPlayHlsNatively(video) {
+    return video.canPlayType("application/vnd.apple.mpegurl") !== "" ||
+           video.canPlayType("application/x-mpegURL")        !== "";
+  }
+  var hlsJsLoaderPromise = null;
+  function ensureHlsJsLoaded() {
+    if (window.Hls) return Promise.resolve(window.Hls);
+    if (hlsJsLoaderPromise) return hlsJsLoaderPromise;
+    hlsJsLoaderPromise = new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = HLS_JS_SRC;
+      s.async = true;
+      s.onload  = function () { window.Hls ? resolve(window.Hls) : reject(new Error("hls.js loaded but Hls global missing")); };
+      s.onerror = function () { reject(new Error("hls.js failed to load")); };
+      document.head.appendChild(s);
+    });
+    return hlsJsLoaderPromise;
+  }
+  function attachMp4Fallback(video, reel) {
+    // Used in the grid card (low-res) — popout swaps to videoUrl.
+    video.src = reel.videoUrlSd || reel.videoUrl;
+  }
+  function attachVideoSource(video, reel, cardObj) {
+    if (reel.videoUrlHls && canPlayHlsNatively(video)) {
+      video.src = reel.videoUrlHls;
+      cardObj.usingHls = true;
+      cardObj.hlsKind  = "native";
+      return;
+    }
+    if (reel.videoUrlHls) {
+      // Lazy-load hls.js. Until it resolves the card has no src; the
+      // poster image stays visible. If the load fails or MSE isn't
+      // supported (rare), fall back to MP4.
+      ensureHlsJsLoaded().then(function (Hls) {
+        if (!Hls.isSupported()) { attachMp4Fallback(video, reel); return; }
+        var hls = new Hls({
+          capLevelToPlayerSize: true,  // pick quality based on rendered px size
+          enableWorker: true,
+          lowLatencyMode: false,
+          backBufferLength: 30
+        });
+        hls.loadSource(reel.videoUrlHls);
+        hls.attachMedia(video);
+        cardObj.usingHls    = true;
+        cardObj.hlsKind     = "hlsjs";
+        cardObj.hlsInstance = hls;
+      }).catch(function () { attachMp4Fallback(video, reel); });
+      return;
+    }
+    attachMp4Fallback(video, reel);
+  }
   // When true, only the first row (cards 0-5) is shown on desktop;
   // mobile still shows all 12 across 3 swipeable pages. The autoplay
   // lanes that start in the hidden row (>= 6) are skipped on desktop
@@ -589,10 +653,6 @@
     // download path (browser pulls bytes ahead of playback) is
     // fast enough on a primed connection.
     video.preload = "metadata";
-    // Initial src = the SD variant if the library has one (used while
-    // the card sits in the grid). Popout opens swap to the full-res
-    // videoUrl for higher quality during focused viewing.
-    video.src = reel.videoUrlSd || reel.videoUrl;
     el.appendChild(video);
 
     // Play-icon overlay (visible when not playing, hidden when popped)
@@ -669,7 +729,7 @@
       '</div>'
     );
 
-    cards.push({
+    var cardObj = {
       idx:        idx,
       el:         el,
       video:      video,
@@ -680,8 +740,16 @@
       watchTimer: null,
       // Popout state — per-card so each card remembers what selected
       // language was set, etc. Filled lazily in openPopout.
-      popped:     false
-    });
+      popped:     false,
+      // Source attachment state. Set by attachVideoSource: "hlsjs"
+      // when an Hls instance owns the video, "native-hls" when Safari
+      // is playing the playlist directly, "mp4" otherwise. The MP4
+      // SD/HD swap on popout only runs when usingHls is falsy.
+      usingHls:   false,
+      hlsInstance: null
+    };
+    cards.push(cardObj);
+    attachVideoSource(video, reel, cardObj);
   });
 
   // viaAutoplay = true when this start is part of an autoplay lane
@@ -950,6 +1018,7 @@
   // 30s — the browser's HTTP cache holds the bytes from there on.
   function preloadHd(card) {
     if (card.hdPreloaded) return;
+    if (card.usingHls) return;  // HLS adapts quality on its own — no manual prefetch
     var r = card.reel;
     if (!r || !r.videoUrlSd || !r.videoUrl || r.videoUrlSd === r.videoUrl) return;
     card.hdPreloaded = true;
@@ -1131,8 +1200,10 @@
     // to it now for higher quality during focused viewing. Preserve
     // currentTime via a one-shot loadedmetadata listener so the user
     // doesn't lose their place. If no SD variant exists or src is
-    // already at the high-res URL, this is a no-op.
-    var hasSdSwap = c.reel.videoUrlSd && c.reel.videoUrl &&
+    // already at the high-res URL, this is a no-op. Skipped for HLS
+    // cards — capLevelToPlayerSize handles quality automatically when
+    // the video element scales up via the popout transform.
+    var hasSdSwap = !c.usingHls && c.reel.videoUrlSd && c.reel.videoUrl &&
                     c.reel.videoUrlSd !== c.reel.videoUrl;
     if (hasSdSwap && c.video.src !== c.reel.videoUrl) {
       var resumeTime = c.video.currentTime || 0;
@@ -1189,12 +1260,13 @@
     c.el.classList.remove("is-playing");
     if (c.icon) c.icon.classList.remove("hidden");
 
-    // Quality swap-back: if we upgraded to the full-res URL on
-    // popout open, swap back to the SD variant so any subsequent
-    // autoplay-lane rotation onto this card streams the low-res
-    // file again. No need to preserve currentTime — the card is
-    // paused and startCardPlay resets to 0 anyway.
-    if (c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
+    // Quality swap-back (MP4 only): if we upgraded to the full-res URL
+    // on popout open, swap back to the SD variant so any subsequent
+    // autoplay-lane rotation onto this card streams the low-res file
+    // again. HLS handles quality adaptively via capLevelToPlayerSize
+    // and needs no swap-back.
+    if (!c.usingHls &&
+        c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
         c.video.src !== c.reel.videoUrlSd) {
       c.video.src = c.reel.videoUrlSd;
     }
