@@ -371,10 +371,10 @@
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.preload = autoplayMap[idx] ? "metadata" : "none";
-    // Autoplay-chain cards play to end (then chain advances). Non-
-    // chain cards loop while hovered so the visitor can re-watch
-    // a short clip without it freezing on the last frame.
-    if (!autoplayMap[idx]) video.loop = true;
+    // Lanes can advance into any card, so no video should loop —
+    // they each need to fire 'ended' for the lane to step forward.
+    // Hover replays from the start (startCardPlay resets currentTime).
+    video.loop = false;
     video.src = reel.videoUrl;
     el.appendChild(video);
 
@@ -436,55 +436,69 @@
     }
   }
 
-  // ── Autoplay chain ─────────────────────────────────
-  // Only one chain card plays at a time. When its video ends, advance
-  // to the next eligible slot. Mobile skips this entirely (autoplay-
-  // with-mute on mobile browsers is flaky + costs cellular data).
+  // ── Autoplay lanes ─────────────────────────────────
+  // Four parallel "lanes" of motion run while the grid is in the
+  // viewport. Each lane starts at one of autoplayIndices (default
+  // reels 1, 4, 8, 12 -> idx 0, 3, 7, 11) and independently cycles
+  // forward through the reels — when its current video fires
+  // 'ended', the lane advances to the next non-empty card and starts
+  // it. All four lanes are visible simultaneously (4 cards playing
+  // at once on average; occasional 3 if lanes collide).
+  //
+  // Mobile skips autoplay entirely (browser autoplay-with-mute is
+  // flaky on iOS + costs cellular data).
   var inViewport  = false;
-  var chainActive = false;
-  var chainPos    = 0;            // index into autoplayIndices
+  var lanesActive = false;
+  var lanes = [];
+  autoplayIndices.forEach(function (startIdx) {
+    var card = cards[startIdx];
+    if (card && card.video) lanes.push({ current: startIdx });
+  });
 
-  function chainCardAt(pos) {
-    var idx = autoplayIndices[pos];
-    for (var i = 0; i < cards.length; i++) {
-      if (cards[i].idx === idx) return cards[i];
-    }
-    return null;
-  }
-  function startChain() {
-    if (chainActive || isMobileLayout()) return;
-    chainActive = true;
-    advanceChain(chainPos);
-  }
-  function stopChain() {
-    chainActive = false;
-    var c = chainCardAt(chainPos);
-    if (c && !c.hovered) stopCardPlay(c);
-  }
-  function advanceChain(targetPos) {
-    if (!chainActive) return;
-    var tries = 0;
-    while (tries < autoplayIndices.length) {
-      var c = chainCardAt(targetPos);
-      if (c && c.video) { chainPos = targetPos; startCardPlay(c); return; }
-      targetPos = (targetPos + 1) % autoplayIndices.length;
-      tries++;
-    }
-    // All chain slots empty — nothing to play. Set inactive so we
-    // don't spin.
-    chainActive = false;
-  }
-  // Attach 'ended' to every chain card's video so the chain advances
-  // naturally when the current clip finishes.
-  cards.forEach(function (c) {
-    if (!c.video || !autoplayMap[c.idx]) return;
-    c.video.addEventListener("ended", function () {
-      if (!chainActive) return;
-      var pos = autoplayIndices.indexOf(c.idx);
-      if (pos < 0) return;
-      stopCardPlay(c);
-      advanceChain((pos + 1) % autoplayIndices.length);
+  function startAllLanes() {
+    if (lanesActive || isMobileLayout() || !lanes.length) return;
+    lanesActive = true;
+    lanes.forEach(function (lane) {
+      var c = cards[lane.current];
+      if (c && c.video) startCardPlay(c);
     });
+  }
+  function stopAllLanes() {
+    lanesActive = false;
+    lanes.forEach(function (lane) {
+      var c = cards[lane.current];
+      if (c && c.video && !c.hovered) stopCardPlay(c);
+    });
+  }
+  // Advance whichever lane's current === endedCard.idx. Skip past
+  // empty/missing cards. Only ONE lane advances per ended event — if
+  // two lanes happen to be on the same card, the first match wins
+  // and the other lane stays on this card (it'll catch the next
+  // ended on its own).
+  function onLaneCardEnded(endedCard) {
+    if (!lanesActive) return;
+    for (var li = 0; li < lanes.length; li++) {
+      if (lanes[li].current !== endedCard.idx) continue;
+      stopCardPlay(endedCard);
+      var next = (endedCard.idx + 1) % cards.length;
+      var tries = 0;
+      while (tries < cards.length) {
+        var nc = cards[next];
+        if (nc && nc.video) break;
+        next = (next + 1) % cards.length;
+        tries++;
+      }
+      lanes[li].current = next;
+      var newCard = cards[next];
+      if (newCard && newCard.video) startCardPlay(newCard);
+      return;
+    }
+  }
+  // Attach 'ended' to EVERY card's video — a lane can rotate into
+  // any card, so any card may need to advance its owning lane.
+  cards.forEach(function (c) {
+    if (!c.video) return;
+    c.video.addEventListener("ended", function () { onLaneCardEnded(c); });
   });
 
   if (typeof IntersectionObserver === "function") {
@@ -492,8 +506,8 @@
       var nowVisible = entries[0] && entries[0].isIntersecting;
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
-      if (inViewport) startChain();
-      else            stopChain();
+      if (inViewport) startAllLanes();
+      else            stopAllLanes();
     }, { threshold: 0.1 });
     rootIo.observe(container);
   }
@@ -513,9 +527,10 @@
     c.el.addEventListener("mouseleave", function () {
       if (isMobileLayout()) return;
       c.hovered = false;
-      var pos = autoplayIndices.indexOf(c.idx);
-      var isActiveChainCard = (chainActive && pos === chainPos);
-      if (isActiveChainCard) return;   // chain card stays running
+      // If a lane is currently on this card, don't tear it down —
+      // mouseleave would silently stop the lane's video.
+      var laneOwns = lanesActive && lanes.some(function (l) { return l.current === c.idx; });
+      if (laneOwns) return;
       stopCardPlay(c);
     });
   });
@@ -754,12 +769,11 @@
 
   // ── Resize handler ─────────────────────────────────
   // CSS handles the desktop ↔ mobile layout flip via media query.
-  // Just (re-)evaluate the chain: if we just crossed into mobile,
-  // stop it; if we just crossed into desktop and the grid is in the
-  // viewport, kick it back on.
+  // Just (re-)evaluate the lanes: stop on mobile, resume on desktop
+  // when the grid is in the viewport.
   window.addEventListener("resize", function () {
-    if (isMobileLayout()) { stopChain(); return; }
-    if (inViewport && !chainActive) startChain();
+    if (isMobileLayout()) { stopAllLanes(); return; }
+    if (inViewport && !lanesActive) startAllLanes();
   });
 
   } // end initWidget
