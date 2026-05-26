@@ -284,9 +284,9 @@
       ".sgr-dots{display:none;justify-content:center;gap:0;margin-top:10px}",
       "@media(max-width:767px){.sgr-dots{display:flex}}",
       ".sgr-dot{width:24px!important;height:24px!important;min-width:24px!important;min-height:24px!important;border-radius:50%!important;background:transparent!important;border:none!important;cursor:pointer;padding:0!important;margin:0!important;display:flex;align-items:center;justify-content:center;-webkit-appearance:none;appearance:none;-webkit-tap-highlight-color:transparent}",
-      ".sgr-dot::before{content:\"\";display:block;width:8.5px;height:8.5px;border-radius:50%;background:rgba(0,0,0,.35);transition:background .25s,transform .25s}",
-      ".sgr-dot.is-active::before{background:rgba(0,0,0,.85);transform:scale(1.35)}",
-      ".sgr-dot:focus-visible{outline:2px solid rgba(0,0,0,.45);outline-offset:2px}",
+      ".sgr-dot::before{content:\"\";display:block;width:8.5px;height:8.5px;border-radius:50%;background:#ccc;transition:background .25s,transform .25s}",
+      ".sgr-dot.is-active::before{background:#D30011;transform:scale(1.35)}",
+      ".sgr-dot:focus-visible{outline:2px solid #D30011;outline-offset:2px}",
 
       // ── Popout (single-widget style: card scales 1.3x in place) ────
       // Backdrop overlay — fixed full-viewport, fades in when a card
