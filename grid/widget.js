@@ -44,13 +44,14 @@
 
   var reels       = cfg.reels       || [];
   var containerId = cfg.containerId || "splshy-grid";
-  // Positions that auto-play when the grid is scrolled into view. 0-
-  // indexed; default is every-third card so the motion feels balanced
-  // rather than clustered. cfg.autoplayIndices override available for
+  // Autoplay-eligible positions (0-indexed). Default = reels 1, 4, 8,
+  // 12 (1-indexed). Only ONE of these plays at a time as part of an
+  // auto-advance chain: when the current chain card's video ends, the
+  // next eligible card starts. cfg.autoplayIndices is honored for
   // future tuning.
   var autoplayIndices = Array.isArray(cfg.autoplayIndices)
     ? cfg.autoplayIndices
-    : [0, 3, 6, 9];
+    : [0, 3, 7, 11];
   var autoplayMap = {};
   autoplayIndices.forEach(function (i) { autoplayMap[i] = true; });
 
@@ -269,6 +270,9 @@
       ".sgr-overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:99999;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:20px;box-sizing:border-box}",
       ".sgr-overlay.visible{display:flex}",
       ".sgr-viewer{position:relative;height:min(92vh,800px);aspect-ratio:9/16;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 40px 90px rgba(0,0,0,.55)}",
+      // Mobile: shrink viewer + relax the backdrop so the popout
+      // feels less invasive. Leaves visible page chrome on top/bottom.
+      "@media(max-width:767px){.sgr-viewer{height:min(72vh,600px)}.sgr-overlay{padding:36px 16px;background:rgba(0,0,0,.7)}}",
       ".sgr-viewer-video{width:100%;height:100%;object-fit:cover;display:block;background:#000}",
       ".sgr-viewer-poster{position:absolute;inset:0;background-size:cover;background-position:center;pointer-events:none;opacity:0;transition:opacity .2s}",
       ".sgr-viewer-poster.visible{opacity:1}",
@@ -367,7 +371,10 @@
     video.setAttribute("playsinline", "");
     video.setAttribute("webkit-playsinline", "");
     video.preload = autoplayMap[idx] ? "metadata" : "none";
-    video.loop = true;
+    // Autoplay-chain cards play to end (then chain advances). Non-
+    // chain cards loop while hovered so the visitor can re-watch
+    // a short clip without it freezing on the last frame.
+    if (!autoplayMap[idx]) video.loop = true;
     video.src = reel.videoUrl;
     el.appendChild(video);
 
@@ -429,27 +436,73 @@
     }
   }
 
-  // ── Viewport autoplay (the 4 chosen slots) ─────────
-  // On mobile, autoplay is skipped — mobile browsers block muted
-  // autoplay inconsistently and visitors are on metered connections.
-  if (typeof IntersectionObserver === "function" && !isMobileLayout()) {
-    var inViewport = false;
+  // ── Autoplay chain ─────────────────────────────────
+  // Only one chain card plays at a time. When its video ends, advance
+  // to the next eligible slot. Mobile skips this entirely (autoplay-
+  // with-mute on mobile browsers is flaky + costs cellular data).
+  var inViewport  = false;
+  var chainActive = false;
+  var chainPos    = 0;            // index into autoplayIndices
+
+  function chainCardAt(pos) {
+    var idx = autoplayIndices[pos];
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].idx === idx) return cards[i];
+    }
+    return null;
+  }
+  function startChain() {
+    if (chainActive || isMobileLayout()) return;
+    chainActive = true;
+    advanceChain(chainPos);
+  }
+  function stopChain() {
+    chainActive = false;
+    var c = chainCardAt(chainPos);
+    if (c && !c.hovered) stopCardPlay(c);
+  }
+  function advanceChain(targetPos) {
+    if (!chainActive) return;
+    var tries = 0;
+    while (tries < autoplayIndices.length) {
+      var c = chainCardAt(targetPos);
+      if (c && c.video) { chainPos = targetPos; startCardPlay(c); return; }
+      targetPos = (targetPos + 1) % autoplayIndices.length;
+      tries++;
+    }
+    // All chain slots empty — nothing to play. Set inactive so we
+    // don't spin.
+    chainActive = false;
+  }
+  // Attach 'ended' to every chain card's video so the chain advances
+  // naturally when the current clip finishes.
+  cards.forEach(function (c) {
+    if (!c.video || !autoplayMap[c.idx]) return;
+    c.video.addEventListener("ended", function () {
+      if (!chainActive) return;
+      var pos = autoplayIndices.indexOf(c.idx);
+      if (pos < 0) return;
+      stopCardPlay(c);
+      advanceChain((pos + 1) % autoplayIndices.length);
+    });
+  });
+
+  if (typeof IntersectionObserver === "function") {
     var rootIo = new IntersectionObserver(function (entries) {
       var nowVisible = entries[0] && entries[0].isIntersecting;
       if (nowVisible === inViewport) return;
       inViewport = nowVisible;
-      cards.forEach(function (c) {
-        if (!autoplayMap[c.idx] || !c.video) return;
-        // Don't tear down a card that's playing because of hover or popout.
-        if (c.hovered || c.popout) return;
-        if (inViewport) startCardPlay(c);
-        else stopCardPlay(c);
-      });
+      if (inViewport) startChain();
+      else            stopChain();
     }, { threshold: 0.1 });
     rootIo.observe(container);
   }
 
   // ── Hover-to-play (desktop only) ───────────────────
+  // Hover plays any card on demand. mouseleave stops it, UNLESS the
+  // card is the currently-active chain card (in which case stopping
+  // would silently kill the chain). Non-chain cards always stop on
+  // mouseleave.
   cards.forEach(function (c) {
     if (!c.video) return;
     c.el.addEventListener("mouseenter", function () {
@@ -460,9 +513,9 @@
     c.el.addEventListener("mouseleave", function () {
       if (isMobileLayout()) return;
       c.hovered = false;
-      // If this card is an autoplay slot AND still in viewport, leave it
-      // running. Otherwise stop.
-      if (autoplayMap[c.idx] && inViewportFor(c.el)) return;
+      var pos = autoplayIndices.indexOf(c.idx);
+      var isActiveChainCard = (chainActive && pos === chainPos);
+      if (isActiveChainCard) return;   // chain card stays running
       stopCardPlay(c);
     });
   });
@@ -700,15 +753,13 @@
   });
 
   // ── Resize handler ─────────────────────────────────
-  // No layout-recompute needed — CSS handles desktop vs mobile via
-  // media query. But re-evaluate the autoplay-on-viewport check so a
-  // resize from mobile→desktop kicks the autoplay slots into gear.
+  // CSS handles the desktop ↔ mobile layout flip via media query.
+  // Just (re-)evaluate the chain: if we just crossed into mobile,
+  // stop it; if we just crossed into desktop and the grid is in the
+  // viewport, kick it back on.
   window.addEventListener("resize", function () {
-    cards.forEach(function (c) {
-      if (!autoplayMap[c.idx] || !c.video) return;
-      if (isMobileLayout()) { stopCardPlay(c); return; }
-      if (inViewportFor(c.el) && !c.hovered) startCardPlay(c);
-    });
+    if (isMobileLayout()) { stopChain(); return; }
+    if (inViewport && !chainActive) startChain();
   });
 
   } // end initWidget
