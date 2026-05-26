@@ -1263,23 +1263,34 @@
     c.el.style.transformOrigin = "top left";
     c.el.style.transform = "translate(0px,0px) scale(1)";
 
-    // No DOM reparent. The card stays in its grid slot in the DOM
-    // tree — position:fixed + z-index:100000 lifts it visually
-    // without disturbing the <video>/MediaSource binding. Avoids the
-    // hls.js freeze-on-frame bug in Chrome that even detachMedia
-    // + attachMedia couldn't reliably recover from. Trade-off: if a
-    // customer's host page has an ancestor with transform/filter/
-    // perspective/will-change, fixed positioning would be relative
-    // to that ancestor instead of the viewport (might clip the
-    // popout). VisitRaleigh's pages don't have that issue. If it
-    // breaks elsewhere, we can re-add reparenting behind a check.
+    // VisitRaleigh (and many other host pages) has ancestor elements
+    // with transform/will-change that trap position:fixed inside
+    // them — without reparenting, the popped card gets clipped or
+    // ends up in the wrong stacking context (backdrop blur covers
+    // the video, or the card disappears on iOS). So we DO reparent.
+    //
+    // For hls.js, the move disturbs the MediaSource binding. The
+    // recovery sequence: detach -> video.load() to fully reset the
+    // element -> move -> attachMedia again. video.load() is the key
+    // bit that was missing before; without it, attachMedia inherited
+    // a partially-torn-down MediaSource.
+    var hlsWasDetached = false;
+    if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
+      try { c.hlsInstance.detachMedia(); hlsWasDetached = true; } catch (e) {}
+    }
+    try { c.video.pause(); } catch (e) {}
+    if (hlsWasDetached) {
+      // Fully reset the <video> element so the post-reparent attach
+      // doesn't inherit any stale MediaSource state.
+      try { c.video.load(); } catch (e) {}
+    }
+
+    document.body.appendChild(c.el);
     c.el.offsetHeight;        // force reflow so the next change animates
 
-    // Always pause briefly — gives the browser a clean state to
-    // transition from when play() is called after the popout
-    // animation kicks in.
-    try { c.video.pause(); } catch (e) {}
-    var hlsWasDetached = false;
+    if (hlsWasDetached) {
+      try { c.hlsInstance.attachMedia(c.video); } catch (e) {}
+    }
 
     // Animate: backdrop fade-in, card translate + scale.
     backdrop.classList.add("open");
