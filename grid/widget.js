@@ -1310,44 +1310,13 @@
 
     // VisitRaleigh has ancestor elements with transform/will-change
     // that trap position:fixed inside them, so we MUST reparent to
-    // body for the popout to render correctly.
-    //
-    // For hls.js + DOM reparent: even with detachMedia + video.load()
-    // + attachMedia the MediaSource is unreliable in Chrome (~50%
-    // freeze rate). Switch strategy: HLS is great for the grid
-    // (adaptive bitrate, multiple simultaneous streams), but for
-    // the SINGLE-stream popout it's not worth fighting the issue.
-    // Tear down hls.js entirely and play the MP4 URL instead — one
-    // stream, predictable playback. Restored to HLS in closePopout.
-    // Invalidate any pending HLS attach so a late async callback from
-    // a previous open/close cycle can't race the MP4 swap below.
-    c.attachGen = (c.attachGen || 0) + 1;
-    var savedTime = 0;
-    var popoutSwappedFromHls = false;
-    if (c.usingHls && c.hlsKind === "hlsjs" && c.hlsInstance) {
-      savedTime = c.video.currentTime || 0;
-      try { c.hlsInstance.destroy(); } catch (e) {}
-      c.hlsInstance = null;
-      c.usingHls   = false;
-      c.hlsKind    = null;
-      popoutSwappedFromHls = true;
-    }
+    // body. For HLS cards: just keep the Hls instance streaming
+    // through the move. No destroy, no detach, no swap to MP4 —
+    // those interventions caused more issues than they prevented.
+    // The video element stays bound to its MediaSource throughout
+    // the reparent; we briefly pause for a clean transition then
+    // play() in the synchronous tail of the click.
     try { c.video.pause(); } catch (e) {}
-    if (popoutSwappedFromHls) {
-      // Swap to MP4. Reset video element fully first so the prior
-      // MediaSource binding from hls.js can't linger.
-      var mp4Url = c.reel.videoUrl || c.reel.videoUrlSd;
-      if (mp4Url) {
-        try { c.video.removeAttribute("src"); c.video.load(); } catch (e) {}
-        c.video.src = mp4Url;
-        // Note: assigning src triggers an implicit load — no need to
-        // call load() again, which can confuse the event sequence.
-      }
-      c.popoutOriginallyHls = true;
-    } else {
-      try { c.video.load(); } catch (e) {}
-    }
-
     document.body.appendChild(c.el);
     c.el.offsetHeight;        // force reflow so the next change animates
 
@@ -1380,10 +1349,10 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
-    // Single play path. Whether the card is now on MP4 (via the
-    // HLS->MP4 swap above), native HLS, or pure MP4 from init, the
-    // video is paused with the right src — call play() with autoplay-
-    // fallback to muted if the browser blocks audio.
+    // Single play path. The video is paused with its existing src
+    // (HLS MediaSource or MP4 URL) — call play() synchronously so
+    // Chrome's user-gesture token is captured. Autoplay-fallback
+    // to muted if the browser blocks audio.
     function popPlay() {
       var p = c.video.play();
       if (p && p.catch) p.catch(function () {
@@ -1391,33 +1360,7 @@
         var p2 = c.video.play(); if (p2 && p2.catch) p2.catch(function () {});
       });
     }
-    if (popoutSwappedFromHls) {
-      // CRITICAL: call play() IMMEDIATELY rather than waiting for
-      // canplay/loadedmetadata. Chrome's autoplay policy ties the
-      // user-gesture token to the synchronous tail of the click
-      // event — if we await an async event (which can take 1-3s
-      // for a fresh MP4 fetch), the gesture is gone and play()
-      // gets rejected with "play() failed because the user didn't
-      // interact with the document first". That's the
-      // "buffer-then-pause" symptom: data loads, then play()
-      // rejects silently. The browser internally waits for data
-      // before actually starting playback, so calling play() with
-      // no buffered data is fine — it just delays playback start
-      // until canplay-equivalent state is reached.
-      popPlay();
-      // Seek-back to where the lane left off, once metadata is
-      // parsed enough to know where to seek to.
-      if (savedTime > 0.1) {
-        var onMeta = function () {
-          c.video.removeEventListener("loadedmetadata", onMeta);
-          if (poppedCard !== c) return;
-          try { c.video.currentTime = savedTime; } catch (e) {}
-        };
-        c.video.addEventListener("loadedmetadata", onMeta);
-      }
-    } else {
-      popPlay();
-    }
+    popPlay();
 
     document.body.style.overflow = "hidden";
     poppedCard = c;
@@ -1452,21 +1395,12 @@
     c.el.classList.remove("is-playing");
     if (c.icon) c.icon.classList.remove("hidden");
 
-    // Restore the original playback source for grid use. Three cases:
-    //   - Card was HLS originally: tear down the popout's MP4, build a
-    //     fresh hls.js instance, re-attach. Card streams adaptive
-    //     bitrate in the grid again.
-    //   - Card was MP4 with SD/HD split: swap back to SD URL so any
-    //     subsequent lane rotation streams low-res.
-    //   - Pure MP4 (no HLS, no SD): nothing to swap.
-    if (c.popoutOriginallyHls && c.reel.videoUrlHls) {
-      c.popoutOriginallyHls = false;
-      // Tear down whatever the popout was using and rebuild HLS.
-      try { c.video.removeAttribute("src"); c.video.load(); } catch (e) {}
-      attachVideoSource(c.video, c.reel, c);
-    } else if (!c.usingHls &&
-               c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
-               c.video.src !== c.reel.videoUrlSd) {
+    // Restore the SD MP4 src on close for non-HLS cards with a
+    // SD/HD split. HLS cards: nothing to do — the Hls instance has
+    // been streaming throughout, no swap happened on open.
+    if (!c.usingHls &&
+        c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
+        c.video.src !== c.reel.videoUrlSd) {
       c.video.src = c.reel.videoUrlSd;
     }
 
