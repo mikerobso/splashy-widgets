@@ -159,6 +159,81 @@
       if (document.visibilityState === "hidden") splTrackFlush();
     });
   }
+
+  // ── Caption helpers ─────────────────────────────
+  // Mirror the helpers in infinite/widget.js — kept duplicated rather
+  // than shared because each widget JS file is self-contained and we
+  // don't have a runtime module loader. Tweaks here should be mirrored
+  // in infinite (and stories when it picks up captions).
+  function splCapParseTime(ts) {
+    if (!ts) return 0;
+    var p = ts.split(':'); if (p.length !== 3) return 0;
+    var sec = parseFloat(p[2]);
+    return (parseInt(p[0], 10) || 0) * 3600 + (parseInt(p[1], 10) || 0) * 60 + (isFinite(sec) ? sec : 0);
+  }
+  function splCapParseVtt(vtt) {
+    var out = [];
+    if (!vtt || typeof vtt !== "string") return out;
+    var lines = vtt.split(/\r\n|\n|\r/);
+    var i = 0;
+    if (i < lines.length && /^\s*WEBVTT/.test(lines[i])) i++;
+    while (i < lines.length) {
+      while (i < lines.length && lines[i].trim() === "") i++;
+      if (i >= lines.length) break;
+      if (lines[i].indexOf("-->") === -1 && i + 1 < lines.length && lines[i + 1].indexOf("-->") !== -1) i++;
+      if (i >= lines.length) break;
+      var m = lines[i].match(/^\s*(\d{2}:\d{2}:\d{2}\.\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}\.\d{3})/);
+      if (!m) { i++; continue; }
+      var start = splCapParseTime(m[1]);
+      var end   = splCapParseTime(m[2]);
+      i++;
+      var textLines = [];
+      while (i < lines.length && lines[i].trim() !== "") { textLines.push(lines[i]); i++; }
+      if (end > start && textLines.length) out.push({ start: start, end: end, text: textLines.join("\n") });
+    }
+    return out;
+  }
+  function splCapDetectLang(availableLangs) {
+    if (!availableLangs || !availableLangs.length) return null;
+    var langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < langs.length; i++) {
+      var base = (langs[i] || "").toLowerCase().split("-")[0];
+      if (base && base !== "en" && availableLangs.indexOf(base) !== -1) return base;
+    }
+    return null;
+  }
+  function splCapGetSavedLang() { try { return sessionStorage.getItem("splshy.captionLang") || null; } catch (e) { return null; } }
+  function splCapSaveLang(lang) { try { sessionStorage.setItem("splshy.captionLang", lang || ""); } catch (e) {} }
+  function splCapActiveCue(cues, currentTime) {
+    if (!cues || !cues.length) return null;
+    for (var i = 0; i < cues.length; i++) {
+      if (currentTime >= cues[i].start && currentTime < cues[i].end) return cues[i];
+    }
+    return null;
+  }
+  var SPL_CAP_LANG_NAMES = { en: "English", es: "Español", fr: "Français", de: "Deutsch", zh: "中文" };
+
+  // Parse all available caption languages from cfg.captions once at
+  // widget init. Map of langCode -> array of { start, end, text }.
+  var capCues = {};
+  var capAvailableLangs = [];
+  if (cfg.captions && typeof cfg.captions === "object") {
+    Object.keys(cfg.captions).forEach(function(lang) {
+      var vttStr = cfg.captions[lang];
+      if (typeof vttStr === "string" && vttStr) {
+        var cues = splCapParseVtt(vttStr);
+        if (cues.length) { capCues[lang] = cues; capAvailableLangs.push(lang); }
+      }
+    });
+  }
+  // Selected language: saved preference wins, else browser-detect, else off.
+  var capSelected = (function() {
+    var saved = splCapGetSavedLang();
+    if (saved === "off") return null;
+    if (saved && capAvailableLangs.indexOf(saved) !== -1) return saved;
+    return splCapDetectLang(capAvailableLangs);
+  })();
+
   // Hover preview: 1s after the cursor lands on the card, the video plays
   // muted from the 0.5s mark and keeps playing for as long as the cursor
   // stays on the card. mouseleave snaps back to the poster. Clicking the
@@ -317,18 +392,36 @@
       ".srv-popout-btn:hover{background:rgba(0,0,0,.7)!important}",
       ".srv-popout-btn svg{width:15px;height:15px;display:block}",
       "@media(min-width:768px) and (any-pointer:fine){.srv-popout-btn.visible{display:flex;opacity:1}}",
+      // CC button + language menu + caption overlay. Mirror the
+      // infinite-widget styling. Caption band sits at 66%-77% of the
+      // card height to fully cover VisitRaleigh's burned-in English.
+      ".srv-cc-btn{position:absolute;bottom:100px;right:14px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;border-radius:50%!important;background:rgba(0,0,0,.45)!important;backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.25)!important;display:none;align-items:center;justify-content:center;z-index:14;cursor:pointer;pointer-events:auto;opacity:0;padding:0!important;transition:opacity .25s,background .18s;color:#fff;font-weight:700;font-size:11px;font-family:system-ui,-apple-system,sans-serif;letter-spacing:.04em}",
+      ".srv-cc-btn.visible{display:flex;opacity:1}",
+      ".srv-cc-btn:hover{background:rgba(0,0,0,.7)!important}",
+      ".srv-cc-btn.is-active{background:#fff!important;border-color:rgba(0,0,0,.35)!important;color:#000}",
+      "@media(min-width:768px) and (any-pointer:fine){.srv-cc-btn{bottom:142px}}",
+      ".srv-lang-menu{position:absolute;bottom:100px;right:54px;display:none;flex-direction:column;background:rgba(0,0,0,.95);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".srv-lang-menu.visible{display:flex}",
+      ".srv-lang-opt{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;border-radius:5px;text-align:left}",
+      ".srv-lang-opt:hover{background:rgba(255,255,255,.08)}",
+      ".srv-lang-opt.is-selected{background:#fff;color:#000}",
+      ".srv-lang-opt.is-selected:hover{background:#f0f0f0}",
+      "@media(min-width:768px) and (any-pointer:fine){.srv-lang-menu{bottom:142px}}",
+      ".srv-cap-overlay{position:absolute;left:5%;right:5%;top:66%;bottom:23%;display:none;align-items:center;justify-content:center;text-align:center;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;font-size:14px;font-weight:600;line-height:1.32;color:#fff;background:rgba(0,0,0,.96);padding:8px 14px;border-radius:5px;z-index:13;pointer-events:none;white-space:pre-wrap;text-shadow:0 1px 2px rgba(0,0,0,.6)}",
+      ".srv-cap-overlay.visible{display:flex}",
+      "@media(max-width:767px){.srv-cap-overlay{font-size:13px;left:6%;right:6%;padding:6px 10px}}",
       // Desktop hover-fade for the mute + pop-out buttons. See infinite/widget.js
       // for the rationale — same pattern. Transition-delay on the un-hover state
       // gives a 2s wait before the .35s fade; the hover rule zeroes the delay
       // so the buttons pop back in immediately. Scoped to (hover:hover) so
       // touch devices keep the existing always-visible behaviour.
       "@media(hover:hover){",
-        ".srv-card .srv-mute-btn.visible,.srv-card .srv-popout-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
-        ".srv-card:hover .srv-mute-btn.visible,.srv-card:hover .srv-popout-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
+        ".srv-card .srv-mute-btn.visible,.srv-card .srv-popout-btn.visible,.srv-card .srv-cc-btn.visible{opacity:0;transition:opacity .35s ease 2s}",
+        ".srv-card:hover .srv-mute-btn.visible,.srv-card:hover .srv-popout-btn.visible,.srv-card:hover .srv-cc-btn.visible{opacity:1;transition:opacity .15s ease 0s}",
       "}",
       // Keyboard-focused mute/pop-out reappear immediately even if the
       // hover-fade has dropped them to opacity:0.
-      ".srv-mute-btn:focus-visible,.srv-popout-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
+      ".srv-mute-btn:focus-visible,.srv-popout-btn:focus-visible,.srv-cc-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
       ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
       ".srv-speed.visible{opacity:1}",
       ".srv-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end;touch-action:none}",
@@ -396,6 +489,11 @@
           '<svg class="srv-popout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="13" y2="11"/><line x1="3" y1="21" x2="11" y2="13"/></svg>' +
           '<svg class="srv-popin-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>' +
         '</button>' +
+        (capAvailableLangs.length
+          ? '<button class="srv-cc-btn" aria-label="Captions" aria-pressed="false">CC</button>' +
+            '<div class="srv-lang-menu" role="menu"></div>' +
+            '<div class="srv-cap-overlay" aria-live="polite"></div>'
+          : '') +
         '<div class="srv-speed">2x</div>' +
         '<div class="srv-progress" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="srv-progress-track"></div><div class="srv-progress-fill"></div><div class="srv-progress-thumb"></div></div>' +
         '<div class="srv-time-counter">0:00 / 0:00</div>' +
@@ -409,6 +507,82 @@
   var playBtn   = widget.querySelector(".srv-play-btn");
   var muteBtn   = widget.querySelector(".srv-mute-btn");
   var popoutBtn = widget.querySelector(".srv-popout-btn");
+  var ccBtn      = widget.querySelector(".srv-cc-btn");      // null if no captions
+  var ccMenu     = widget.querySelector(".srv-lang-menu");
+  var capOverlay = widget.querySelector(".srv-cap-overlay");
+
+  // ── Captions: render / menu / persistence ─────────
+  function capRender(force) {
+    if (!capOverlay) return;
+    if (!capSelected || !capCues[capSelected]) {
+      if (capOverlay.classList.contains("visible")) {
+        capOverlay.classList.remove("visible");
+        capOverlay.textContent = "";
+      }
+      return;
+    }
+    var cue = splCapActiveCue(capCues[capSelected], video.currentTime || 0);
+    if (cue) {
+      if (capOverlay.textContent !== cue.text || force) capOverlay.textContent = cue.text;
+      capOverlay.classList.add("visible");
+    } else if (capOverlay.classList.contains("visible")) {
+      capOverlay.classList.remove("visible");
+      capOverlay.textContent = "";
+    }
+  }
+  function capBuildMenu() {
+    if (!ccMenu) return;
+    var opts = [{ code: "", label: "Off" }];
+    capAvailableLangs.forEach(function(lang) {
+      opts.push({ code: lang, label: SPL_CAP_LANG_NAMES[lang] || lang.toUpperCase() });
+    });
+    ccMenu.innerHTML = opts.map(function(o) {
+      var selected = (o.code === (capSelected || ""));
+      return '<button class="srv-lang-opt' + (selected ? ' is-selected' : '') +
+        '" data-lang="' + o.code + '" role="menuitemradio" aria-checked="' + (selected ? 'true' : 'false') + '">' +
+        o.label + '</button>';
+    }).join("");
+  }
+  function capSyncBtnState() {
+    if (!ccBtn) return;
+    if (capSelected) { ccBtn.classList.add("is-active"); ccBtn.setAttribute("aria-pressed", "true"); }
+    else             { ccBtn.classList.remove("is-active"); ccBtn.setAttribute("aria-pressed", "false"); }
+  }
+  function capSelect(lang) {
+    capSelected = lang || null;
+    splCapSaveLang(capSelected || "off");
+    capBuildMenu();
+    capSyncBtnState();
+    capRender(true);
+  }
+  if (ccBtn && capAvailableLangs.length) {
+    capBuildMenu();
+    capSyncBtnState();
+    ccBtn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      ccMenu.classList.toggle("visible");
+    });
+    ccMenu.addEventListener("click", function(e) {
+      e.stopPropagation();
+      var btn = e.target.closest && e.target.closest(".srv-lang-opt");
+      if (!btn) return;
+      capSelect(btn.getAttribute("data-lang") || null);
+      ccMenu.classList.remove("visible");
+    });
+    card.addEventListener("click", function() {
+      if (ccMenu.classList.contains("visible")) ccMenu.classList.remove("visible");
+    });
+  }
+  if (capOverlay) {
+    video.addEventListener("timeupdate", function() { capRender(false); });
+    video.addEventListener("seeked",     function() { capRender(true); });
+    video.addEventListener("ended",      function() {
+      if (capOverlay.classList.contains("visible")) {
+        capOverlay.classList.remove("visible");
+        capOverlay.textContent = "";
+      }
+    });
+  }
   var pauseInd  = widget.querySelector(".srv-pause-ind");
   var loadingEl = widget.querySelector(".srv-loading");
   // GA4: video_play (first playing), video_progress (50%), video_complete,
@@ -593,6 +767,9 @@
     playBtn.classList.remove("preview-active");
     muteBtn.classList.remove("visible");
     popoutBtn.classList.remove("visible");
+    if (ccBtn) ccBtn.classList.remove("visible");
+    if (ccMenu) ccMenu.classList.remove("visible");
+    if (capOverlay) { capOverlay.classList.remove("visible"); capOverlay.textContent = ""; }
     pauseInd.classList.remove("visible");
     previewState = "idle";
   });
@@ -660,6 +837,7 @@
     playBtn.classList.add("hidden");
     muteBtn.classList.add("visible");
     popoutBtn.classList.add("visible");
+    if (ccBtn) ccBtn.classList.add("visible");
     syncMute();
     video.play().catch(function(){});
   }
@@ -684,6 +862,7 @@
     fadeIn();
     playBtn.classList.add("hidden"); muteBtn.classList.add("visible");
     popoutBtn.classList.add("visible");   // desktop-only via CSS media query
+    if (ccBtn) ccBtn.classList.add("visible");
     previewState = "playing";
     syncMute(); video.play();
   });
