@@ -49,6 +49,9 @@
   // lanes that start in the hidden row (>= 6) are skipped on desktop
   // and the lane-rotation logic wraps within the visible range.
   var hideBottomRowDesktop = !!cfg.hideBottomRowDesktop;
+  // When true, the grid renders at 70% width on desktop (centered),
+  // with proportionally tighter padding + gap. Mobile is unaffected.
+  var shrinkDesktop = !!cfg.shrinkDesktop;
   // Autoplay-eligible positions (0-indexed). Default = reels 1, 4, 8,
   // 12 (1-indexed). Only ONE of these plays at a time as part of an
   // auto-advance chain: when the current chain card's video ends, the
@@ -276,6 +279,11 @@
       // is .sgr-page:nth-child(1) plus the first 2 cells of nth-child(2).
       // Easier: keep the markup intact and hide cards 6-11 by data-idx.
       "@media(min-width:768px){.sgr-widget--top-only .sgr-card[data-idx='6'],.sgr-widget--top-only .sgr-card[data-idx='7'],.sgr-widget--top-only .sgr-card[data-idx='8'],.sgr-widget--top-only .sgr-card[data-idx='9'],.sgr-widget--top-only .sgr-card[data-idx='10'],.sgr-widget--top-only .sgr-card[data-idx='11']{display:none}}",
+      // shrinkDesktop option: the widget renders at 70% width on desktop,
+      // centered, with proportionally tighter gap + padding. Cards are
+      // 1fr columns so they shrink with the container; aspect-ratio:9/16
+      // keeps the vertical proportion intact.
+      "@media(min-width:768px){.sgr-widget--shrink{max-width:70%;margin-left:auto;margin-right:auto;padding:13px 11px}.sgr-widget--shrink .sgr-grid{gap:10px}}",
       // Page indicator dots (mobile only).
       // Page dots — same dimensions + behavior as the infinite/stories
       // widget dots so accessibility is consistent across all widgets:
@@ -393,7 +401,10 @@
     pagesHTML += '<div class="sgr-page">' + cardsHTML + '</div>';
   }
   container.innerHTML =
-    '<div class="sgr-widget' + (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') + '">' +
+    '<div class="sgr-widget' +
+      (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') +
+      (shrinkDesktop ? ' sgr-widget--shrink' : '') +
+    '">' +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
       '<div class="sgr-dots" role="tablist" aria-label="Grid pages">' +
         '<button type="button" class="sgr-dot is-active" role="tab" aria-label="Page 1" aria-selected="true"></button>' +
