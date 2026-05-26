@@ -886,6 +886,15 @@
       try { card.video.currentTime = 0; } catch (e) {}
       var p = card.video.play();
       if (p && p.catch) p.catch(function () { /* autoplay blocked; silent */ });
+      // When an autoplay lane STARTS playing a card, that card is now
+      // the most likely candidate to be popped out (it's the one
+      // actively grabbing the user's eye). Trigger the popout-MP4
+      // preload now so by the time the user clicks, the file is
+      // already in HTTP cache. Doesn't matter that this is "viaAutoplay" —
+      // we want the preload regardless.
+      if (typeof preloadHd === "function") {
+        try { preloadHd(card); } catch (e) {}
+      }
       // Splshy analytics: "qualified play" after 3s, only for
       // user-initiated playback.
       if (!viaAutoplay && analyticsOn && !card.playedFor3s && card.reel) {
