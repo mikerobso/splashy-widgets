@@ -517,12 +517,12 @@
       "@media(min-width:768px) and (any-pointer:fine){.sif-cc-btn{bottom:142px}}",
       // Language menu — pops out to the LEFT of the CC button when
       // tapped. Vertical stack of options including an "Off" choice.
-      ".sif-lang-menu{position:absolute;bottom:100px;right:54px;display:none;flex-direction:column;background:rgba(8,36,64,.95);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
+      ".sif-lang-menu{position:absolute;bottom:100px;right:54px;display:none;flex-direction:column;background:rgba(0,0,0,.95);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px;z-index:15;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,.45)}",
       ".sif-lang-menu.visible{display:flex}",
       ".sif-lang-opt{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:transparent;border:none;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;font-weight:500;letter-spacing:.02em;cursor:pointer;border-radius:5px;text-align:left}",
       ".sif-lang-opt:hover{background:rgba(255,255,255,.08)}",
-      ".sif-lang-opt.is-selected{background:rgba(232,93,46,.85);color:#fff}",
-      ".sif-lang-opt.is-selected:hover{background:rgba(232,93,46,.95)}",
+      ".sif-lang-opt.is-selected{background:#fff;color:#000}",
+      ".sif-lang-opt.is-selected:hover{background:#f0f0f0}",
       "@media(min-width:768px) and (any-pointer:fine){.sif-lang-menu{bottom:142px}}",
       // Caption overlay — sits as a fixed-proportion band over the
       // burned-in English caption area. Using paired top + bottom
