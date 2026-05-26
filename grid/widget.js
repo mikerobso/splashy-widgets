@@ -1127,18 +1127,33 @@
   // eventually clicks. Once-per-card flag avoids re-firing if the
   // user mouseenters repeatedly. The hidden <video> is removed after
   // 30s — the browser's HTTP cache holds the bytes from there on.
+  // Hover-preload the MP4 URL that the popout will use:
+  //   - HLS cards: popout swaps HLS -> MP4; preload the MP4 so the
+  //     swap is instant on click (otherwise we eat 1-3s of cold
+  //     network fetch on the first popout of every card).
+  //   - MP4 cards with SD/HD split: preload the HD URL since popout
+  //     swaps SD -> HD.
+  //   - Pure MP4 cards (no HLS, no SD): no preload needed; the same
+  //     src plays in both grid and popout.
   function preloadHd(card) {
     if (card.hdPreloaded) return;
-    if (card.usingHls) return;  // HLS adapts quality on its own — no manual prefetch
     var r = card.reel;
-    if (!r || !r.videoUrlSd || !r.videoUrl || r.videoUrlSd === r.videoUrl) return;
+    if (!r) return;
+    // Pick the URL the popout will use.
+    var popoutUrl = null;
+    if (r.videoUrlHls) {
+      popoutUrl = r.videoUrl || r.videoUrlSd;
+    } else if (r.videoUrlSd && r.videoUrl && r.videoUrlSd !== r.videoUrl) {
+      popoutUrl = r.videoUrl;
+    }
+    if (!popoutUrl) return;
     card.hdPreloaded = true;
     var pv = document.createElement("video");
     pv.muted = true;
     pv.playsInline = true;
     pv.preload = "auto";
     pv.style.cssText = "position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;left:-9999px!important;top:0";
-    pv.src = r.videoUrl;
+    pv.src = popoutUrl;
     document.body.appendChild(pv);
     setTimeout(function () { try { pv.remove(); } catch (e) {} }, 30000);
   }
@@ -1302,27 +1317,17 @@
     }
     try { c.video.pause(); } catch (e) {}
     if (popoutSwappedFromHls) {
-      // Swap to MP4. Prefer the full-res URL for the popped view;
-      // fall back to SD URL if HD isn't in the library. Fully reset
-      // the <video> first (removeAttribute + load) so the old
-      // MediaSource binding from hls.js is fully cleared before we
-      // assign a new src. Skipping this caused the second-popout
-      // freeze: the second-time MediaSource was left half-attached.
+      // Swap to MP4. Reset video element fully first so the prior
+      // MediaSource binding from hls.js can't linger.
       var mp4Url = c.reel.videoUrl || c.reel.videoUrlSd;
       if (mp4Url) {
         try { c.video.removeAttribute("src"); c.video.load(); } catch (e) {}
         c.video.src = mp4Url;
-        try { c.video.load(); } catch (e) {}
-        // Seek back to where we were once metadata loads.
-        var onMeta = function () {
-          c.video.removeEventListener("loadedmetadata", onMeta);
-          try { c.video.currentTime = savedTime; } catch (e) {}
-        };
-        c.video.addEventListener("loadedmetadata", onMeta);
+        // Note: assigning src triggers an implicit load — no need to
+        // call load() again, which can confuse the event sequence.
       }
-      c.popoutOriginallyHls = true;  // remembered for restore on close
+      c.popoutOriginallyHls = true;
     } else {
-      // Native HLS (Safari) or pure MP4 path — no swap needed.
       try { c.video.load(); } catch (e) {}
     }
 
@@ -1370,17 +1375,35 @@
       });
     }
     if (popoutSwappedFromHls) {
-      // Wait for the new MP4 src to load metadata before playing.
-      var onPlayMeta = function () {
-        c.video.removeEventListener("loadedmetadata", onPlayMeta);
-        popPlay();
-      };
-      c.video.addEventListener("loadedmetadata", onPlayMeta);
-      // Safety: kick play() at 800ms even if loadedmetadata is late.
-      setTimeout(function () {
+      // The MP4 src was just assigned. Wait until the video can
+      // actually play before calling play() — listening on
+      // loadedmetadata wasn't enough (sometimes play() resolved
+      // immediately but the decoder hadn't acquired frames yet, so
+      // the video stayed paused on its 0-frame placeholder).
+      // 'canplay' (HAVE_FUTURE_DATA, readyState >= 3) is the right
+      // gate; 'loadeddata' (HAVE_CURRENT_DATA, >= 2) is a fallback.
+      //
+      // ONE listener that does seek-back + play, removes itself.
+      // Listens on both events; whichever fires first wins.
+      var swapStartedPlay = false;
+      function onSwapReady() {
+        if (swapStartedPlay) return;
+        swapStartedPlay = true;
+        try { c.video.removeEventListener("canplay",   onSwapReady); } catch (e) {}
+        try { c.video.removeEventListener("loadeddata", onSwapReady); } catch (e) {}
         if (poppedCard !== c) return;
-        if (c.video.paused) popPlay();
-      }, 800);
+        try { c.video.currentTime = savedTime; } catch (e) {}
+        popPlay();
+      }
+      c.video.addEventListener("canplay",   onSwapReady);
+      c.video.addEventListener("loadeddata", onSwapReady);
+      // Safety: if neither event fires within 1.5s, force-kick play
+      // anyway — the browser will queue the play until data arrives.
+      setTimeout(function () {
+        if (swapStartedPlay) return;
+        if (poppedCard !== c) return;
+        onSwapReady();
+      }, 1500);
     } else {
       popPlay();
     }
