@@ -288,11 +288,15 @@
       ".sgr-card.sgr-popped--open .sgr-pop-cc-btn.has-langs{display:flex}",
       ".sgr-card.sgr-popped--open .sgr-pop-title{display:block}",
       ".sgr-card.sgr-popped--open .sgr-pop-prog{display:flex}",
-      // Hide play-icon while popped & playing. While popped & paused
-      // (.sgr-paused), show it as a "tap to resume" cue.
+      // Hide play-icon while popped (the popped card uses its own
+      // pause-indicator instead — see .sgr-pause-ind below).
       ".sgr-card.sgr-popped--open .sgr-play-icon{display:none}",
-      ".sgr-card.sgr-popped--open.sgr-paused .sgr-play-icon{display:flex;opacity:1}",
-      ".sgr-card.sgr-popped--open.sgr-paused .sgr-play-circle{background:rgba(0,0,0,.6);border-color:rgba(255,255,255,.7)}",
+      // Pause indicator: matches the other widgets' style — a circle
+      // with two vertical bars overlaid on the video while paused.
+      ".sgr-pause-ind{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:14;pointer-events:none;opacity:0;transition:opacity .15s}",
+      ".sgr-card.sgr-popped--open.sgr-paused .sgr-pause-ind{opacity:1}",
+      ".sgr-pause-circle{width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;border-radius:50%!important;background:rgba(255,255,255,.18)!important;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:2px solid rgba(255,255,255,.6)!important;display:flex;align-items:center;justify-content:center;padding:0!important;box-sizing:border-box!important}",
+      ".sgr-pause-circle svg{display:block}",
       // Close button — top-right corner. Strong reset so host-page
       // CSS can't push the icon off-center.
       ".sgr-close-btn{position:absolute;top:6px;right:6px;width:22px!important;height:22px!important;min-width:22px!important;min-height:22px!important;border-radius:50%!important;background:rgba(0,0,0,.6)!important;border:1px solid rgba(255,255,255,.25)!important;color:#fff;cursor:pointer;align-items:center;justify-content:center;z-index:20;padding:0!important;margin:0!important;-webkit-appearance:none;appearance:none;font-size:0;line-height:0;box-shadow:none!important}",
@@ -452,6 +456,12 @@
           '<div class="sgr-cap-overlay" aria-live="polite"></div>'
         : '') +
       '<div class="sgr-pop-title"></div>' +
+      '<div class="sgr-pause-ind"><div class="sgr-pause-circle">' +
+        '<svg width="16" height="18" viewBox="0 0 18 20" fill="none">' +
+          '<rect x="4" y="2" width="4" height="16" rx="1.5" fill="white"/>' +
+          '<rect x="10" y="2" width="4" height="16" rx="1.5" fill="white"/>' +
+        '</svg>' +
+      '</div></div>' +
       '<div class="sgr-speed">2&times;</div>' +
       '<div class="sgr-pop-prog" role="slider" tabindex="0" aria-label="Seek video" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">' +
         '<div class="sgr-pop-prog-track"></div>' +
