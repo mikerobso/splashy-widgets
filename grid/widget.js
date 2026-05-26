@@ -162,7 +162,13 @@
       ensureHlsJsLoaded().then(function (Hls) {
         if (!Hls.isSupported()) { attachMp4Fallback(video, reel); return; }
         var hls = new Hls({
-          capLevelToPlayerSize: true,  // pick quality based on rendered px size
+          // capLevelToPlayerSize sounds right but doesn't work here:
+          // the popout uses CSS transform:scale(), which DOESN'T
+          // change clientWidth/clientHeight, so hls.js keeps using
+          // the grid-card-sized quality even when the video is
+          // visually 2.45x larger. We manage the cap manually below
+          // via autoLevelCapping.
+          capLevelToPlayerSize: false,
           enableWorker: true,
           lowLatencyMode: false,
           backBufferLength: 30,
@@ -170,6 +176,20 @@
           // custom .sgr-cap-overlay handles that.
           subtitleDisplay: false,
           renderTextTracksNatively: false
+        });
+        // Once the manifest parses, cap the level to ~540p (or the
+        // highest variant <= 540p). Popout open/close adjust this
+        // dynamically so the popped card gets full quality.
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          var levels = hls.levels || [];
+          var capIdx = -1;
+          for (var i = 0; i < levels.length; i++) {
+            if (levels[i].height && levels[i].height <= 540) capIdx = i;
+          }
+          // If no variant is <=540p (rare), let the player pick freely
+          // — better than capping to nothing and refusing to play.
+          hls.autoLevelCapping = capIdx;
+          cardObj.hlsGridCap = capIdx;  // remembered for close-popout restore
         });
         // Belt-and-suspenders: also disable any TextTrack entries that
         // appear later. hls.js still populates video.textTracks for
@@ -1274,6 +1294,15 @@
     capBuildMenuForCard(c);
     capSyncCardBtnState(c);
 
+    // HLS quality bump for the popped card. hls.js can't auto-detect
+    // the popout's larger render size (CSS transform doesn't change
+    // measured dimensions), so we explicitly lift the autoLevelCapping
+    // so the player can pick the highest available variant. Restored
+    // on closePopout.
+    if (c.usingHls && c.hlsInstance) {
+      try { c.hlsInstance.autoLevelCapping = -1; } catch (e) {}
+    }
+
     // Quality swap: if the library has a separate full-res URL, swap
     // to it now for higher quality during focused viewing. Preserve
     // currentTime via a one-shot loadedmetadata listener so the user
@@ -1341,12 +1370,20 @@
     // Quality swap-back (MP4 only): if we upgraded to the full-res URL
     // on popout open, swap back to the SD variant so any subsequent
     // autoplay-lane rotation onto this card streams the low-res file
-    // again. HLS handles quality adaptively via capLevelToPlayerSize
-    // and needs no swap-back.
+    // again.
     if (!c.usingHls &&
         c.reel.videoUrlSd && c.reel.videoUrlSd !== c.reel.videoUrl &&
         c.video.src !== c.reel.videoUrlSd) {
       c.video.src = c.reel.videoUrlSd;
+    }
+    // HLS quality re-cap: restore the grid-card autoLevelCapping that
+    // was set when the manifest first parsed, so any subsequent lane
+    // rotation onto this card streams ~540p again instead of staying
+    // at the higher quality bump.
+    if (c.usingHls && c.hlsInstance) {
+      try {
+        c.hlsInstance.autoLevelCapping = (typeof c.hlsGridCap === "number") ? c.hlsGridCap : -1;
+      } catch (e) {}
     }
 
     setTimeout(function () {
