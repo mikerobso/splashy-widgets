@@ -1305,9 +1305,9 @@
   // too big — drop 15%.
   var POPOUT_SCALE_DESKTOP_FULL    = 2.08;  // 2.45 * 0.85
   // Side-text 6-card (compact6) grid: cards live in a 3-col layout
-  // inside the ~41% grid float, so they're smaller. Bump the popout
-  // 20% so the popped video reads at a comfortable absolute size.
-  var POPOUT_SCALE_DESKTOP_COMPACT = 2.94;  // 2.45 * 1.2
+  // inside the ~41% grid float, so they're smaller. Popout uses a
+  // bigger scale to compensate.
+  var POPOUT_SCALE_DESKTOP_COMPACT = 2.76;  // 2.94 * 0.94 (was 2.94, -6%)
   function currentPopoutScale() {
     if (isMobileLayout()) return POPOUT_SCALE_MOBILE;
     if (compact6)         return POPOUT_SCALE_DESKTOP_COMPACT;
