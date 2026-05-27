@@ -406,8 +406,12 @@
       // Hover shimmer: a conic-gradient overlay with one bright arc that
       // rotates once around the ring. Desktop hover only; sits over the
       // coloured ring band but under the photo (.sst-ring-inner).
-      ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1}",
-      // Shimmer plays once via the .sst-shimmer class (JS-controlled).
+      // Base state: no transition on transform — so removing the
+      // shimmer class snaps the rotation back to 0 instantly while
+      // the opacity fades out separately. Prevents the reverse-spin
+      // artifact users were seeing when leaving a circle mid-shimmer.
+      ".sst-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg,transparent 300deg,rgba(255,255,255,.9) 340deg,transparent 360deg);opacity:0;transform:rotate(0deg);pointer-events:none;z-index:1;transition:opacity .12s ease}",
+      // Shimmer plays once: opacity in fast, transform rotates over .9s.
       ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(396deg);transition:transform .9s ease-in-out,opacity .12s ease}",
       // Enlarged size holds for as long as the cursor is on the circle.
       "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
