@@ -425,7 +425,8 @@
       ".sif-viewport{overflow:hidden;height:var(--sif-card-h);width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2)}",
       /* Track: a flex row of cards. We move it with translateX */
       ".sif-track{display:flex;flex-direction:row;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform}",
-      ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
+      ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;-webkit-tap-highlight-color:transparent;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
+      ".sif-card video,.sif-card img{-webkit-touch-callout:none!important;-webkit-user-select:none!important;user-select:none!important;-webkit-user-drag:none!important;-webkit-tap-highlight-color:transparent!important}",
       ".sif-card.is-active{box-shadow:0 24px 64px rgba(0,0,0,.68)}",
       // While popped out, the card is fixed-positioned (lifted into the
       // pop-out overlay). transform-origin top-left so the scale animation
