@@ -395,14 +395,14 @@
     style.textContent = [
       // Circles row
       ".sst-widget{font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:18px 0}",
-      ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:center;gap:30px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
+      ".sst-row{display:flex;flex-direction:row;align-items:flex-start;justify-content:safe center;gap:30px;overflow-x:auto;padding:6px 16px;-webkit-overflow-scrolling:touch;scrollbar-width:none}",
       ".sst-row::-webkit-scrollbar{display:none}",
       // .sst-item is now a real <button> (was a <div>) so keyboard users can
       // open a story with Enter/Space. The !important resets defeat host-
       // page CSS that might target generic `button` from the embedding
       // theme (same defensive pattern as .sif-play-btn / .srv-play-btn).
       ".sst-item{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:12px;cursor:pointer;width:168px;border:0!important;background:transparent!important;padding:0!important;color:inherit;font:inherit;-webkit-appearance:none;appearance:none;text-align:inherit}",
-      ".sst-ring{position:relative;width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .3s cubic-bezier(.34,1.4,.5,1)}",
+      ".sst-ring{position:relative;width:168px!important;height:168px!important;border-radius:50%;padding:5px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;transition:transform .25s ease}",
       // Hover shimmer: a conic-gradient overlay with one bright arc that
       // rotates once around the ring. Desktop hover only; sits over the
       // coloured ring band but under the photo (.sst-ring-inner).
