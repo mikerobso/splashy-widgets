@@ -276,6 +276,68 @@
   var POPOUT_SCALE = 1.3;
   // Pop-out is DESKTOP-ONLY. The button is hidden on mobile via CSS, and the
   // openPopout() guard makes the JS a no-op there too.
+  // Auto-poster from the first frame of a video. Used when a reel
+  // has no posterUrl set. Creates a hidden "probe" <video> with
+  // crossOrigin="anonymous" so the resulting canvas isn't tainted
+  // (Pexels + Vimeo MP4s both serve permissive CORS headers — works
+  // for those out of the box). Captures the first frame to a JPEG
+  // data URL and calls onCapture(dataUrl) when ready. Silently
+  // bails on CORS / network / decoder errors. Tracks captured URLs
+  // by source to avoid re-capturing the same video for duplicate
+  // reels (the carousel doubles reels when there are too few).
+  var _splAutoPosterCache = {};
+  function splAutoPosterFromFirstFrame(videoSrc, onCapture) {
+    if (!videoSrc || typeof onCapture !== "function") return;
+    if (_splAutoPosterCache[videoSrc]) {
+      onCapture(_splAutoPosterCache[videoSrc]);
+      return;
+    }
+    var probe = document.createElement("video");
+    probe.crossOrigin = "anonymous";
+    probe.muted       = true;
+    probe.playsInline = true;
+    probe.setAttribute("playsinline", "");
+    probe.setAttribute("webkit-playsinline", "");
+    probe.preload     = "metadata";
+    probe.style.cssText = "position:absolute!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important";
+    var done = false;
+    function cleanup() {
+      if (done) return;
+      done = true;
+      try { probe.removeEventListener("loadeddata", onLoaded); } catch (e) {}
+      try { probe.removeEventListener("error",      onError);  } catch (e) {}
+      try { probe.removeAttribute("src"); probe.load(); } catch (e) {}
+      try { probe.remove(); } catch (e) {}
+    }
+    function onLoaded() {
+      try {
+        var w = probe.videoWidth  || 720;
+        var h = probe.videoHeight || 1280;
+        // Cap at 720px wide so the data URL stays small (~30-80KB).
+        var scale = Math.min(1, 720 / w);
+        var cw = Math.max(1, Math.round(w * scale));
+        var ch = Math.max(1, Math.round(h * scale));
+        var canvas = document.createElement("canvas");
+        canvas.width = cw; canvas.height = ch;
+        var ctx = canvas.getContext("2d");
+        ctx.drawImage(probe, 0, 0, cw, ch);
+        var dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+        _splAutoPosterCache[videoSrc] = dataUrl;
+        onCapture(dataUrl);
+      } catch (e) {
+        // CORS tainted canvas, codec error, etc. Bail silently.
+      }
+      cleanup();
+    }
+    function onError() { cleanup(); }
+    probe.addEventListener("loadeddata", onLoaded);
+    probe.addEventListener("error",      onError);
+    probe.src = videoSrc;
+    document.body.appendChild(probe);
+    // Safety: never hold the probe longer than 8s.
+    setTimeout(cleanup, 8000);
+  }
+
   function isDesktopLayout(){
     return window.matchMedia("(min-width:768px) and (any-pointer:fine)").matches;
   }
@@ -776,6 +838,18 @@
         var img = document.createElement("img");
         img.src=reel.posterUrl; img.alt=reel.posterAltText||reel.label||"";
         poster.appendChild(img);
+      } else if (reel.videoUrl) {
+        // No posterUrl provided — auto-capture the first frame of the
+        // video and use that as the poster image. CORS-permissive
+        // sources (Pexels, Vimeo) work without configuration; sources
+        // without CORS headers silently fall through to the gradient
+        // placeholder.
+        splAutoPosterFromFirstFrame(reel.videoUrl, function (dataUrl) {
+          var autoImg = document.createElement("img");
+          autoImg.src = dataUrl;
+          autoImg.alt = reel.posterAltText || reel.label || "";
+          poster.appendChild(autoImg);
+        });
       }
       card.appendChild(poster);
 
