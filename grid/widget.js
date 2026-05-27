@@ -590,7 +590,9 @@
       // is popped. No content lives inside it; the popped card itself
       // is reparented to document.body so the transform is unaffected
       // by any clipping/overflow on the page.
-      ".sgr-popout-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:99998;opacity:0;pointer-events:none;transition:opacity .34s ease}",
+      // Same backdrop look as single/infinite/stories: solid 62%-black
+      // darken, NO blur. z-index 99999 to match the others.
+      ".sgr-popout-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:99999;opacity:0;pointer-events:none;transition:opacity .34s ease}",
       ".sgr-popout-backdrop.open{opacity:1;pointer-events:auto}",
       // Popped card state: fixed-positioned, transitioning in transform.
       ".sgr-card.sgr-popped{position:fixed;z-index:100000;transition:transform .34s cubic-bezier(.2,.8,.25,1),box-shadow .34s ease;cursor:default}",
