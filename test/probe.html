@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SPLSHY Auto-Poster Probe</title>
+  <style>
+    body{margin:0;padding:24px;font-family:system-ui,-apple-system,sans-serif;background:#f5f7fa;color:#1a1a1a;max-width:1100px;margin:0 auto}
+    h1{font-size:22px;margin:0 0 6px}
+    .lede{color:#5a6877;margin:0 0 22px;font-size:14px}
+    .row{background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .url{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#5a6877;word-break:break-all;margin-bottom:12px}
+    .status{display:flex;gap:18px;align-items:flex-start}
+    .pill{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;margin-right:6px}
+    .pill.ok{background:#d6f5e1;color:#1a6d3a}
+    .pill.warn{background:#fde7c8;color:#7a4810}
+    .pill.err{background:#fad6d6;color:#7a1a1a}
+    .pill.idle{background:#dde3eb;color:#4a5a6e}
+    .col{flex:1;min-width:0}
+    .events{font-size:12px;color:#3a4654;font-family:ui-monospace,Menlo,monospace;background:#f7f9fb;border:1px solid #e6ebf0;border-radius:6px;padding:8px 10px;max-height:160px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+    .thumb{width:120px;height:213px;border-radius:8px;background:#1a1a1a;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#5a6877;font-size:11px;text-align:center;flex-shrink:0}
+    .thumb img{width:100%;height:100%;object-fit:cover}
+    .meta{font-size:13px;color:#3a4654;margin:6px 0 0;line-height:1.5}
+    .meta b{color:#1a1a1a}
+    button{margin-top:6px;padding:8px 16px;background:#0f5f8a;color:#fff;border:0;border-radius:6px;font-weight:600;cursor:pointer}
+  </style>
+</head>
+<body>
+
+  <h1>SPLSHY Auto-Poster Probe</h1>
+  <p class="lede">Runs the same auto-poster capture logic the widgets use, against the five Pexels videos in the test page. Each row shows what happened end-to-end. No DevTools needed.</p>
+
+  <button onclick="runAll()">Run probes again</button>
+
+  <div id="results" style="margin-top:18px"></div>
+
+  <script>
+    var URLS = [
+      "https://www.pexels.com/download/video/34191039/?fps=28.57&h=1280&w=720",
+      "https://www.pexels.com/download/video/37054782/?fps=59.94&h=1280&w=720",
+      "https://www.pexels.com/download/video/9465450/?fps=30.0&h=1280&w=720",
+      "https://www.pexels.com/download/video/37572447/?fps=29.97&h=1280&w=720",
+      "https://www.pexels.com/download/video/32963255/?fps=25.0&h=1280&w=720"
+    ];
+
+    function pill(kind, text) {
+      return '<span class="pill ' + kind + '">' + text + '</span>';
+    }
+
+    function probeOne(url, container) {
+      // Render a row scaffold first so events stream in live.
+      container.innerHTML =
+        '<div class="url">' + url + '</div>' +
+        '<div class="status">' +
+          '<div class="thumb" id="thumb"><span>waiting…</span></div>' +
+          '<div class="col">' +
+            '<div id="pills">' + pill('idle','starting') + '</div>' +
+            '<div class="meta" id="meta">Loading probe video with crossOrigin="anonymous"…</div>' +
+            '<div class="events" id="events"></div>' +
+          '</div>' +
+        '</div>';
+      var thumb  = container.querySelector("#thumb");
+      var pills  = container.querySelector("#pills");
+      var meta   = container.querySelector("#meta");
+      var events = container.querySelector("#events");
+      var startedAt = Date.now();
+
+      function log(line) {
+        var t = ((Date.now() - startedAt) / 1000).toFixed(2) + "s";
+        events.textContent += "[" + t + "] " + line + "\n";
+        events.scrollTop = events.scrollHeight;
+      }
+
+      function tryProbe(useCors, isRetry) {
+        var probe = document.createElement("video");
+        if (useCors) probe.crossOrigin = "anonymous";
+        probe.muted = true;
+        probe.playsInline = true;
+        probe.setAttribute("playsinline", "");
+        probe.setAttribute("webkit-playsinline", "");
+        probe.preload = "auto";
+        probe.style.cssText = "position:absolute;left:-9999px;width:1px;height:1px;opacity:0";
+
+        var settled = false;
+        function cleanup() {
+          if (settled) return;
+          settled = true;
+          try { probe.removeAttribute("src"); probe.load(); } catch (e) {}
+          try { probe.remove(); } catch (e) {}
+        }
+
+        log((useCors ? "[CORS]" : "[no-CORS]") + " probe.src = url");
+        probe.addEventListener("loadstart",       function(){ log("loadstart"); });
+        probe.addEventListener("loadedmetadata",  function(){
+          log("loadedmetadata (w=" + probe.videoWidth + " h=" + probe.videoHeight + ")");
+        });
+        probe.addEventListener("loadeddata",      function(){ log("loadeddata (readyState=" + probe.readyState + ")"); tryCapture(); });
+        probe.addEventListener("canplay",         function(){ log("canplay (readyState=" + probe.readyState + ")"); tryCapture(); });
+        probe.addEventListener("error",           function(){
+          var err = probe.error;
+          log("ERROR code=" + (err && err.code) + " msg=" + (err && err.message || "(none)"));
+          pills.innerHTML = pill(useCors ? 'warn' : 'err', useCors ? "CORS failed" : "load failed");
+          meta.textContent = useCors
+            ? "Probe with crossOrigin failed. Retrying without CORS…"
+            : "Probe failed both with and without CORS. Source may be unreachable from this origin.";
+          cleanup();
+          if (useCors) setTimeout(function(){ tryProbe(false, true); }, 60);
+        });
+
+        function tryCapture() {
+          if (settled) return;
+          if (probe.readyState < 2) return;
+          try {
+            var w = probe.videoWidth || 720;
+            var h = probe.videoHeight || 1280;
+            if (!w || !h) return;
+            var scale = Math.min(1, 720 / w);
+            var cw = Math.max(1, Math.round(w * scale));
+            var ch = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement("canvas");
+            canvas.width = cw; canvas.height = ch;
+            var ctx = canvas.getContext("2d");
+            ctx.drawImage(probe, 0, 0, cw, ch);
+            var dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+            log("canvas.toDataURL OK (" + Math.round(dataUrl.length / 1024) + " KB)");
+            pills.innerHTML = pill('ok', useCors ? "CORS + frame captured" : "no-CORS + frame captured (canvas not tainted)");
+            meta.innerHTML = "<b>Auto-poster will work.</b> Browser served the video CORS-clean and the first frame is usable.";
+            thumb.innerHTML = "<img src='" + dataUrl + "' />";
+            settled = true;
+            cleanup();
+          } catch (e) {
+            log("canvas.toDataURL threw: " + (e && e.message));
+            pills.innerHTML = pill('err', "tainted canvas");
+            meta.textContent = useCors
+              ? "Capture failed even with CORS — unusual. Will retry without CORS."
+              : "Video loaded but the canvas is tainted (no CORS headers on the source). Can't export the frame. Auto-poster will silently skip this URL.";
+            cleanup();
+            if (useCors) setTimeout(function(){ tryProbe(false, true); }, 60);
+          }
+        }
+
+        document.body.appendChild(probe);
+        probe.src = url;
+
+        setTimeout(function(){
+          if (!settled) {
+            log("TIMEOUT after 10s without loadeddata/canplay");
+            pills.innerHTML = pill('warn', "no data event in 10s");
+            meta.textContent = "The probe loaded the source but never reached HAVE_CURRENT_DATA. Network slow or source malformed.";
+            cleanup();
+          }
+        }, 10000);
+      }
+
+      tryProbe(true, false);
+    }
+
+    function runAll() {
+      var host = document.getElementById("results");
+      host.innerHTML = "";
+      URLS.forEach(function(url) {
+        var row = document.createElement("div");
+        row.className = "row";
+        host.appendChild(row);
+        probeOne(url, row);
+      });
+    }
+
+    runAll();
+  </script>
+</body>
+</html>
