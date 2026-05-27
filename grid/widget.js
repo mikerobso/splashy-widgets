@@ -1301,14 +1301,16 @@
   // both by the same factor.
   var POPOUT_SCALE_MOBILE          = 2.04;
   var POPOUT_SCALE_DESKTOP         = 2.45;
-  // When the grid is at full width (shrinkDesktop NOT checked), the
-  // cards are already larger, so 2.45x scale produces a popout that
-  // feels too big. Shrink the popout 15% in that case. When the grid
-  // is in shrink mode (75% width, smaller cards), keep the full 2.45x
-  // so the popout reads at a similar absolute size.
+  // Full-width 12-card grid: cards are already larger, so 2.45x feels
+  // too big — drop 15%.
   var POPOUT_SCALE_DESKTOP_FULL    = 2.08;  // 2.45 * 0.85
+  // Side-text 6-card (compact6) grid: cards live in a 3-col layout
+  // inside the ~41% grid float, so they're smaller. Bump the popout
+  // 20% so the popped video reads at a comfortable absolute size.
+  var POPOUT_SCALE_DESKTOP_COMPACT = 2.94;  // 2.45 * 1.2
   function currentPopoutScale() {
     if (isMobileLayout()) return POPOUT_SCALE_MOBILE;
+    if (compact6)         return POPOUT_SCALE_DESKTOP_COMPACT;
     return shrinkDesktop ? POPOUT_SCALE_DESKTOP : POPOUT_SCALE_DESKTOP_FULL;
   }
   var backdrop = document.createElement("div");
