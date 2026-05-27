@@ -12,11 +12,9 @@
     a:hover{text-decoration:underline}
     img{max-width:100%;display:block}
 
-    /* Top bar */
     .tp-topbar{background:#0f5f8a;color:#fff;font-size:13px;padding:8px 24px;display:flex;justify-content:space-between;align-items:center}
     .tp-topbar a{color:#fff;margin-left:18px}
 
-    /* Header */
     .tp-header{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6ebf0;background:#fff;position:sticky;top:0;z-index:10}
     .tp-logo{font-weight:800;font-size:22px;letter-spacing:-.01em;color:#0f5f8a}
     .tp-logo span{color:#e8773d}
@@ -25,35 +23,27 @@
     .tp-cta{padding:9px 18px;background:#e8773d;color:#fff!important;border-radius:6px;font-weight:600;font-size:14px}
     .tp-cta:hover{background:#d1672d;text-decoration:none}
 
-    /* Hero */
     .tp-hero{position:relative;height:380px;background:linear-gradient(135deg,#0f5f8a 0%,#1d8db2 60%,#3eb0d4 100%);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 24px}
     .tp-hero h1{font-size:48px;line-height:1.1;font-weight:800;margin:0 0 14px;letter-spacing:-.02em;max-width:780px}
     .tp-hero p{font-size:19px;margin:0 0 22px;opacity:.92;max-width:600px}
     .tp-hero-btn{display:inline-block;padding:13px 26px;background:#fff;color:#0f5f8a!important;border-radius:6px;font-weight:700;font-size:15px}
     .tp-hero-btn:hover{background:#f0f5fa;text-decoration:none}
 
-    /* Section wrapper */
     .tp-section{max-width:1280px;margin:0 auto;padding:64px 24px}
     .tp-section h2{font-size:32px;line-height:1.15;margin:0 0 8px;letter-spacing:-.015em}
     .tp-section .tp-eyebrow{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8773d;margin:0 0 6px}
     .tp-section .tp-lede{font-size:17px;color:#5a6877;max-width:680px;margin:0 0 28px}
 
-    /* WIDGET PLACEHOLDER STYLING — shows a labelled drop zone until you
-       paste in real widget code. Once embed code replaces the inner
-       html the placeholder vanishes. */
-    .tp-widget-zone{position:relative;margin:30px 0}
-    .tp-widget-zone::before{content:attr(data-label);position:absolute;top:8px;left:8px;background:rgba(232,119,61,.92);color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border-radius:4px;z-index:9999;pointer-events:none}
-    .tp-empty{border:2px dashed #cbd3dc;background:#f5f8fa;border-radius:12px;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#7a8696;text-align:center;padding:30px;font-size:14px}
+    .tp-widget-zone{position:relative;margin:30px 0;min-height:100px}
+    .tp-empty{border:2px dashed #cbd3dc;background:#f5f8fa;border-radius:12px;min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#7a8696;text-align:center;padding:30px;font-size:14px}
     .tp-empty code{background:#fff;padding:2px 8px;border-radius:4px;border:1px solid #d4dae2;font-size:12px;color:#2a3340}
 
-    /* Content section */
     .tp-content-block{display:grid;grid-template-columns:1.4fr 1fr;gap:48px;align-items:start;margin:48px 0}
     .tp-content-block h3{font-size:24px;margin:0 0 14px;line-height:1.2}
     .tp-content-block p{color:#3a4654;margin:0 0 14px;font-size:16px}
     .tp-content-block .tp-bullets{padding-left:22px;color:#3a4654}
     .tp-content-block .tp-bullets li{margin-bottom:8px}
 
-    /* Footer */
     .tp-footer{background:#0f1f2c;color:#aebbcc;font-size:14px;padding:40px 24px 30px;margin-top:80px}
     .tp-footer-inner{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:36px}
     .tp-footer h4{color:#fff;font-size:14px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em}
@@ -71,13 +61,6 @@
   </style>
 </head>
 <body>
-
-  <!-- =================================================================
-       FAKE DMO TEST PAGE
-       Drop your generated widget embed code into the .tp-widget-zone
-       blocks below. The dashed placeholders disappear automatically
-       once real content replaces the .tp-empty divs.
-  ================================================================== -->
 
   <div class="tp-topbar">
     <span>Welcome — explore Sample City</span>
@@ -108,127 +91,48 @@
     </div>
   </section>
 
-  <!-- ===== SECTION 1: Grid widget (full width) ===== -->
+  <!-- ===== SECTION 1: Grid (full-width 12-card) ===== -->
   <section class="tp-section">
     <p class="tp-eyebrow">From the locals</p>
     <h2>What's happening around town</h2>
     <p class="tp-lede">Twelve quick looks at what makes Sample City worth the trip — from neighborhood spots to seasonal events.</p>
-
-    <div class="tp-widget-zone" data-label="GRID WIDGET">
-      <div class="tp-empty">
-        Paste your <strong>Video Grid</strong> embed code here.<br>
-        Generate from the Studio: <code>Video Grid</code> tab → <code>Generate Embed Code</code> → paste below this comment in the source.
-      </div>
-    </div>
+    <div class="tp-widget-zone" data-slot="grid"></div>
   </section>
 
-  <!-- ===== SECTION 2: Stories widget + intro text ===== -->
+  <!-- ===== SECTION 2: Stories ===== -->
   <section class="tp-section" style="background:#f7f9fb;border-radius:0;max-width:none;padding-left:24px;padding-right:24px;">
     <div style="max-width:1280px;margin:0 auto;">
       <p class="tp-eyebrow">Meet the creators</p>
       <h2>Stories from people who know Sample City best</h2>
       <p class="tp-lede">Local creators take you behind the scenes — restaurants, neighborhoods, hidden corners.</p>
-
-      <div class="tp-widget-zone" data-label="STORIES WIDGET">
-        <div class="tp-empty">
-          Paste your <strong>Story Highlights</strong> embed code here.
-        </div>
-      </div>
+      <div class="tp-widget-zone" data-slot="stories"></div>
     </div>
   </section>
 
-  <!-- ===== SECTION 3: Grid (compact 6 with text-right variant) ===== -->
+  <!-- ===== SECTION 3: Grid + Text (compact6) ===== -->
   <section class="tp-section">
     <p class="tp-eyebrow">Editor's picks</p>
     <h2>Where to go this weekend</h2>
-
-    <div class="tp-widget-zone" data-label="GRID + TEXT WIDGET">
-      <div class="tp-empty">
-        Paste your <strong>Video Grid (Text Left or Right)</strong> embed code here. The compact six-card variant with text alongside.
-      </div>
-    </div>
+    <div class="tp-widget-zone" data-slot="gridText"></div>
   </section>
 
-  <!-- ===== SECTION 4: Single reel beside content ===== -->
+  <!-- ===== SECTION 4: Single Reel ===== -->
   <section class="tp-section" style="background:#fefaf7;max-width:none;padding-left:24px;padding-right:24px;">
     <div style="max-width:1280px;margin:0 auto;">
       <p class="tp-eyebrow">Featured this week</p>
-      <h2>Lucy crushes waves at the lake</h2>
-
-      <div class="tp-widget-zone" data-label="SINGLE REEL WIDGET">
-        <style>
-          #wrap-sl1779923761071.srv-layout-l { width:100%; box-sizing:border-box; display:flex; flex-direction: row; align-items:center; gap:40px; }
-          #wrap-sl1779923761071 > .srv-float-l { flex: 0 0 auto; }
-          #wrap-sl1779923761071 > .srv-text-l { flex: 1; min-width: 0; padding-left: 60px; }
-          #wrap-sl1779923761071 > .srv-text-l > :first-child { margin-top: 0; }
-          #wrap-sl1779923761071 > .srv-text-l > :last-child  { margin-bottom: 0; }
-          @media (max-width: 767px) {
-            #wrap-sl1779923761071.srv-layout-l { flex-direction: column; align-items: center; gap: 0; padding-top: 20px; }
-            #wrap-sl1779923761071 > .srv-float-l { width: 100%; order: 1; }
-            #wrap-sl1779923761071 > .srv-text-l { padding: 16px 20px 16px; width: 100%; order: 2; }
-          }
-        </style>
-
-        <div id="wrap-sl1779923761071" class="srv-layout-l">
-          <div class="srv-text-l">
-            <h2>Header here</h2>
-            <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.</p>
-            <p>Lorem ipsum dolor sit amet consectetur adipiscing elit. Quisque faucibus ex sapien vitae pellentesque sem placerat. In id cursus mi pretium tellus duis convallis. Tempus leo eu aenean sed diam urna tempor. Pulvinar vivamus fringilla lacus nec metus bibendum egestas. Iaculis massa nisl malesuada lacinia integer nunc posuere. Ut hendrerit semper vel class aptent taciti sociosqu. Ad litora torquent per conubia nostra inceptos himenaeos.</p>
-          </div>
-          <div class="srv-float-l">
-            <div id="sl1779923761071"></div>
-            <script>
-              window.SPLSHY_SINGLE_sl1779923761071 = {
-                containerId:   "sl1779923761071",
-                clientId:      "splshyadmin",
-                followerCount: "",
-                igUrl:         "",
-                logoUrl:       "",
-                logoRing:      "#D30011",
-                videoUrl:      "https://www.pexels.com/download/video/27668789/",
-                posterUrl:     "",
-                label:         "",
-              };
-              window.SPLSHY_SINGLE = window.SPLSHY_SINGLE_sl1779923761071;
-            </script>
-            <script src="https://www.splshy.com/single/widget.js"></script>
-          </div>
-        </div>
-      </div>
+      <h2>One story you should not miss</h2>
+      <div class="tp-widget-zone" data-slot="single"></div>
     </div>
   </section>
 
-  <!-- ===== SECTION 5: Infinite carousel ===== -->
+  <!-- ===== SECTION 5: Infinite Carousel ===== -->
   <section class="tp-section">
     <p class="tp-eyebrow">Watch more</p>
     <h2>Explore every neighborhood</h2>
     <p class="tp-lede">Swipe through video stories from every corner of Sample City.</p>
-
-    <div class="tp-widget-zone" data-label="INFINITE CAROUSEL WIDGET">
-      <div id="inf1779925113966"></div>
-      <script>
-        (window.SPLSHY_INFINITE_QUEUE = window.SPLSHY_INFINITE_QUEUE || []).push({
-          containerId:   "inf1779925113966",
-          clientId:      "splshyadmin",
-          savedWidgetId: "wid_mpopc56ztiqr1edm",
-          followerCount: "",
-          igUrl:         "",
-          logoUrl:       "",
-          logoRing:      "#D30011",
-          reels: [
-            { videoUrl: "https://www.pexels.com/download/video/34191039/?fps=28.57&h=1280&w=720", posterUrl: "", label: "" },
-            { videoUrl: "https://www.pexels.com/download/video/37054782/?fps=59.94&h=1280&w=720", posterUrl: "", label: "" },
-            { videoUrl: "https://www.pexels.com/download/video/9465450/?fps=30.0&h=1280&w=720",   posterUrl: "", label: "" },
-            { videoUrl: "https://www.pexels.com/download/video/37572447/?fps=29.97&h=1280&w=720", posterUrl: "", label: "" },
-            { videoUrl: "https://www.pexels.com/download/video/32963255/?fps=25.0&h=1280&w=720",  posterUrl: "", label: "" }
-          ]
-        });
-      </script>
-      <script src="https://www.splshy.com/infinite/widget.js"></script>
-    </div>
+    <div class="tp-widget-zone" data-slot="infinite"></div>
   </section>
 
-  <!-- ===== Body content (mimics real DMO articles to test how widgets feel in context) ===== -->
   <section class="tp-section">
     <div class="tp-content-block">
       <div>
@@ -283,6 +187,172 @@
       </div>
     </div>
   </footer>
+
+  <!-- ============================================================
+       Bootstrap: fetch the demo-page config from getsplashy.com,
+       render the chosen saved widget into each .tp-widget-zone slot.
+       Edit the demo page contents at:
+         https://www.getsplashy.com/  →  Demo Page tab
+  ============================================================= -->
+  <script>
+  (function () {
+    var CLIENT_ID = 'splshyadmin';
+    var API_BASE  = 'https://www.getsplashy.com/api/play';
+
+    function showEmpty(slotEl, text) {
+      slotEl.innerHTML = '<div class="tp-empty">' + text + '</div>';
+    }
+
+    function buildPushPayload(widget, containerId) {
+      // Saved widget config -> the runtime config the widget JS expects.
+      var cfg = Object.assign({}, widget.config || {}, {
+        containerId:   containerId,
+        clientId:      CLIENT_ID,
+        savedWidgetId: widget.id
+      });
+      return cfg;
+    }
+
+    var QUEUE_NAMES = {
+      grid:     'SPLSHY_GRID_QUEUE',
+      infinite: 'SPLSHY_INFINITE_QUEUE',
+      stories:  'SPLSHY_STORIES_QUEUE'
+    };
+    var SCRIPT_BASES = {
+      grid:     'https://www.splshy.com/grid/widget.js',
+      infinite: 'https://www.splshy.com/infinite/widget.js',
+      stories:  'https://www.splshy.com/stories/widget.js',
+      single:   'https://www.splshy.com/single/widget.js'
+    };
+
+    var loadedScripts = {};
+    function ensureWidgetScript(type) {
+      if (loadedScripts[type]) return loadedScripts[type];
+      loadedScripts[type] = new Promise(function (resolve) {
+        var s = document.createElement('script');
+        s.src = SCRIPT_BASES[type];
+        s.async = true;
+        s.onload = function () { resolve(); };
+        s.onerror = function () { resolve(); };
+        document.head.appendChild(s);
+      });
+      return loadedScripts[type];
+    }
+
+    function renderGridLike(slotEl, widget, slotKey) {
+      // grid + gridText both render the grid widget script. gridText
+      // is just the same widget type with textPosition='left'/'right'
+      // set in its saved config — buildPushPayload passes that through.
+      var type = (widget.type === 'grid') ? 'grid' : widget.type;
+      var queueName = QUEUE_NAMES[type] || ('SPLSHY_' + type.toUpperCase() + '_QUEUE');
+      var containerId = type + '_' + Math.random().toString(36).slice(2, 10);
+      slotEl.innerHTML = '<div id="' + containerId + '"></div>';
+      window[queueName] = window[queueName] || [];
+      window[queueName].push(buildPushPayload(widget, containerId));
+      ensureWidgetScript(type);
+    }
+
+    function renderSingle(slotEl, widget) {
+      // Single widget uses a different bootstrap pattern (window.SPLSHY_SINGLE).
+      // Saved-widget config may include textPosition + header + paragraph etc;
+      // for the demo page we render the side-text variant when the saved
+      // config requests it, otherwise the solo variant.
+      var cfg     = widget.config || {};
+      var pos     = cfg.textPosition || 'none';
+      var uid     = 's_' + Math.random().toString(36).slice(2, 10);
+
+      var floatClass = (pos === 'right') ? 'srv-float-r' : 'srv-float-l';
+      var textClass  = (pos === 'right') ? 'srv-text-r'  : 'srv-text-l';
+      var layoutClass = (pos === 'right') ? 'srv-layout-r' : 'srv-layout-l';
+
+      var paraRaw = cfg.paragraph || '';
+      var paras   = paraRaw.split(/\n\n+/).filter(function (p) { return p.trim(); });
+      var parasHtml = paras.map(function (p) { return '<p>' + p.trim() + '</p>'; }).join('');
+
+      if (pos === 'none') {
+        slotEl.innerHTML =
+          '<div id="' + uid + '"></div>';
+      } else {
+        slotEl.innerHTML =
+          '<style>' +
+            '#wrap-' + uid + '.' + layoutClass + '{width:100%;box-sizing:border-box;display:flex;flex-direction:row;align-items:center;gap:40px;}' +
+            '#wrap-' + uid + ' > .' + floatClass + '{flex:0 0 auto;}' +
+            '#wrap-' + uid + ' > .' + textClass + '{flex:1;min-width:0;padding-' + (pos === 'right' ? 'right' : 'left') + ':60px;}' +
+            '#wrap-' + uid + ' > .' + textClass + ' > :first-child{margin-top:0;}' +
+            '#wrap-' + uid + ' > .' + textClass + ' > :last-child{margin-bottom:0;}' +
+            '@media(max-width:767px){' +
+              '#wrap-' + uid + '.' + layoutClass + '{flex-direction:column;align-items:center;gap:0;padding-top:20px;}' +
+              '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;}' +
+              '#wrap-' + uid + ' > .' + textClass + '{padding:16px 20px 16px;width:100%;order:2;}' +
+            '}' +
+          '</style>' +
+          '<div id="wrap-' + uid + '" class="' + layoutClass + '">' +
+            (pos === 'right'
+              ? '<div class="' + floatClass + '"><div id="' + uid + '"></div></div>' +
+                '<div class="' + textClass + '"><h2>' + (cfg.header || '') + '</h2>' + parasHtml + '</div>'
+              : '<div class="' + textClass + '"><h2>' + (cfg.header || '') + '</h2>' + parasHtml + '</div>' +
+                '<div class="' + floatClass + '"><div id="' + uid + '"></div></div>'
+            ) +
+          '</div>';
+      }
+
+      // Single widget reads from window.SPLSHY_SINGLE (singular, not a queue).
+      // Set it to this card's config; the widget script picks it up.
+      window['SPLSHY_SINGLE_' + uid] = Object.assign({}, cfg, {
+        containerId: uid,
+        clientId:    CLIENT_ID,
+        savedWidgetId: widget.id
+      });
+      window.SPLSHY_SINGLE = window['SPLSHY_SINGLE_' + uid];
+      ensureWidgetScript('single');
+    }
+
+    function renderSlot(slotEl, slotKey, widget) {
+      if (!widget) {
+        showEmpty(slotEl, 'No widget assigned to <strong>' + slotKey + '</strong>. Pick one in the Studio → Demo Page tab.');
+        return;
+      }
+      try {
+        if (slotKey === 'single') {
+          renderSingle(slotEl, widget);
+        } else {
+          renderGridLike(slotEl, widget, slotKey);
+        }
+      } catch (e) {
+        showEmpty(slotEl, 'Render error: ' + (e && e.message ? e.message : String(e)));
+      }
+    }
+
+    function init() {
+      var slots = document.querySelectorAll('.tp-widget-zone[data-slot]');
+      // Show loading state in each slot
+      slots.forEach(function (slotEl) {
+        showEmpty(slotEl, 'Loading…');
+      });
+
+      fetch(API_BASE + '/demo-page?c=' + encodeURIComponent(CLIENT_ID))
+        .then(function (r) { return r.ok ? r.json() : { sections: {} }; })
+        .then(function (data) {
+          var sections = (data && data.sections) || {};
+          slots.forEach(function (slotEl) {
+            var key = slotEl.getAttribute('data-slot');
+            renderSlot(slotEl, key, sections[key]);
+          });
+        })
+        .catch(function (err) {
+          slots.forEach(function (slotEl) {
+            showEmpty(slotEl, 'Failed to load demo page config.');
+          });
+        });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+  </script>
 
 </body>
 </html>
