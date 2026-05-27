@@ -256,6 +256,16 @@
   // pagination, no swipe dots). Used by the side-text Studio variant
   // where a 6-card grid sits next to a text block.
   var compact6 = !!cfg.compact6;
+
+  // Instagram-style branding (only renders on the full-width grid;
+  // compact6 / side-text variants use the text block for branding).
+  var followerCount = cfg.followerCount || "";
+  var igUrl         = cfg.igUrl         || "";
+  var logoUrl       = cfg.logoUrl       || "";
+  var logoRing      = cfg.logoRing      || "#D30011";
+  var ringIsGradient = (logoRing === "instagram");
+  var IG_RING_GRAD   = "conic-gradient(from 0deg, #F9CE34, #EE2A7B, #6228D7, #EE2A7B, #F9CE34)";
+  var showIgHeader  = !compact6 && (followerCount || logoUrl);
   // Autoplay-eligible positions (0-indexed). Default = reels 1, 4, 8,
   // 12 (1-indexed). Only ONE of these plays at a time as part of an
   // auto-advance chain: when the current chain card's video ends, the
@@ -517,6 +527,18 @@
     styleEl.textContent = [
       ".sgr-widget{width:100%;position:relative;padding:18px 16px;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-font-smoothing:antialiased}",
       "@media(max-width:767px){.sgr-widget{padding:14px 10px}}",
+      // Instagram-style branding header (same look as infinite/single):
+      // logo circle with optional ring + follower count below, clickable
+      // to open IG profile. Centered above the grid.
+      ".sgr-ig-header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 0 14px}",
+      ".sgr-ig-header a{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none;pointer-events:auto}",
+      ".sgr-logo{width:52px;height:52px;border-radius:50%;border:2px solid #D30011;overflow:hidden;flex-shrink:0;background:#fff;display:flex;align-items:center;justify-content:center}",
+      ".sgr-logo.sgr-logo--grad{box-sizing:border-box;width:60.5px;height:60.5px;border:none;background:transparent;position:relative;overflow:visible}",
+      ".sgr-logo.sgr-logo--grad::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,#F9CE34,#EE2A7B,#6228D7,#EE2A7B,#F9CE34);-webkit-mask:radial-gradient(circle,transparent 0 28.25px,#000 28.25px);mask:radial-gradient(circle,transparent 0 28.25px,#000 28.25px)}",
+      ".sgr-logo.sgr-logo--grad .sgr-logo-inner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;overflow:hidden;background:#fff;display:flex;align-items:center;justify-content:center;z-index:1}",
+      ".sgr-logo img{width:100%;height:100%;object-fit:cover}",
+      ".sgr-logo-fallback{font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;font-weight:800;font-size:24px;color:#D30011}",
+      ".sgr-followers{color:rgba(0,0,0,0.75);font-size:13px;font-weight:500;letter-spacing:.02em}",
       // Desktop: 6-column / 2-row grid.
       ".sgr-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}",
       ".sgr-card{position:relative;aspect-ratio:9/16;border-radius:10px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}",
@@ -697,12 +719,36 @@
     }
     pagesHTML += '<div class="sgr-page">' + cardsHTML + '</div>';
   }
+  // Build the IG header markup if any branding fields are present.
+  // Empty logoUrl falls back to the 'S' splshy mark so the ring still
+  // has visible content. Mirror the per-card pattern from infinite/
+  // single: gradient ring uses nested .sgr-logo--grad / -inner; solid
+  // ring uses border on .sgr-logo directly.
+  var igHeaderHTML = "";
+  if (showIgHeader) {
+    var logoInnerHTML = logoUrl
+      ? '<img src="' + safeUrl(logoUrl) + '" alt="" />'
+      : '<span class="sgr-logo-fallback">S</span>';
+    var logoMarkup = ringIsGradient
+      ? '<div class="sgr-logo sgr-logo--grad"><div class="sgr-logo-inner">' + logoInnerHTML + '</div></div>'
+      : '<div class="sgr-logo" style="border-color:' + escapeHTML(logoRing) + '">' + logoInnerHTML + '</div>';
+    var href = igUrl ? safeUrl(igUrl) : "https://www.instagram.com/";
+    igHeaderHTML =
+      '<div class="sgr-ig-header">' +
+        '<a href="' + href + '" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)">' +
+          logoMarkup +
+          (followerCount ? '<div class="sgr-followers">' + escapeHTML(followerCount) + '</div>' : '') +
+        '</a>' +
+      '</div>';
+  }
+
   container.innerHTML =
     '<div class="sgr-widget' +
       (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') +
       (shrinkDesktop ? ' sgr-widget--shrink' : '') +
       (compact6 ? ' sgr-widget--compact' : '') +
     '">' +
+      igHeaderHTML +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
       '<div class="sgr-dots" role="tablist" aria-label="Grid pages">' +
         '<button type="button" class="sgr-dot is-active" role="tab" aria-label="Page 1" aria-selected="true"></button>' +
