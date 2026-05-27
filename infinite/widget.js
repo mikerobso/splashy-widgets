@@ -292,50 +292,73 @@
       onCapture(_splAutoPosterCache[videoSrc]);
       return;
     }
-    var probe = document.createElement("video");
-    probe.crossOrigin = "anonymous";
-    probe.muted       = true;
-    probe.playsInline = true;
-    probe.setAttribute("playsinline", "");
-    probe.setAttribute("webkit-playsinline", "");
-    probe.preload     = "metadata";
-    probe.style.cssText = "position:absolute!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important";
-    var done = false;
-    function cleanup() {
-      if (done) return;
-      done = true;
-      try { probe.removeEventListener("loadeddata", onLoaded); } catch (e) {}
-      try { probe.removeEventListener("error",      onError);  } catch (e) {}
-      try { probe.removeAttribute("src"); probe.load(); } catch (e) {}
-      try { probe.remove(); } catch (e) {}
-    }
-    function onLoaded() {
-      try {
-        var w = probe.videoWidth  || 720;
-        var h = probe.videoHeight || 1280;
-        // Cap at 720px wide so the data URL stays small (~30-80KB).
-        var scale = Math.min(1, 720 / w);
-        var cw = Math.max(1, Math.round(w * scale));
-        var ch = Math.max(1, Math.round(h * scale));
-        var canvas = document.createElement("canvas");
-        canvas.width = cw; canvas.height = ch;
-        var ctx = canvas.getContext("2d");
-        ctx.drawImage(probe, 0, 0, cw, ch);
-        var dataUrl = canvas.toDataURL("image/jpeg", 0.72);
-        _splAutoPosterCache[videoSrc] = dataUrl;
-        onCapture(dataUrl);
-      } catch (e) {
-        // CORS tainted canvas, codec error, etc. Bail silently.
+    // Two-strategy approach. First try with crossOrigin="anonymous"
+    // so the canvas isn't tainted (works for Pexels CDN files,
+    // Vimeo, and any source serving Access-Control-Allow-Origin).
+    // If that probe fires an error (usually CORS rejection), retry
+    // WITHOUT crossOrigin — the video may load but the canvas will
+    // be tainted on capture, so we silently give up that fallback
+    // capture. The probe never affects the main visible video.
+    function tryProbe(useCors) {
+      var probe = document.createElement("video");
+      if (useCors) probe.crossOrigin = "anonymous";
+      probe.muted       = true;
+      probe.playsInline = true;
+      probe.setAttribute("playsinline", "");
+      probe.setAttribute("webkit-playsinline", "");
+      // preload=auto pushes the browser past metadata so we have
+      // actual frame data ready for canvas.drawImage().
+      probe.preload     = "auto";
+      probe.style.cssText = "position:absolute!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important";
+      var done = false;
+      function cleanup() {
+        if (done) return;
+        done = true;
+        try { probe.removeEventListener("loadeddata", onLoaded); } catch (e) {}
+        try { probe.removeEventListener("canplay",    onLoaded); } catch (e) {}
+        try { probe.removeEventListener("error",      onError);  } catch (e) {}
+        try { probe.removeAttribute("src"); probe.load(); } catch (e) {}
+        try { probe.remove(); } catch (e) {}
       }
-      cleanup();
+      function onLoaded() {
+        try {
+          var w = probe.videoWidth  || 720;
+          var h = probe.videoHeight || 1280;
+          if (!w || !h) { cleanup(); return; }
+          var scale = Math.min(1, 720 / w);
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement("canvas");
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(probe, 0, 0, cw, ch);
+          var dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+          _splAutoPosterCache[videoSrc] = dataUrl;
+          onCapture(dataUrl);
+        } catch (e) {
+          try { console.warn("SPLSHY auto-poster: canvas capture failed", e && e.message); } catch (_) {}
+        }
+        cleanup();
+      }
+      function onError() {
+        try { console.warn("SPLSHY auto-poster: probe load failed", useCors ? "(cors)" : "(no-cors)", videoSrc.slice(0, 80)); } catch (_) {}
+        cleanup();
+        if (useCors) {
+          // Retry without crossOrigin — at least we may be able to
+          // capture if the source is same-origin or has permissive
+          // headers in a different way.
+          setTimeout(function () { tryProbe(false); }, 50);
+        }
+      }
+      probe.addEventListener("loadeddata", onLoaded);
+      probe.addEventListener("canplay",    onLoaded);
+      probe.addEventListener("error",      onError);
+      document.body.appendChild(probe);
+      probe.src = videoSrc;
+      // Safety: never hold the probe longer than 10s.
+      setTimeout(cleanup, 10000);
     }
-    function onError() { cleanup(); }
-    probe.addEventListener("loadeddata", onLoaded);
-    probe.addEventListener("error",      onError);
-    probe.src = videoSrc;
-    document.body.appendChild(probe);
-    // Safety: never hold the probe longer than 8s.
-    setTimeout(cleanup, 8000);
+    tryProbe(true);
   }
 
   function isDesktopLayout(){
