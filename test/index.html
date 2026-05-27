@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Visit Sample City — Test Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;color:#1a1a1a;background:#fff;line-height:1.55;-webkit-font-smoothing:antialiased}
+    a{color:#0f5f8a;text-decoration:none}
+    a:hover{text-decoration:underline}
+    img{max-width:100%;display:block}
+
+    /* Top bar */
+    .tp-topbar{background:#0f5f8a;color:#fff;font-size:13px;padding:8px 24px;display:flex;justify-content:space-between;align-items:center}
+    .tp-topbar a{color:#fff;margin-left:18px}
+
+    /* Header */
+    .tp-header{padding:18px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e6ebf0;background:#fff;position:sticky;top:0;z-index:10}
+    .tp-logo{font-weight:800;font-size:22px;letter-spacing:-.01em;color:#0f5f8a}
+    .tp-logo span{color:#e8773d}
+    .tp-nav{display:flex;gap:30px;font-weight:500;font-size:15px}
+    .tp-nav a{color:#333}
+    .tp-cta{padding:9px 18px;background:#e8773d;color:#fff!important;border-radius:6px;font-weight:600;font-size:14px}
+    .tp-cta:hover{background:#d1672d;text-decoration:none}
+
+    /* Hero */
+    .tp-hero{position:relative;height:380px;background:linear-gradient(135deg,#0f5f8a 0%,#1d8db2 60%,#3eb0d4 100%);color:#fff;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 24px}
+    .tp-hero h1{font-size:48px;line-height:1.1;font-weight:800;margin:0 0 14px;letter-spacing:-.02em;max-width:780px}
+    .tp-hero p{font-size:19px;margin:0 0 22px;opacity:.92;max-width:600px}
+    .tp-hero-btn{display:inline-block;padding:13px 26px;background:#fff;color:#0f5f8a!important;border-radius:6px;font-weight:700;font-size:15px}
+    .tp-hero-btn:hover{background:#f0f5fa;text-decoration:none}
+
+    /* Section wrapper */
+    .tp-section{max-width:1280px;margin:0 auto;padding:64px 24px}
+    .tp-section h2{font-size:32px;line-height:1.15;margin:0 0 8px;letter-spacing:-.015em}
+    .tp-section .tp-eyebrow{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#e8773d;margin:0 0 6px}
+    .tp-section .tp-lede{font-size:17px;color:#5a6877;max-width:680px;margin:0 0 28px}
+
+    /* WIDGET PLACEHOLDER STYLING — shows a labelled drop zone until you
+       paste in real widget code. Once embed code replaces the inner
+       html the placeholder vanishes. */
+    .tp-widget-zone{position:relative;margin:30px 0}
+    .tp-widget-zone::before{content:attr(data-label);position:absolute;top:8px;left:8px;background:rgba(232,119,61,.92);color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border-radius:4px;z-index:9999;pointer-events:none}
+    .tp-empty{border:2px dashed #cbd3dc;background:#f5f8fa;border-radius:12px;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#7a8696;text-align:center;padding:30px;font-size:14px}
+    .tp-empty code{background:#fff;padding:2px 8px;border-radius:4px;border:1px solid #d4dae2;font-size:12px;color:#2a3340}
+
+    /* Content section */
+    .tp-content-block{display:grid;grid-template-columns:1.4fr 1fr;gap:48px;align-items:start;margin:48px 0}
+    .tp-content-block h3{font-size:24px;margin:0 0 14px;line-height:1.2}
+    .tp-content-block p{color:#3a4654;margin:0 0 14px;font-size:16px}
+    .tp-content-block .tp-bullets{padding-left:22px;color:#3a4654}
+    .tp-content-block .tp-bullets li{margin-bottom:8px}
+
+    /* Footer */
+    .tp-footer{background:#0f1f2c;color:#aebbcc;font-size:14px;padding:40px 24px 30px;margin-top:80px}
+    .tp-footer-inner{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:36px}
+    .tp-footer h4{color:#fff;font-size:14px;margin:0 0 14px;text-transform:uppercase;letter-spacing:.06em}
+    .tp-footer a{color:#aebbcc;display:block;padding:3px 0}
+    .tp-footer .tp-fineprint{grid-column:1/-1;border-top:1px solid #1d3247;padding-top:22px;margin-top:30px;font-size:12px;color:#6a7a8c;text-align:center}
+
+    @media (max-width:768px){
+      .tp-nav{display:none}
+      .tp-hero h1{font-size:32px}
+      .tp-hero{height:280px}
+      .tp-section{padding:40px 18px}
+      .tp-content-block{grid-template-columns:1fr;gap:24px}
+      .tp-footer-inner{grid-template-columns:1fr 1fr;gap:24px}
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =================================================================
+       FAKE DMO TEST PAGE
+       Drop your generated widget embed code into the .tp-widget-zone
+       blocks below. The dashed placeholders disappear automatically
+       once real content replaces the .tp-empty divs.
+  ================================================================== -->
+
+  <div class="tp-topbar">
+    <span>Welcome — explore Sample City</span>
+    <span>
+      <a href="#">Events</a>
+      <a href="#">Newsletter</a>
+      <a href="#">Contact</a>
+    </span>
+  </div>
+
+  <header class="tp-header">
+    <div class="tp-logo">Visit<span>Sample</span>City</div>
+    <nav class="tp-nav">
+      <a href="#">Things to Do</a>
+      <a href="#">Eat &amp; Drink</a>
+      <a href="#">Where to Stay</a>
+      <a href="#">Plan Your Visit</a>
+      <a href="#">About</a>
+    </nav>
+    <a href="#" class="tp-cta">Book Your Stay</a>
+  </header>
+
+  <section class="tp-hero">
+    <div>
+      <h1>Discover Sample City</h1>
+      <p>From culinary adventures to outdoor escapes — your next memorable trip starts here.</p>
+      <a href="#" class="tp-hero-btn">Start Exploring</a>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 1: Grid widget (full width) ===== -->
+  <section class="tp-section">
+    <p class="tp-eyebrow">From the locals</p>
+    <h2>What's happening around town</h2>
+    <p class="tp-lede">Twelve quick looks at what makes Sample City worth the trip — from neighborhood spots to seasonal events.</p>
+
+    <div class="tp-widget-zone" data-label="GRID WIDGET">
+      <div class="tp-empty">
+        Paste your <strong>Video Grid</strong> embed code here.<br>
+        Generate from the Studio: <code>Video Grid</code> tab → <code>Generate Embed Code</code> → paste below this comment in the source.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 2: Stories widget + intro text ===== -->
+  <section class="tp-section" style="background:#f7f9fb;border-radius:0;max-width:none;padding-left:24px;padding-right:24px;">
+    <div style="max-width:1280px;margin:0 auto;">
+      <p class="tp-eyebrow">Meet the creators</p>
+      <h2>Stories from people who know Sample City best</h2>
+      <p class="tp-lede">Local creators take you behind the scenes — restaurants, neighborhoods, hidden corners.</p>
+
+      <div class="tp-widget-zone" data-label="STORIES WIDGET">
+        <div class="tp-empty">
+          Paste your <strong>Story Highlights</strong> embed code here.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 3: Grid (compact 6 with text-right variant) ===== -->
+  <section class="tp-section">
+    <p class="tp-eyebrow">Editor's picks</p>
+    <h2>Where to go this weekend</h2>
+
+    <div class="tp-widget-zone" data-label="GRID + TEXT WIDGET">
+      <div class="tp-empty">
+        Paste your <strong>Video Grid (Text Left or Right)</strong> embed code here. The compact six-card variant with text alongside.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 4: Single reel beside content ===== -->
+  <section class="tp-section" style="background:#fefaf7;max-width:none;padding-left:24px;padding-right:24px;">
+    <div style="max-width:1280px;margin:0 auto;">
+      <p class="tp-eyebrow">Featured this week</p>
+      <h2>Lucy crushes waves at the lake</h2>
+
+      <div class="tp-widget-zone" data-label="SINGLE REEL WIDGET">
+        <div class="tp-empty">
+          Paste your <strong>Single Reel</strong> embed code here.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECTION 5: Infinite carousel ===== -->
+  <section class="tp-section">
+    <p class="tp-eyebrow">Watch more</p>
+    <h2>Explore every neighborhood</h2>
+    <p class="tp-lede">Swipe through video stories from every corner of Sample City.</p>
+
+    <div class="tp-widget-zone" data-label="INFINITE CAROUSEL WIDGET">
+      <div class="tp-empty">
+        Paste your <strong>Infinite Carousel</strong> embed code here.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Body content (mimics real DMO articles to test how widgets feel in context) ===== -->
+  <section class="tp-section">
+    <div class="tp-content-block">
+      <div>
+        <h3>Plan your visit</h3>
+        <p>Sample City offers something for every season. Whether you're chasing fall color, summer festivals, or a quiet winter retreat, our guides help you make the most of your time here.</p>
+        <p>Our visitor centers are open daily and our local concierges can help you book tours, dining reservations, and event tickets — all from a single phone call.</p>
+        <ul class="tp-bullets">
+          <li>Downtown visitor center, 9am–6pm daily</li>
+          <li>Free parking on weekends</li>
+          <li>Trolley tours every 30 minutes</li>
+          <li>Local concierge: 555-VISIT</li>
+        </ul>
+      </div>
+      <div style="background:#eef3f7;border-radius:12px;padding:24px;color:#3a4654;">
+        <h4 style="margin:0 0 10px;font-size:18px;color:#0f5f8a;">Upcoming events</h4>
+        <p style="margin:0 0 8px;"><strong>Food Festival</strong><br>Aug 14–16 · Downtown</p>
+        <p style="margin:0 0 8px;"><strong>Sunset Concert Series</strong><br>Every Friday · Riverwalk</p>
+        <p style="margin:0;"><strong>Farmers Market</strong><br>Saturdays · City Plaza</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="tp-footer">
+    <div class="tp-footer-inner">
+      <div>
+        <div class="tp-logo" style="color:#fff;font-size:20px;margin-bottom:12px;">Visit<span>Sample</span>City</div>
+        <p style="margin:0;line-height:1.6;max-width:340px;">Sample City Visitors Bureau. The official destination marketing organization for Sample City.</p>
+      </div>
+      <div>
+        <h4>Explore</h4>
+        <a href="#">Things to Do</a>
+        <a href="#">Eat &amp; Drink</a>
+        <a href="#">Where to Stay</a>
+        <a href="#">Events</a>
+      </div>
+      <div>
+        <h4>Plan</h4>
+        <a href="#">Maps</a>
+        <a href="#">Transportation</a>
+        <a href="#">Visitor Center</a>
+        <a href="#">FAQs</a>
+      </div>
+      <div>
+        <h4>Connect</h4>
+        <a href="#">Newsletter</a>
+        <a href="#">Instagram</a>
+        <a href="#">Press Room</a>
+        <a href="#">Contact</a>
+      </div>
+      <div class="tp-fineprint">
+        © 2026 Sample City Visitors Bureau. This is a SPLSHY test page, not a real destination.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
