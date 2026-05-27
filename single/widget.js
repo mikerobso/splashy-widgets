@@ -465,7 +465,7 @@
       // Keyboard-focused mute/pop-out reappear immediately even if the
       // hover-fade has dropped them to opacity:0.
       ".srv-mute-btn:focus-visible,.srv-popout-btn:focus-visible,.srv-cc-btn:focus-visible{opacity:1!important;transition:opacity 0s!important}",
-      ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
+      ".srv-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;box-sizing:border-box!important;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:14px;font-weight:700;line-height:1;padding:0!important;border-radius:50%!important;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;text-align:center}",
       ".srv-speed.visible{opacity:1}",
       ".srv-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end;touch-action:none}",
       "@media(hover:hover){.srv-card:hover .srv-progress{opacity:1}}",
