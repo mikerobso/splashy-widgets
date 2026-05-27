@@ -554,7 +554,7 @@
       // Visually-hidden live region: SR-only "Reel N of M" announcements
       // on carousel navigation (set in updateUI).
       ".sif-live{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}",
-      ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:15px;font-weight:700;padding:7px 14px;border-radius:99px;border:1.5px solid rgba(255,255,255,.3);z-index:16;pointer-events:none;opacity:0;transition:opacity .15s}",
+      ".sif-speed{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;box-sizing:border-box!important;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);color:#fff;font-size:14px;font-weight:700;line-height:1;padding:0!important;border-radius:50%!important;border:1.5px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .15s;text-align:center}",
       ".sif-speed.visible{opacity:1}",
       ".sif-progress{position:absolute;bottom:0;left:0;right:0;height:20px;background:transparent;z-index:20;cursor:pointer;opacity:0;transition:opacity 1s;border-radius:0 0 20px 20px;display:flex;align-items:flex-end}",
       "@media(hover:hover){.sif-card.sif-playing:hover .sif-progress{opacity:1}}",
