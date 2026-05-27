@@ -286,12 +286,47 @@
   // by source to avoid re-capturing the same video for duplicate
   // reels (the carousel doubles reels when there are too few).
   var _splAutoPosterCache = {};
+
+  // Pexels download URLs don't serve CORS, so the canvas approach
+  // can't export frames. But Pexels exposes a predictable thumbnail
+  // URL per video ID — bypass canvas entirely and use that directly.
+  // Returns a URL string or null.
+  function _splDerivePexelsPosterUrl(videoSrc) {
+    var m = videoSrc.match(/pexels\.com\/(?:download\/)?videos?\/(\d+)\//i);
+    if (m && m[1]) {
+      return "https://images.pexels.com/videos/" + m[1] + "/free-video-" + m[1] + ".jpeg";
+    }
+    return null;
+  }
+
   function splAutoPosterFromFirstFrame(videoSrc, onCapture) {
     if (!videoSrc || typeof onCapture !== "function") return;
     if (_splAutoPosterCache[videoSrc]) {
       onCapture(_splAutoPosterCache[videoSrc]);
       return;
     }
+    // Source-specific shortcut: if this is a Pexels video URL,
+    // derive the thumbnail URL and use it directly. Skip the canvas
+    // probe entirely (it can't work without CORS on Pexels anyway).
+    var pexelsImg = _splDerivePexelsPosterUrl(videoSrc);
+    if (pexelsImg) {
+      var probeImg = new Image();
+      probeImg.onload = function () {
+        _splAutoPosterCache[videoSrc] = pexelsImg;
+        onCapture(pexelsImg);
+      };
+      probeImg.onerror = function () {
+        // Pexels image URL format didn't match — try the canvas
+        // approach as a fallback.
+        _splCanvasProbeForFirstFrame(videoSrc, onCapture);
+      };
+      probeImg.src = pexelsImg;
+      return;
+    }
+    _splCanvasProbeForFirstFrame(videoSrc, onCapture);
+  }
+
+  function _splCanvasProbeForFirstFrame(videoSrc, onCapture) {
     // Two-strategy approach. First try with crossOrigin="anonymous"
     // so the canvas isn't tainted (works for Pexels CDN files,
     // Vimeo, and any source serving Access-Control-Allow-Origin).
