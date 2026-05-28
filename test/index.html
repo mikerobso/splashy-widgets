@@ -336,6 +336,12 @@
       // config requests it, otherwise the solo variant.
       var cfg     = widget.config || {};
       var pos     = cfg.textPosition || 'none';
+
+      // Two-reel variants render via a different helper — same 50/50 wrap,
+      // but the video side contains two reels stacked horizontally.
+      if (pos === 'two-left' || pos === 'two-right') {
+        return renderSingleTwin(slotEl, widget, pos === 'two-right' ? 'right' : 'left');
+      }
       var uid     = 's_' + Math.random().toString(36).slice(2, 10);
 
       var floatClass = (pos === 'right') ? 'srv-float-r' : 'srv-float-l';
@@ -382,6 +388,81 @@
       });
       window.SPLSHY_SINGLE = window['SPLSHY_SINGLE_' + uid];
       ensureWidgetScript('single');
+    }
+
+    // Twin-reel variant of the single layout: 50% text + 50% video column
+    // containing two single-widget instances stacked horizontally. Mirrors
+    // buildSingleTwinEmbed in Studio so the demo page matches what the
+    // Studio's live preview renders.
+    function renderSingleTwin(slotEl, widget, side) {
+      var cfg = widget.config || {};
+      var uid = 'st_' + Math.random().toString(36).slice(2, 10);
+      var uidA = uid + 'a', uidB = uid + 'b';
+
+      var layoutClass = (side === 'right') ? 'srv-twin-r' : 'srv-twin-l';
+      var textClass   = (side === 'right') ? 'srv-text-r' : 'srv-text-l';
+      var floatClass  = 'srv-twin-col';
+      var padDir      = (side === 'right') ? 'padding-right' : 'padding-left';
+      var textPad     = cfg.noPad ? '0' : '60px';
+
+      var paraRaw = cfg.paragraph || '';
+      var paras   = paraRaw.split(/\n\n+/).filter(function (p) { return p.trim(); });
+      var parasHtml = paras.map(function (p) { return '<p>' + p.trim() + '</p>'; }).join('');
+
+      var textBlock = '<div class="' + textClass + '">' +
+        '<h2>' + (cfg.header || '') + '</h2>' + parasHtml + '</div>';
+      var reelBlock = '<div class="' + floatClass + '">' +
+        '<div id="' + uidA + '"></div>' +
+        '<div id="' + uidB + '"></div></div>';
+      var inner = (side === 'right') ? (reelBlock + textBlock) : (textBlock + reelBlock);
+
+      slotEl.innerHTML =
+        '<style>' +
+          '#wrap-' + uid + '.' + layoutClass + '{width:100%;box-sizing:border-box;display:flex;flex-direction:row;align-items:center;gap:40px;}' +
+          '#wrap-' + uid + ' > .' + textClass + '{flex:1;min-width:0;' + padDir + ':' + textPad + ';}' +
+          '#wrap-' + uid + ' > .' + textClass + ' > :first-child{margin-top:0;}' +
+          '#wrap-' + uid + ' > .' + textClass + ' > :last-child{margin-bottom:0;}' +
+          '#wrap-' + uid + ' > .' + floatClass + '{flex:1;min-width:0;display:flex;flex-direction:row;gap:8px;align-items:flex-start;justify-content:center;}' +
+          '#wrap-' + uid + ' > .' + floatClass + ' > div{flex:0 0 auto;}' +
+          '#wrap-' + uid + ' .srv-widget{padding:20px 16px 30px 16px;--srv-card-w:220px;--srv-card-h:391px;}' +
+          '@media(min-width:1024px) and (any-pointer:fine){#wrap-' + uid + ' .srv-widget{--srv-card-w:240px;--srv-card-h:427px;}}' +
+          '@media(max-width:767px){' +
+            '#wrap-' + uid + '.' + layoutClass + '{flex-direction:column;align-items:center;gap:0;padding-top:20px;}' +
+            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;flex-direction:column;gap:0;}' +
+            '#wrap-' + uid + ' > .' + textClass + '{padding:16px 20px 16px;width:100%;order:2;}' +
+            '#wrap-' + uid + ' .srv-widget{padding:20px;--srv-card-w:78.2vw;--srv-card-h:calc(78.2vw*16/9);}' +
+          '}' +
+        '</style>' +
+        '<div id="wrap-' + uid + '" class="' + layoutClass + '">' + inner + '</div>';
+
+      // Boot reel A then reel B. The widget IIFE reads window.SPLSHY_SINGLE
+      // at script-eval time, so we set the global, load the script, then
+      // repeat for B. ensureWidgetScript dedupes the <script src> by URL,
+      // so the second call appends a tag with a unique cache-bust query so
+      // the IIFE re-evaluates and picks up the second config.
+      window['SPLSHY_SINGLE_' + uidA] = Object.assign({}, cfg, {
+        containerId: uidA,
+        clientId:    CLIENT_ID,
+        savedWidgetId: widget.id
+      });
+      window['SPLSHY_SINGLE_' + uidB] = Object.assign({}, cfg, {
+        containerId: uidB,
+        videoUrl:    cfg.videoUrl2 || '',
+        posterUrl:   cfg.posterUrl2 || '',
+        label:       cfg.label2 || '',
+        clientId:    CLIENT_ID,
+        savedWidgetId: widget.id
+      });
+
+      function bootOne(reelUid, cb) {
+        window.SPLSHY_SINGLE = window['SPLSHY_SINGLE_' + reelUid];
+        var s = document.createElement('script');
+        s.src = 'https://www.splshy.com/single/widget.js?_=' + Date.now() + Math.random();
+        s.onload  = cb;
+        s.onerror = cb;
+        document.body.appendChild(s);
+      }
+      bootOne(uidA, function () { bootOne(uidB, function () {}); });
     }
 
     // Infinite carousel with side-text layout. Mirrors
