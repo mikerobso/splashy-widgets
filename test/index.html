@@ -133,6 +133,15 @@
     <div class="tp-widget-zone" data-slot="infinite"></div>
   </section>
 
+  <!-- ===== SECTION 6: Infinite Carousel + Text ===== -->
+  <section class="tp-section" style="background:#f3f7fb;max-width:none;padding-left:24px;padding-right:24px;">
+    <div style="max-width:1280px;margin:0 auto;">
+      <p class="tp-eyebrow">Behind the scenes</p>
+      <h2>Stories worth your time</h2>
+      <div class="tp-widget-zone" data-slot="infiniteText"></div>
+    </div>
+  </section>
+
   <section class="tp-section">
     <div class="tp-content-block">
       <div>
@@ -366,6 +375,70 @@
       ensureWidgetScript('single');
     }
 
+    // Infinite carousel with side-text layout. Mirrors
+    // buildInfiniteEmbed's pos === 'left'/'right' branch in the Studio:
+    // flex container with the carousel float and a text block. Sets
+    // forceMobile:true so the carousel renders in single-focused-card
+    // mode that fits the narrower column.
+    function renderInfiniteText(slotEl, widget) {
+      var cfg     = widget.config || {};
+      var pos     = (cfg.textPosition === 'right') ? 'right' : 'left';
+      var uid     = 'i_' + Math.random().toString(36).slice(2, 10);
+
+      var floatClass  = (pos === 'right') ? 'sif-float-r'  : 'sif-float-l';
+      var textClass   = (pos === 'right') ? 'sif-text-r'   : 'sif-text-l';
+      var layoutClass = (pos === 'right') ? 'sif-layout-r' : 'sif-layout-l';
+      var padDir      = (pos === 'right') ? 'padding-right' : 'padding-left';
+      var textPad     = cfg.noPad ? '0' : '60px';
+
+      var paraRaw = cfg.paragraph || '';
+      var paras   = paraRaw.split(/\n\n+/).filter(function (p) { return p.trim(); });
+      var parasHtml = paras.map(function (p) { return '<p>' + p.trim() + '</p>'; }).join('');
+
+      var calloutCss = '';
+      if (cfg.calloutBorder || cfg.calloutTint) {
+        calloutCss = '#wrap-' + uid + '{border-radius:16px;padding:22px;';
+        if (cfg.calloutBorder) calloutCss += 'border:1px solid rgba(0,0,0,.25);';
+        if (cfg.calloutTint)   calloutCss += 'background:rgba(0,0,0,.05);';
+        calloutCss += '}';
+        calloutCss += '@media(max-width:767px){#wrap-' + uid + ' .' + textClass + '{padding-bottom:0;}}';
+      }
+
+      slotEl.innerHTML =
+        '<style>' +
+          '#wrap-' + uid + '.' + layoutClass + '{width:100%;box-sizing:border-box;display:flex;flex-direction:row;align-items:center;gap:64px;}' +
+          '#wrap-' + uid + ' > .' + floatClass + '{flex:42 1 0;min-width:0;}' +
+          '#wrap-' + uid + ' > .' + textClass  + '{flex:58 1 0;min-width:0;' + padDir + ':' + textPad + ';}' +
+          '#wrap-' + uid + ' > .' + textClass  + ' > :first-child{margin-top:0;}' +
+          '#wrap-' + uid + ' > .' + textClass  + ' > :last-child{margin-bottom:0;}' +
+          '@media(max-width:767px){' +
+            '#wrap-' + uid + '.' + layoutClass + '{flex-direction:column;align-items:stretch;gap:0;padding-top:20px;}' +
+            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;}' +
+            '#wrap-' + uid + ' > .' + textClass  + '{padding:16px 20px 16px;width:100%;order:2;}' +
+            '#wrap-' + uid + ' .sif-widget{--sif-card-h:64vh;--sif-card-w:calc(64vh * 9/16);}' +
+          '}' +
+          calloutCss +
+        '</style>' +
+        '<div id="wrap-' + uid + '" class="' + layoutClass + '">' +
+          (pos === 'right'
+            ? '<div class="' + floatClass + '"><div id="' + uid + '"></div></div>' +
+              '<div class="' + textClass  + '"><h2>' + (cfg.header || '') + '</h2>' + parasHtml + '</div>'
+            : '<div class="' + textClass  + '"><h2>' + (cfg.header || '') + '</h2>' + parasHtml + '</div>' +
+              '<div class="' + floatClass + '"><div id="' + uid + '"></div></div>'
+          ) +
+        '</div>';
+
+      var pushCfg = Object.assign({}, cfg, {
+        containerId:   uid,
+        clientId:      CLIENT_ID,
+        savedWidgetId: widget.id,
+        forceMobile:   true
+      });
+      window.SPLSHY_INFINITE_QUEUE = window.SPLSHY_INFINITE_QUEUE || [];
+      window.SPLSHY_INFINITE_QUEUE.push(pushCfg);
+      ensureWidgetScript('infinite');
+    }
+
     function renderSlot(slotEl, slotKey, widget) {
       if (!widget) {
         showEmpty(slotEl, 'No widget assigned to <strong>' + slotKey + '</strong>. Pick one in the Studio → Demo Page tab.');
@@ -376,6 +449,8 @@
           renderSingle(slotEl, widget);
         } else if (slotKey === 'gridText') {
           renderGridText(slotEl, widget);
+        } else if (slotKey === 'infiniteText') {
+          renderInfiniteText(slotEl, widget);
         } else {
           renderGridLike(slotEl, widget, slotKey);
         }
