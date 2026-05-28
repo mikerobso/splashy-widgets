@@ -258,7 +258,7 @@
   // Default is "row". Until 3b/3c land the flag validates but does nothing —
   // any value still renders as the row carousel. Mobile rendering is unaffected
   // by this flag in every mode.
-  var ALLOWED_DESKTOP_STYLES = ["row", "accordion-3", "accordion-5"];
+  var ALLOWED_DESKTOP_STYLES = ["row", "row-4", "accordion-3", "accordion-5"];
   var desktopStyle = cfg.desktopStyle || "row";
   if (ALLOWED_DESKTOP_STYLES.indexOf(desktopStyle) === -1){
     console.warn("Splshy Infinite: unknown desktopStyle '" + desktopStyle + "', falling back to 'row'.");
@@ -431,6 +431,14 @@
     console.warn("Splshy Infinite: accordion-3 requires >= 3 reels; falling back to row.");
     desktopStyle = "row";
   }
+  // row-4's visible window extends one slot further right than row-3,
+  // so it needs n >= 5 reels for the band to keep that slot populated
+  // (row never doubles, unlike the accordion modes). Below 5, fall
+  // back to row-3 so the layout stays valid.
+  if (desktopStyle === "row-4" && realCount < 5){
+    console.warn("Splshy Infinite: row-4 requires >= 5 reels; falling back to row (3 visible).");
+    desktopStyle = "row";
+  }
   // Hover preview: when a card is hovered for 1.25s, it plays a muted 5s
   // preview from the 0.5s mark and freezes on the last frame. Clicking the
   // card during preview commits to real playback (resets to 0, plays with
@@ -457,8 +465,13 @@
   var pendingAutoAdvanceTarget = null;
   // Visible window width for the active desktop mode (V = 3 or 5, matching
   // the plan's V=3/V=5 band derivations). Drives the band invariant and the
-  // accordion renderer; mobile rendering ignores V.
+  // accordion renderer; mobile rendering ignores V. "row-4" keeps V=3 — its
+  // wider visible window is handled in CSS + centreOffset, not the band.
   var V = (desktopStyle === "accordion-5") ? 5 : 3;
+  // Row-mode visible card count (3 default, 4 for the row-4 variant).
+  // Drives the viewport-width CSS var and the active-slot position so
+  // 4 cards fit edge-to-edge with active at slot 1.
+  var visibleCount = (desktopStyle === "row-4") ? 4 : 3;
   // Band left offset = -((V+1)/2). V=3 -> -2, V=5 -> -3. The band is shifted
   // (V+1)/2 slots LEFT of symmetric so a card is always staged just off the
   // visible left edge — see the unified pattern in the plan doc.
@@ -531,7 +544,7 @@
     var style = document.createElement("style");
     style.setAttribute("data-splshy-infinite", "1");
     style.textContent = [
-      ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
+      ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;--sif-visible:3;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
       // A11y: keep the tap-highlight removal but stop forcibly removing the
       // focus outline — keyboard users need a visible focus ring. Universal
       // :focus-visible style is white-on-2px-offset (visible on dark cards);
@@ -542,7 +555,7 @@
       ".sif-arrow:focus-visible{outline-color:#111}",
       ".sif-dot:focus-visible{outline-color:var(--sif-accent)}",
       ".sif-outer{position:relative;display:flex;align-items:center;justify-content:center}",
-      ".sif-viewport{overflow:hidden;height:var(--sif-card-h);width:calc(var(--sif-card-w)*3 + var(--sif-gap)*2)}",
+      ".sif-viewport{overflow:hidden;height:var(--sif-card-h);width:calc(var(--sif-card-w)*var(--sif-visible) + var(--sif-gap)*(var(--sif-visible) - 1))}",
       /* Track: a flex row of cards. We move it with translateX */
       ".sif-track{display:flex;flex-direction:row;align-items:center;height:100%;gap:var(--sif-gap);will-change:transform}",
       ".sif-card{flex-shrink:0;position:relative;width:var(--sif-card-w);height:var(--sif-card-h);border-radius:20px;overflow:hidden;background:#1a1a1a;cursor:pointer;-webkit-mask-image:-webkit-radial-gradient(white,black);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;-webkit-tap-highlight-color:transparent;touch-action:pan-y;transition:filter .35s,box-shadow .35s,transform .35s}",
@@ -558,6 +571,12 @@
       "@media(min-width:768px) and (pointer:coarse) and (hover:none){.sif-card{filter:brightness(.5)}.sif-card.is-active{filter:brightness(1)!important}.sif-widget{--sif-card-h:69vh;--sif-card-w:calc(69vh*9/16);--sif-gap:9px;--sif-step-frac:0.72}.sif-viewport{width:100%}}",
       /* Desktop */
       "@media(min-width:768px) and (any-pointer:fine){.sif-widget:not(.sif-force-mobile) .sif-card{transform:scale(1)!important;filter:brightness(1)!important}.sif-widget:not(.sif-force-mobile){--sif-card-w:min(320px,calc(65vh*9/16));--sif-card-h:min(568px,65vh);--sif-gap:40px}}",
+      /* Desktop row-4: scaled-down cards + wider viewport so 4 cards
+         fit fully. Card width ~75% of the 3-up size keeps total
+         viewport in the same ballpark as 3-up (~1050px). Active card
+         sits at slot 1 (one card peeking on the left, two to the
+         right) via centreOffset's activeSlot formula. */
+      "@media(min-width:768px) and (any-pointer:fine){.sif-widget--row4:not(.sif-force-mobile){--sif-visible:4;--sif-card-w:min(240px,calc(48vh*9/16));--sif-card-h:min(427px,48vh);--sif-gap:30px}}",
       /* Poster */
       ".sif-poster{position:absolute;inset:0;border-radius:20px;overflow:hidden}",
       ".sif-poster-ph{position:absolute;inset:0;background:linear-gradient(160deg,#2a2a2a 0%,#111 100%)}",
@@ -809,6 +828,7 @@
 
   var widget   = container.querySelector(".sif-widget");
   if (desktopStyle === "accordion-3" || desktopStyle === "accordion-5") widget.classList.add("sif-accordion");
+  if (desktopStyle === "row-4") widget.classList.add("sif-widget--row4");
   if (forceMobile) widget.classList.add("sif-force-mobile");
   // Cancel any pending click-to-centre preview intent if the user leaves the
   // widget area before the slide finishes — they've moved on, don't preview.
@@ -1639,10 +1659,17 @@
     return getCardW() + getGap();
   }
 
-  // Pixel offset that places a card's left edge so the card is centred
-  // horizontally in the viewport — works for any viewport width.
+  // Pixel offset that places the active card's left edge inside the
+  // viewport. Active card sits at slot floor((visibleCount - 1) / 2):
+  //   3 visible -> slot 1 (centred between slot 0 and slot 2)
+  //   4 visible -> slot 1 (one card to the left, two to the right;
+  //                        all 4 fully visible, active left-of-centre)
+  // This generalises the old `(viewport - cardW) / 2` formula — for
+  // 3-up it returns exactly the same value (slot 1 = cardW + gap =
+  // (viewport - cardW) / 2 when viewport = 3*cardW + 2*gap).
   function centreOffset(){
-    return (viewport.offsetWidth - getCardW()) / 2;
+    var activeSlot = Math.floor((visibleCount - 1) / 2);
+    return activeSlot * getStep();
   }
 
   var centreSlot = 1;   // slot currently centred (start so cards[0] is centre)
