@@ -15,11 +15,18 @@
        the Studio's .preview-iframe.mobile is styled. Eliminates the
        2px content-width drift from putting the border on a parent
        wrapper. */
+    .frame{position:relative;display:inline-block}
     .frame iframe{width:393px;height:852px;border-radius:36px;background:#000;box-shadow:0 24px 64px rgba(0,0,0,.5);border:1px solid #2d3a4d;display:block;box-sizing:border-box}
-    .controls{margin-top:24px;display:flex;gap:10px}
-    .controls a{padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;text-decoration:none;background:#fff;color:#0f1f2c;transition:transform .12s}
-    .controls a.alt{background:transparent;color:#aebbcc;border:1px solid #3a4a5f}
-    .controls a:hover{transform:translateY(-1px)}
+    /* Back button floats just off the right edge of the phone, centred
+       vertically — much harder to miss than sitting below the frame. */
+    .back-btn{position:absolute;left:calc(100% + 28px);top:50%;transform:translateY(-50%);white-space:nowrap;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;text-decoration:none;background:#fff;color:#0f1f2c;transition:transform .12s,box-shadow .12s;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+    .back-btn:hover{transform:translateY(-50%) translateX(3px);box-shadow:0 6px 20px rgba(0,0,0,.45)}
+    /* On narrow windows where the button would fall off-screen, drop it
+       back below the phone. */
+    @media (max-width: 720px){
+      .back-btn{position:static;transform:none;display:inline-block;margin-top:24px;box-shadow:none}
+      .back-btn:hover{transform:translateY(-1px)}
+    }
     .hint{margin-top:18px;font-size:12px;color:#5a6877;max-width:393px;text-align:center;line-height:1.5}
   </style>
 </head>
@@ -31,10 +38,7 @@
 
   <div class="frame">
     <iframe src="../" title="Mobile-framed demo page"></iframe>
-  </div>
-
-  <div class="controls">
-    <a href="../">⤺ Back to desktop view</a>
+    <a class="back-btn" href="../">⤺ Back to desktop view</a>
   </div>
 
   <p class="hint">This wraps <code>/test/</code> in a fixed-width iframe so its mobile media queries fire. Same page, same content — just constrained to a phone-sized viewport.</p>
