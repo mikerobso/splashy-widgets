@@ -257,6 +257,12 @@
   // where a 6-card grid sits next to a text block.
   var compact6 = !!cfg.compact6;
 
+  // Optional centered heading + paragraph that sit on the page above
+  // the grid (never overlapping the cards). Only the full 12-card grid
+  // shows it; the compact6 side-text variant uses its own text block.
+  var centerHeading    = cfg.centerHeading    || "";
+  var centerSubheading = cfg.centerSubheading || "";
+
   // Instagram-style branding (only renders on the full-width grid;
   // compact6 / side-text variants use the text block for branding).
   var followerCount = cfg.followerCount || "";
@@ -527,6 +533,12 @@
     styleEl.textContent = [
       ".sgr-widget{width:100%;position:relative;padding:18px 16px;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#fff;-webkit-font-smoothing:antialiased}",
       "@media(max-width:767px){.sgr-widget{padding:14px 10px}}",
+      // Centered heading + paragraph above the grid. Sits on the page
+      // (dark text on the host background), never overlaps the cards.
+      ".sgr-center-head{text-align:center;margin:0 auto 20px;max-width:760px;padding:0 16px;box-sizing:border-box}",
+      ".sgr-center-title{font-size:30px;font-weight:700;line-height:1.15;letter-spacing:-0.01em;color:#15171a;margin:0}",
+      ".sgr-center-sub{font-size:16px;line-height:1.5;color:#5a6470;margin:8px 0 0}",
+      "@media(max-width:767px){.sgr-center-title{font-size:23px}.sgr-center-sub{font-size:14px}}",
       // Instagram-style branding header (same look as infinite/single):
       // logo circle with optional ring + follower count below, clickable
       // to open IG profile. Centered above the grid.
@@ -742,12 +754,24 @@
       '</div>';
   }
 
+  // Centered heading block — full 12-card grid only (compact6 side-text
+  // variant carries its own header/paragraph in the text column).
+  var centerHeadHTML = "";
+  if (!compact6 && (centerHeading || centerSubheading)) {
+    centerHeadHTML =
+      '<div class="sgr-center-head">' +
+        (centerHeading    ? '<h2 class="sgr-center-title">' + escapeHTML(centerHeading)    + '</h2>' : '') +
+        (centerSubheading ? '<p class="sgr-center-sub">'    + escapeHTML(centerSubheading) + '</p>'  : '') +
+      '</div>';
+  }
+
   container.innerHTML =
     '<div class="sgr-widget' +
       (hideBottomRowDesktop ? ' sgr-widget--top-only' : '') +
       (shrinkDesktop ? ' sgr-widget--shrink' : '') +
       (compact6 ? ' sgr-widget--compact' : '') +
     '">' +
+      centerHeadHTML +
       igHeaderHTML +
       '<div class="sgr-grid" role="list">' + pagesHTML + '</div>' +
       '<div class="sgr-dots" role="tablist" aria-label="Grid pages">' +
