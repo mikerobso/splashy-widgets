@@ -58,6 +58,13 @@
       .tp-content-block{grid-template-columns:1fr;gap:24px}
       .tp-footer-inner{grid-template-columns:1fr 1fr;gap:24px}
     }
+
+    /* Floating dev toggle: link to the mobile-framed preview of this
+       same page. Only shown when this is the standalone /test/ view
+       (hidden when iframed via parent — see script below). */
+    .tp-view-toggle{position:fixed;bottom:18px;right:18px;z-index:99999;background:#0f1f2c;color:#fff;padding:10px 14px;border-radius:99px;font-size:12px;font-weight:600;letter-spacing:.04em;text-decoration:none;box-shadow:0 8px 24px rgba(0,0,0,.25);font-family:'Inter',system-ui,sans-serif}
+    .tp-view-toggle:hover{background:#1a3247;text-decoration:none}
+    .tp-view-toggle.is-framed{display:none}
   </style>
 </head>
 <body>
@@ -163,6 +170,8 @@
       </div>
     </div>
   </section>
+
+  <a class="tp-view-toggle" id="tp-view-toggle" href="mobile/" target="_self">📱 View as mobile</a>
 
   <footer class="tp-footer">
     <div class="tp-footer-inner">
@@ -491,6 +500,18 @@
       document.addEventListener('DOMContentLoaded', init);
     } else {
       init();
+    }
+
+    // Hide the "View as mobile" toggle when this page is loaded inside
+    // an iframe (the Studio's preview already has its own toggle).
+    try {
+      if (window.self !== window.top) {
+        var t = document.getElementById('tp-view-toggle');
+        if (t) t.classList.add('is-framed');
+      }
+    } catch (e) {
+      var t2 = document.getElementById('tp-view-toggle');
+      if (t2) t2.classList.add('is-framed');
     }
   })();
   </script>
