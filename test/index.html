@@ -466,7 +466,12 @@
         showEmpty(slotEl, 'Loading…');
       });
 
-      fetch(API_BASE + '/demo-page?c=' + encodeURIComponent(CLIENT_ID))
+      // Forward any slot-override query params from this page's URL to
+      // the API. Lets the Studio's live preview iframe show in-progress
+      // dropdown picks without persisting them.
+      var qs = window.location.search || '';
+      var apiUrl = API_BASE + '/demo-page?c=' + encodeURIComponent(CLIENT_ID) + (qs ? '&' + qs.replace(/^\?/, '') : '');
+      fetch(apiUrl)
         .then(function (r) { return r.ok ? r.json() : { sections: {} }; })
         .then(function (data) {
           var sections = (data && data.sections) || {};
