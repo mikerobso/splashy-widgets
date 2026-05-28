@@ -433,9 +433,13 @@
             '#wrap-' + uid + '.' + layoutClass + '{flex-direction:column;align-items:stretch;gap:0;padding-top:20px;}' +
             // Float keeps row layout on mobile — both reels side by side
             // above the text, mirroring the grid-6 compact layout.
-            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;gap:6px;}' +
+            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;gap:8px;padding:0 20px;box-sizing:border-box;}' +
             '#wrap-' + uid + ' > .' + textClass + '{padding:16px 20px 16px;width:100%;order:2;}' +
-            '#wrap-' + uid + ' .srv-widget{padding:8px;}' +
+            // Strip widget padding so cards touch column edges (grid-6).
+            '#wrap-' + uid + ' .srv-widget{padding:0;}' +
+            // Shrink the play indicator to grid-6 dimensions + darker fill.
+            '#wrap-' + uid + ' .srv-play-circle{width:36px!important;height:36px!important;min-width:36px!important;min-height:36px!important;background:rgba(0,0,0,0.5)!important;border:1.5px solid rgba(255,255,255,0.5)!important;}' +
+            '#wrap-' + uid + ' .srv-play-circle svg{width:12px;height:14px;}' +
           '}' +
         '</style>' +
         '<div id="wrap-' + uid + '" class="' + layoutClass + '">' + inner + '</div>';
