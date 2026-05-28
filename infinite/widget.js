@@ -55,6 +55,10 @@
   var logoUrl       = cfg.logoUrl           || "";
   var logoRing      = cfg.logoRing          || "#D30011";
   var containerId   = cfg.containerId       || "splshy-infinite";
+  // Optional centered heading block rendered above the carousel. Only
+  // shown in the row-4 layout (gated below once desktopStyle is final).
+  var centerHeading    = cfg.centerHeading    || "";
+  var centerSubheading = cfg.centerSubheading || "";
 
   // Splshy-native analytics (Phase 0). See single/widget.js for the
   // full design notes — same helper inlined here so each widget stays
@@ -545,6 +549,12 @@
     style.setAttribute("data-splshy-infinite", "1");
     style.textContent = [
       ".sif-widget{--sif-accent:#D30011;--sif-card-w:220px;--sif-card-h:390px;--sif-gap:30px;--sif-visible:3;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif;width:100%;user-select:none;padding:29px 0}",
+      // Centered heading block (row-4 only). Plain dark title + gray
+      // subheader, centered above the carousel.
+      ".sif-center-head{text-align:center;margin:0 auto 24px;max-width:760px;padding:0 16px;box-sizing:border-box}",
+      ".sif-center-title{font-size:30px;font-weight:700;line-height:1.15;letter-spacing:-0.01em;color:#15171a}",
+      ".sif-center-sub{font-size:16px;line-height:1.5;color:#5a6470;margin-top:8px}",
+      "@media(max-width:767px){.sif-center-title{font-size:23px}.sif-center-sub{font-size:14px}}",
       // A11y: keep the tap-highlight removal but stop forcibly removing the
       // focus outline — keyboard users need a visible focus ring. Universal
       // :focus-visible style is white-on-2px-offset (visible on dark cards);
@@ -811,8 +821,20 @@
   if (!container) { console.warn("Splshy Infinite: no element '" + containerId + "'"); return; }
   splObserveImpression(container);
 
+  // Centered heading block — only for row-4, and only when at least one
+  // of the two text fields is filled in. Escaped to neutralise any HTML
+  // in the config.
+  var headingHTML = "";
+  if (desktopStyle === "row-4" && (centerHeading || centerSubheading)) {
+    headingHTML = '<div class="sif-center-head">' +
+      (centerHeading    ? '<div class="sif-center-title">' + escapeHTML(centerHeading) + '</div>' : '') +
+      (centerSubheading ? '<div class="sif-center-sub">' + escapeHTML(centerSubheading) + '</div>' : '') +
+    '</div>';
+  }
+
   container.innerHTML =
     '<div class="sif-widget">' +
+      headingHTML +
       '<div class="sif-outer">' +
         '<button class="sif-arrow sif-arrow--left" aria-label="Previous reel" style="padding:0!important;">' +
           '<svg width="12" height="20" viewBox="0 0 12 20" fill="none" style="display:block;flex-shrink:0;"><polyline points="10,2 2,10 10,18" stroke="#111" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>' +
