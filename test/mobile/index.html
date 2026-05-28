@@ -11,8 +11,11 @@
     .label{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:#7a8696;margin-bottom:6px}
     h1{font-size:22px;margin:0 0 4px;color:#fff;font-weight:700;letter-spacing:-.01em}
     .sub{font-size:13px;color:#7a8696;margin-bottom:24px}
-    .frame{width:393px;height:852px;border-radius:36px;overflow:hidden;background:#000;box-shadow:0 24px 64px rgba(0,0,0,.5);border:1px solid #2d3a4d;position:relative}
-    .frame iframe{width:100%;height:100%;border:0;display:block}
+    /* All visual chrome lives on the <iframe> itself, mirroring how
+       the Studio's .preview-iframe.mobile is styled. Eliminates the
+       2px content-width drift from putting the border on a parent
+       wrapper. */
+    .frame iframe{width:393px;height:852px;border-radius:36px;background:#000;box-shadow:0 24px 64px rgba(0,0,0,.5);border:1px solid #2d3a4d;display:block;box-sizing:border-box}
     .controls{margin-top:24px;display:flex;gap:10px}
     .controls a{padding:10px 18px;border-radius:99px;font-size:13px;font-weight:600;text-decoration:none;background:#fff;color:#0f1f2c;transition:transform .12s}
     .controls a.alt{background:transparent;color:#aebbcc;border:1px solid #3a4a5f}
