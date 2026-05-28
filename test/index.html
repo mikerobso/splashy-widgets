@@ -416,23 +416,26 @@
         '<div id="' + uidB + '"></div></div>';
       var inner = (side === 'right') ? (reelBlock + textBlock) : (textBlock + reelBlock);
 
+      // Each reel widget fills half of the 50% video column via flex:1,
+      // with its card stretched to 100% of widget content + 9:16 aspect
+      // ratio. Mirrors buildSingleTwinEmbed in Studio.
       slotEl.innerHTML =
         '<style>' +
           '#wrap-' + uid + '.' + layoutClass + '{width:100%;box-sizing:border-box;display:flex;flex-direction:row;align-items:center;gap:40px;}' +
-          '#wrap-' + uid + ' > .' + textClass + '{flex:1;min-width:0;' + padDir + ':' + textPad + ';}' +
+          '#wrap-' + uid + ' > .' + textClass + '{flex:1 1 0;min-width:0;' + padDir + ':' + textPad + ';}' +
           '#wrap-' + uid + ' > .' + textClass + ' > :first-child{margin-top:0;}' +
           '#wrap-' + uid + ' > .' + textClass + ' > :last-child{margin-bottom:0;}' +
-          '#wrap-' + uid + ' > .' + floatClass + '{flex:1;min-width:0;display:flex;flex-direction:row;gap:8px;align-items:flex-start;justify-content:center;}' +
-          '#wrap-' + uid + ' > .' + floatClass + ' > div{flex:0 0 auto;}' +
-          '#wrap-' + uid + ' .srv-widget{padding:20px 16px 30px 16px;--srv-card-w:220px;--srv-card-h:391px;}' +
-          '@media(min-width:1024px) and (any-pointer:fine){#wrap-' + uid + ' .srv-widget{--srv-card-w:240px;--srv-card-h:427px;}}' +
+          '#wrap-' + uid + ' > .' + floatClass + '{flex:1 1 0;min-width:0;display:flex;flex-direction:row;gap:10px;align-items:flex-start;}' +
+          '#wrap-' + uid + ' > .' + floatClass + ' > div{flex:1 1 0;min-width:0;}' +
+          '#wrap-' + uid + ' .srv-widget{width:100%;padding:12px;--srv-card-w:100%;}' +
+          '#wrap-' + uid + ' .srv-card{width:100%!important;height:auto!important;aspect-ratio:9/16;}' +
           '@media(max-width:767px){' +
             '#wrap-' + uid + '.' + layoutClass + '{flex-direction:column;align-items:stretch;gap:0;padding-top:20px;}' +
             // Float keeps row layout on mobile — both reels side by side
             // above the text, mirroring the grid-6 compact layout.
-            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;flex-direction:row;gap:6px;justify-content:center;}' +
+            '#wrap-' + uid + ' > .' + floatClass + '{width:100%;order:1;gap:6px;}' +
             '#wrap-' + uid + ' > .' + textClass + '{padding:16px 20px 16px;width:100%;order:2;}' +
-            '#wrap-' + uid + ' .srv-widget{padding:8px;justify-content:center;--srv-card-w:42vw;--srv-card-h:calc(42vw*16/9);}' +
+            '#wrap-' + uid + ' .srv-widget{padding:8px;}' +
           '}' +
         '</style>' +
         '<div id="wrap-' + uid + '" class="' + layoutClass + '">' + inner + '</div>';
