@@ -436,12 +436,12 @@
     console.warn("Splshy Infinite: accordion-3 requires >= 3 reels; falling back to row.");
     desktopStyle = "row";
   }
-  // row-4's visible window extends one slot further right than row-3,
-  // so it needs n >= 5 reels for the band to keep that slot populated
-  // (row never doubles, unlike the accordion modes). Below 5, fall
-  // back to row-3 so the layout stays valid.
-  if (desktopStyle === "row-4" && realCount < 5){
-    console.warn("Splshy Infinite: row-4 requires >= 5 reels; falling back to row (3 visible).");
+  // row-4 shows 4 distinct cards in its visible window, so it needs >= 4
+  // reels. Doubling (below) repeats them up to the visibleCount+2 floor that
+  // fills the band; with realCount >= 4 the 4-wide window stays 4-distinct.
+  // Below 4, fall back to row-3 so the layout stays valid.
+  if (desktopStyle === "row-4" && realCount < 4){
+    console.warn("Splshy Infinite: row-4 requires >= 4 reels; falling back to row (3 visible).");
     desktopStyle = "row";
   }
   // Hover preview: when a card is hovered for 1.25s, it plays a muted 5s
@@ -474,22 +474,30 @@
   // wider visible window is handled in CSS + centreOffset, not the band.
   var V = (desktopStyle === "accordion-5") ? 5 : 3;
   // Row-mode visible card count (3 default, 4 for the row-4 variant).
-  // Drives the viewport-width CSS var and the active-slot position so
-  // 4 cards fit edge-to-edge with active at slot 1.
+  // Drives the viewport-width CSS var and the size of the visible window
+  // [centreSlot .. centreSlot+visibleCount-1], whose left edge holds the
+  // active card (see centreOffset).
   var visibleCount = (desktopStyle === "row-4") ? 4 : 3;
   // Band left offset = -((V+1)/2). V=3 -> -2, V=5 -> -3. The band is shifted
   // (V+1)/2 slots LEFT of symmetric so a card is always staged just off the
   // visible left edge — see the unified pattern in the plan doc.
   var bandLeftOffset = -(V + 1) / 2;
-  // Doubling: only accordion modes need n >= V+2 effective cards. Row mode
-  // never doubles (preserves the live behaviour at any reel count).
+  // Doubling: every mode needs enough effective cards to keep its visible
+  // window populated. Accordion floors at V+2; row floors at visibleCount+2
+  // (the active card anchors at the LEFT edge with 2 cards staged off-left,
+  // so the band needs visibleCount+2 cards before the rightmost visible slot
+  // is filled). Doubling repeats whole copies of `reels`; because each visible
+  // window is exactly visibleCount wide and realCount >= visibleCount for the
+  // gated modes, no distinct reel ever appears twice on screen at once.
+  // Dots/navigation key off realIdx % realCount, so the user-facing count is
+  // unaffected by the repeats.
   var effectiveReels;
   if (desktopStyle === "accordion-3"){
     effectiveReels = doubleReelsToFloor(reels, 5);    // V=3 floor = V+2 = 5
   } else if (desktopStyle === "accordion-5"){
     effectiveReels = doubleReelsToFloor(reels, 7);    // V=5 floor = V+2 = 7
   } else {
-    effectiveReels = reels.slice();                   // row — unchanged
+    effectiveReels = doubleReelsToFloor(reels, visibleCount + 2); // row: 5 (row-3) / 6 (row-4)
   }
   var n = effectiveReels.length;
 
@@ -585,8 +593,8 @@
       /* Desktop row-4: scaled-down cards + wider viewport so 4 cards
          fit fully. Card width ~75% of the 3-up size keeps total
          viewport in the same ballpark as 3-up (~1050px). Active card
-         sits at slot 1 (one card peeking on the left, two to the
-         right) via centreOffset's activeSlot formula. */
+         sits at slot 0 (left edge); reels read left-to-right across the
+         four visible slots — see centreOffset. */
       "@media(min-width:768px) and (any-pointer:fine){.sif-widget--row4:not(.sif-force-mobile){--sif-visible:4;--sif-card-w:min(240px,calc(48vh*9/16));--sif-card-h:min(427px,48vh);--sif-gap:30px}}",
       /* Poster */
       ".sif-poster{position:absolute;inset:0;border-radius:20px;overflow:hidden}",
@@ -1685,16 +1693,15 @@
   }
 
   // Pixel offset that places the active card's left edge inside the
-  // viewport. Active card sits at slot floor((visibleCount - 1) / 2):
-  //   3 visible -> slot 1 (centred between slot 0 and slot 2)
-  //   4 visible -> slot 1 (one card to the left, two to the right;
-  //                        all 4 fully visible, active left-of-centre)
-  // This generalises the old `(viewport - cardW) / 2` formula — for
-  // 3-up it returns exactly the same value (slot 1 = cardW + gap =
-  // (viewport - cardW) / 2 when viewport = 3*cardW + 2*gap).
+  // viewport. Desktop ROW modes anchor the active card at the LEFT edge
+  // (slot 0): reel 0 shows left, reel 1 middle, reel 2 right (and the
+  // 4th for row-4), which reads left-to-right in reel order. This is the
+  // only place that decides the active card's on-screen column — the band
+  // / recycle math below is independent of it. Accordion and mobile never
+  // reach here (setTrack returns early for them and centres the active
+  // card their own way).
   function centreOffset(){
-    var activeSlot = Math.floor((visibleCount - 1) / 2);
-    return activeSlot * getStep();
+    return 0;
   }
 
   var centreSlot = 1;   // slot currently centred (start so cards[0] is centre)
@@ -1775,11 +1782,21 @@
   })();
   function pickPreloadForCard(c){
     if (_preloadEnv.saveData || _preloadEnv.slow) return "none";
-    var dist = Math.abs(c.slot - centreSlot);
-    if (dist === 0) {
+    var rel = c.slot - centreSlot;
+    var isActive, isVisible;
+    if (isMobileLayout() || isAccordionDesktop()) {
+      // Centred layouts: the active card is in the middle, peeks on each side.
+      var dist = Math.abs(rel);
+      isActive  = (dist === 0);
+      isVisible = (dist === 1) || (V === 5 && dist === 2);
+    } else {
+      // Desktop row: active card is the LEFT of the window, peeks to its right.
+      isActive  = (rel === 0);
+      isVisible = (rel >= 1 && rel <= visibleCount - 1);
+    }
+    if (isActive) {
       return _preloadEnv.isMobile ? "metadata" : "auto";
     }
-    var isVisible = (dist === 1) || (V === 5 && dist === 2);
     if (isVisible) {
       return _preloadEnv.isMobile ? "none" : "metadata";
     }
@@ -2431,16 +2448,17 @@
     //    one of those slots reads as abandoned background audio — kill it
     //    on the slide.
     //  • Desktop ROW: a card may keep playing in a side slot; it is reset
-    //    only once it is fully off-screen (outside [centreSlot-1
-    //    .. centreSlot+1]). Side cards in row mode are full-brightness and
+    //    only once it is fully off-screen. The active card is the LEFT of
+    //    the visible window, so the on-screen slots are
+    //    [centreSlot .. centreSlot+visibleCount-1]; anything outside that
+    //    is off-screen. Side cards in row mode are full-brightness and
     //    equal-size, so background playback there is fine.
     var mobile    = isMobileLayout();
     var accordion = isAccordionDesktop();
-    var halfVis   = (V - 1) / 2;
     cards.forEach(function(c){
       var shouldStop = (mobile || accordion)
         ? (c.slot !== centreSlot)
-        : (Math.abs(c.slot - centreSlot) > halfVis);
+        : (c.slot < centreSlot || c.slot > centreSlot + visibleCount - 1);
       if (shouldStop && (!c.video.paused || c.video.style.display === "block")){
         resetCard(c);
       }
