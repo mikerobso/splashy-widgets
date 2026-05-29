@@ -370,6 +370,30 @@
     });
   }
 
+  // ── GA4 / host-page analytics (mirrors single/infinite/stories) ──
+  // Fires to whichever analytics the HOST page runs — gtag (GA4 direct)
+  // or dataLayer (Google Tag Manager). Independent of Splshy's own
+  // clientId pipeline above; no-ops on pages with neither, so it never
+  // errors. Grid only fires on deliberate user actions (open/complete),
+  // never on the always-on autoplay lanes, to avoid flooding GA.
+  function gaTrack(eventName, params) {
+    try {
+      var data = params || {};
+      data.widget_type     = "grid";
+      data.widget_instance = containerId;
+      if (typeof window.gtag === "function") {
+        window.gtag("event", eventName, data);
+      } else if (window.dataLayer && typeof window.dataLayer.push === "function") {
+        var payload = { event: eventName };
+        for (var k in data) { if (data.hasOwnProperty(k)) payload[k] = data[k]; }
+        window.dataLayer.push(payload);
+      }
+    } catch (e) { /* analytics must never break the widget */ }
+  }
+  function gaReelParams(reel) {
+    return { reel_label: (reel && reel.label) || "", video_url: (reel && reel.videoUrl) || "" };
+  }
+
   // ── Caption helpers (same shape as the other widgets) ──
   function splCapParseTime(ts) {
     if (!ts) return 0;
@@ -515,8 +539,9 @@
   }
   function safeUrl(u) {
     if (!u) return "";
-    if (/^javascript:/i.test(u)) return "";
-    return u;
+    var s = String(u).trim();
+    if (/^javascript:/i.test(s)) return "";
+    return s;
   }
   function fmtTime(t) {
     if (!isFinite(t) || t < 0) t = 0;
@@ -739,12 +764,12 @@
   var igHeaderHTML = "";
   if (showIgHeader) {
     var logoInnerHTML = logoUrl
-      ? '<img src="' + safeUrl(logoUrl) + '" alt="" />'
+      ? '<img src="' + escapeHTML(safeUrl(logoUrl)) + '" alt="" />'
       : '<span class="sgr-logo-fallback">S</span>';
     var logoMarkup = ringIsGradient
       ? '<div class="sgr-logo sgr-logo--grad"><div class="sgr-logo-inner">' + logoInnerHTML + '</div></div>'
       : '<div class="sgr-logo" style="border-color:' + escapeHTML(logoRing) + '">' + logoInnerHTML + '</div>';
-    var href = igUrl ? safeUrl(igUrl) : "https://www.instagram.com/";
+    var href = igUrl ? escapeHTML(safeUrl(igUrl)) : "https://www.instagram.com/";
     igHeaderHTML =
       '<div class="sgr-ig-header">' +
         '<a href="' + href + '" target="_blank" rel="noopener" aria-label="Visit on Instagram (opens in new tab)">' +
@@ -786,6 +811,8 @@
   var cardEls = container.querySelectorAll(".sgr-card");
 
   observeImpression(container);
+  // GA4: widget_impression — once per instance (host-page analytics).
+  gaTrack("widget_impression", {});
 
   // ── Per-card setup ─────────────────────────────────
   var cards = []; // { idx, el, video, reel, posterUrl, playedFor3s, watchStart }
@@ -1135,6 +1162,18 @@
     });
   });
 
+  // GA4: video_complete / video_error — only for the popped (deliberately
+  // watched) card, so the always-on autoplay lanes never flood analytics.
+  cards.forEach(function (c) {
+    if (!c.video) return;
+    c.video.addEventListener("ended", function () {
+      if (poppedCard === c) gaTrack("video_complete", gaReelParams(c.reel));
+    });
+    c.video.addEventListener("error", function () {
+      if (poppedCard === c) gaTrack("video_error", gaReelParams(c.reel));
+    });
+  });
+
   // ── Network-aware autoplay gate ───────────────────
   // Skip autoplay entirely on slow connections (effectiveType 2g/3g
   // or the user's data-saver pref). The grid still renders posters
@@ -1446,6 +1485,10 @@
       });
     }
     popPlay();
+    // GA4: a deliberate open = a play. Re-arm the 50%-progress event so
+    // each fresh open can fire video_progress once.
+    c._gaProgressFired = false;
+    gaTrack("video_play", gaReelParams(c.reel));
 
     document.body.style.overflow = "hidden";
     poppedCard = c;
@@ -1720,6 +1763,10 @@
         var fill = c.el.querySelector(".sgr-pop-prog-fill");
         if (fill) fill.style.width = pct + "%";
         if (prog) prog.setAttribute("aria-valuenow", Math.round(pct));
+        if (!c._gaProgressFired && pct >= 50) {
+          c._gaProgressFired = true;
+          gaTrack("video_progress", gaReelParams(c.reel));
+        }
       }
       refreshTimeText();
       capRenderForCard(c, false);
