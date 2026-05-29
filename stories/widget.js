@@ -49,6 +49,8 @@
   var containerId   = cfg.containerId   || "splshy-stories";
   var ringColor     = cfg.ringColor     || "instagram";   // default: IG gradient
   var logoRing      = cfg.logoRing      || "#D30011";     // player-chrome logo ring
+  var centerHeading    = cfg.centerHeading    || "";       // optional centered header above the circles
+  var centerSubheading = cfg.centerSubheading || "";       // optional centered subheader below it
   var GAP_MS        = 1000;                                // gap between videos
 
   // Splshy-native analytics (Phase 0). See single/widget.js for the
@@ -419,6 +421,11 @@
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
       ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
+      // Optional centered heading above the circles row (mirrors infinite/grid).
+      ".sst-center-head{text-align:center;margin:0 auto 24px;max-width:760px;padding:0 16px;box-sizing:border-box}",
+      ".sst-center-title{font-size:30px;font-weight:700;line-height:1.15;letter-spacing:-0.01em;color:#15171a;margin:0}",
+      ".sst-center-sub{font-size:16px;line-height:1.5;color:#5a6470;margin:8px 0 0}",
+      "@media(max-width:767px){.sst-center-title{font-size:23px}.sst-center-sub{font-size:14px}}",
 
       // Overlay — a flex row: [left arrow] [stage] [right arrow]
       ".sst-overlay{position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;gap:18px;opacity:0;transition:opacity .2s;font-family:'Avenir','Avenir Next','Helvetica Neue',sans-serif}",
@@ -542,6 +549,23 @@
   // ── Build the circles row ───────────────────────────
   var widget = document.createElement("div");
   widget.className = "sst-widget";
+  if (centerHeading || centerSubheading){
+    var headEl = document.createElement("div");
+    headEl.className = "sst-center-head";
+    if (centerHeading){
+      var headTitle = document.createElement("h2");
+      headTitle.className = "sst-center-title";
+      headTitle.textContent = centerHeading;
+      headEl.appendChild(headTitle);
+    }
+    if (centerSubheading){
+      var headSub = document.createElement("p");
+      headSub.className = "sst-center-sub";
+      headSub.textContent = centerSubheading;
+      headEl.appendChild(headSub);
+    }
+    widget.appendChild(headEl);
+  }
   var row = document.createElement("div");
   // a11y: expose the row as a list of stories so screen readers announce
   // "list of N stories" and offer list-item navigation.
