@@ -667,6 +667,10 @@
     if (!_playFired){ _playFired = true; track("video_play", reelParams()); }
     splArmPlay();
     splWatchStartClock();
+    // Only one single-reel video plays at a time on a page (e.g. the 50/50
+    // twin layout). A muted hover preview (previewState "previewing") never
+    // interrupts another reel — only genuine playback does.
+    if (previewState === "playing") splPauseOtherPlayers();
   });
   video.addEventListener("pause", function(){
     splDisarmPlay();
@@ -934,6 +938,25 @@
     }
   });
   card.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+
+  // ── One-at-a-time playback across instances ─────────
+  // Each single-reel instance registers itself in a shared page-level list.
+  // When one enters real playback it pauses every other registered instance,
+  // so two reels (e.g. the 50/50 twin layout) can't play together.
+  var _splPlayers = (window.__SPLSHY_SINGLE_PLAYERS = window.__SPLSHY_SINGLE_PLAYERS || []);
+  function splPauseOtherPlayers(){
+    for (var i = 0; i < _splPlayers.length; i++){
+      if (_splPlayers[i].video !== video) _splPlayers[i].pause();
+    }
+  }
+  function splExternalPause(){
+    // Stop genuine playback only — leave a muted hover preview alone.
+    if (previewState === "playing" && !video.paused){
+      video.pause();
+      pauseInd.classList.add("visible");
+    }
+  }
+  _splPlayers.push({ video: video, pause: splExternalPause });
 
   // Mute
   function syncMute() {
