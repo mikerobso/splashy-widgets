@@ -417,7 +417,13 @@
       ".sst-item.sst-shimmer .sst-ring::before{opacity:1;transform:rotate(396deg);transition:transform .9s ease-in-out,opacity .12s ease}",
       // Enlarged size holds for as long as the cursor is on the circle.
       "@media(hover:hover){.sst-item:hover .sst-ring{transform:scale(1.06)}}",
-      ".sst-ring-inner{position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
+      // box-sizing:border-box is REQUIRED here, not inherited: this is width:100%
+      // + a 4px border, so under a host page's default content-box it'd compute to
+      // 100%+8px and overflow the ring's padding — swallowing the white gap and
+      // collapsing the gradient band to a thin, misshapen line. Most host sites
+      // have a global *{box-sizing:border-box} that masked this; the bare preview
+      // iframe doesn't, which is where the broken ring showed up.
+      ".sst-ring-inner{box-sizing:border-box;position:relative;z-index:2;width:100%;height:100%;border-radius:50%;border:4px solid #fff;overflow:hidden;background:#1a1a1a}",
       ".sst-ring-inner img{width:100%;height:100%;object-fit:cover;display:block}",
       ".sst-label{font-size:15px;font-weight:600;color:#222;text-align:center;line-height:1.25;max-width:168px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}",
       "@media(max-width:767px){.sst-row{justify-content:flex-start}}",
