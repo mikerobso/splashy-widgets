@@ -2079,6 +2079,10 @@
 
   function updateUI(){
     current = centreReel();
+    // Surface the centred reel so the builder preview can restore scroll
+    // position across its srcdoc reloads (see cfg.startReel). No-op for real
+    // embeds beyond a harmless data attribute.
+    if (container) container.setAttribute("data-sif-current", current);
     // Desktop row mode: sync each card's scale transition to the slide.
     // Mobile is handled entirely by applyMobileLayout. Accordion mode is
     // handled by applyAccordionLayout, which owns its own per-card
@@ -2350,13 +2354,22 @@
   // doc's V=5 derivation traces for n=7 and n=10.
   (function initEngine(){
     centreSlot = 0;
-    // Number of negative slots to fill = -bandLeftOffset = (V+1)/2.
-    // V=3 -> 2 (the last 2 reels wrap to slots -2, -1).
-    // V=5 -> 3 (the last 3 reels wrap to slots -3, -2, -1).
-    var negSlots = -bandLeftOffset;
-    for (var i=0;i<n;i++){
-      if (i <= n - 1 - negSlots) cards[i].slot = i;        // 0 .. n-1-negSlots
-      else                       cards[i].slot = i - n;    // -negSlots .. -1
+    // Optional starting reel. The builder preview passes cfg.startReel so a
+    // re-render (srcdoc reload on every edit) reopens on the reel the user was
+    // viewing instead of snapping back to reel 0. Default 0 = reel 0 centred,
+    // byte-for-byte identical to every real embed (the rotation below collapses
+    // to the original cards[i] -> slot i assignment when startReel is 0).
+    var startReel = 0;
+    if (typeof cfg.startReel === "number" && isFinite(cfg.startReel) && realCount > 0){
+      startReel = (((Math.floor(cfg.startReel) % realCount) + realCount) % realCount);
+    }
+    // Rotate which reel sits in each band slot so `startReel` is the centre.
+    // The band is the n contiguous slots [bandLeftOffset .. bandLeftOffset+n-1]
+    // (the last (V+1)/2 reels wrap into the negative slots so scrolling left
+    // loops cleanly); we just choose which reel lands on slot 0.
+    for (var s = bandLeftOffset; s <= bandLeftOffset + n - 1; s++){
+      var ci = ((((startReel + s) % n) + n) % n);
+      cards[ci].slot = s;
     }
     placeAll();
     setTrack(false);
